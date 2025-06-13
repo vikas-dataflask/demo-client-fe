@@ -51,7 +51,7 @@ const DrawingFileSideBar = () => {
   };
 
   return (
-    <div className="w-[340px] h-[92vh] border-r border-gray-300 overflow-y-auto bg-white p-4 text-sm font-medium text-gray-800">
+    <div className="w-[340px] h-[90vh] border-r border-gray-300 overflow-y-auto bg-white p-4 text-sm font-medium text-gray-800">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
