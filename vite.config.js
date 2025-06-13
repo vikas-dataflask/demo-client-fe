@@ -12,6 +12,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""), // removes /api from request path
       },
+      "/backoffice-api": {
+        target: "http://localhost:8080/api/admin/", // another backend or microservice
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/backoffice-api/, ""),
+      },
     },
   },
 });

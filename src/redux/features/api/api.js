@@ -1,41 +1,4 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { data } from "react-router-dom";
-
-// export const apiSlice = createApi({
-//   reducerPath: "api",
-//   baseQuery: fetchBaseQuery({ baseUrl: "/api" }),
-//   tagTypes: ["User"],
-//   endpoints: (builder) => ({
-// signup: builder.mutation({
-//   query: (newUser) => ({
-//     url: "auth/signup",
-//     method: "POST",
-//     body: newUser,
-//   }),
-//   invalidatesTags: ["User"],
-// }),
-
-// login: builder.mutation({
-//   query: (User) => ({
-//     url: `auth/login`,
-//     method: "POST",
-//     body: User,
-//   }),
-//   invalidatesTags: ["User"],
-// }),
-
-//     addProject: builder.mutation({
-//       query: (data) => ({
-//         url: `api/project`,
-//         method: "POST",
-//         body: data.body,
-//       }),
-//       invalidatesTags: ["Project"],
-//     }),
-//   }),
-// });
-
-// src/features/api/apiSlice.js or wherever you define your API
 
 export const apiSlice = createApi({
   reducerPath: "api",
