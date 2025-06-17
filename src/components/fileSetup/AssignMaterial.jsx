@@ -20,7 +20,7 @@ const AssignMaterial = () => {
   };
 
   return (
-    <div className="w-[340px] h-[92vh] border border-gray-300 p-4 bg-white">
+    <div className="w-[340px] h-[90vh] border-r border-gray-300 p-4 bg-white">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-normal text-black">Assign Material</h2>

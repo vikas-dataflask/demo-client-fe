@@ -6,6 +6,7 @@ import {
   resetFloorPlan,
   resetArea,
 } from "../../redux/features/app/FloorPlanSlice";
+import { clearRoomLights } from "../../redux/features/app/lightingSlice";
 
 import DraftSideBar from "./DraftSideBar";
 import AddProjectModal from "./AddProjectModal";
@@ -35,6 +36,7 @@ const DesignCalculation = () => {
   dispatch(resetRooms()); // this will clear all room data
   dispatch(resetFloorPlan());
   dispatch(resetArea());
+  dispatch(clearRoomLights());
 
   useEffect(() => {
     localStorage.removeItem("floorPlan");

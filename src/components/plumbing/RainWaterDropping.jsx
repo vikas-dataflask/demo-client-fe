@@ -50,8 +50,8 @@ const RainWaterDropping = ({ setData }) => {
   };
 
   return (
-    <div className="flex h-screen">
-      <div className="w-[340px] h-[92vh] flex flex-col bg-white border border-[#E5E7EB] overflow-hidden relative">
+    <div className="flex ">
+      <div className="w-[340px] h-[90vh] flex flex-col bg-white border-r border-[#E5E7EB] overflow-hidden relative">
         {/* Header */}
         <div className="flex justify-between items-start px-4 pt-3 pb-2 border-b border-[#E5E7EB]">
           <div>
@@ -105,7 +105,7 @@ const RainWaterDropping = ({ setData }) => {
         </div>
       </div>
       {/* Right: Floor Preview */}
-      <div className="flex-1 h-full">
+      <div className="flex-1 h-[90vh]">
         <FloorPreview />
       </div>
     </div>

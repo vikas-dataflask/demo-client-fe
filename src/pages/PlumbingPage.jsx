@@ -59,7 +59,7 @@ export default function PlumbingPage() {
             setData(undefined); // Clear modal data on section change
           }}
         />
-        <div className="flex h-screen overflow-y-auto">{renderContent()}</div>
+        <div className="flex ">{renderContent()}</div>
         {data && (
           <RightModal>
             {activeSection === "water-demand" && (

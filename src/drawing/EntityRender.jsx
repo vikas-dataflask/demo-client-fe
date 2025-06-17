@@ -39,6 +39,8 @@ const EntityRenderer = ({ entities = [], blocks = {}, layers = {} }) => {
     localStorage.setItem("layers", JSON.stringify(layers));
   }, [entities, blocks, layers]);
 
+  console.log(entities);
+
   const getAllPoints = () => {
     const points = [];
 
