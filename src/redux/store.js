@@ -21,6 +21,7 @@ import roomReducer from "./features/app/roomSlice";
 import dialuxReducer from "./features/app/dialuxSlice";
 import lightingReducer from "./features/app/lightingSlice";
 import powerReducer from "./features/app/powerSlice";
+import { backofficeApi } from "./features/api/backofficeApi";
 
 const userFromStorage = JSON.parse(localStorage.getItem("user"));
 
