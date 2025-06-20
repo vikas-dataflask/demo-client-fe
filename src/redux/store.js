@@ -21,6 +21,7 @@ import dxfReducer from "./features/app/dxfSlice";
 import roomReducer from "./features/app/roomSlice";
 import dialuxReducer from "./features/app/dialuxSlice";
 import lightingReducer from "./features/app/lightingSlice";
+import powerReducer from "./features/app/powerSlice";
 
 const userFromStorage = JSON.parse(localStorage.getItem("user"));
 
@@ -39,6 +40,7 @@ const rootReducer = combineReducers({
   rooms: roomReducer,
   dialux: dialuxReducer,
   lighting: lightingReducer,
+  power: powerReducer,
 
   [apiSlice.reducerPath]: apiSlice.reducer,
   [adminDataApiSlice.reducerPath]: adminDataApiSlice.reducer,

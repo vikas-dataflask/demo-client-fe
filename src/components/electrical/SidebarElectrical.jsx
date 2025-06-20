@@ -7,6 +7,7 @@ import CableSizeIcon from "../../icons/CableSizeIcon";
 function SidebarElectrical({ activeSection, setActiveSection }) {
   const sidebarItems = [
     { icon: <DialuxIcon />, id: "dialux" },
+    { icon: <DialuxIcon />, id: "power" },
     { icon: <DbDetailsIcon />, id: "db-details" },
     { icon: <BreakerSizingIcon />, id: "breaker-sizing" },
     { icon: <CableSizeIcon />, id: "cable-size" },
