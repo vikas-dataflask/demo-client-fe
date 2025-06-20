@@ -20,7 +20,7 @@ function SidebarPlumbing({ activeSection, setActiveSection }) {
   ];
 
   return (
-    <div className="w-[64px] bg-white border-r border-[#E5E7EB] flex flex-col justify-between py-4">
+    <div className="w-[64px] h-[90vh] bg-white border-r border-[#E5E7EB] flex flex-col justify-between py-4">
       <div className="flex flex-col items-center gap-6 mt-2">
         {sidebarItems.map((item, index) => (
           <div

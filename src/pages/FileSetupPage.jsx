@@ -31,7 +31,7 @@ export default function FileSetupPage() {
   };
 
   return (
-    <div className="bg-[#f8f9fb] h-screen flex flex-col">
+    <div className="bg-[#f8f9fb]  flex flex-col">
       <Layout>
         <div className="flex overflow-hidden">
           <SidebarFilesetup

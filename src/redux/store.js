@@ -18,6 +18,9 @@ import floorPlanReducer from "./features/app/FloorPlanSlice";
 import areaMarkupReducer from "./features/app/areaMarkupSlice";
 import dxfReducer from "./features/app/dxfSlice";
 import roomReducer from "./features/app/roomSlice";
+import dialuxReducer from "./features/app/dialuxSlice";
+import lightingReducer from "./features/app/lightingSlice";
+import powerReducer from "./features/app/powerSlice";
 import { backofficeApi } from "./features/api/backofficeApi";
 
 const userFromStorage = JSON.parse(localStorage.getItem("user"));
@@ -25,7 +28,7 @@ const userFromStorage = JSON.parse(localStorage.getItem("user"));
 const persistConfig = {
   key: "root",
   storage,
-  whitelist: ["rooms", "floorPlan", "project"], // this must match the key in combineReducers
+  whitelist: ["rooms", "floorPlan", "project", "dailux", "lighting"], // this must match the key in combineReducers
 };
 
 const rootReducer = combineReducers({
@@ -34,7 +37,11 @@ const rootReducer = combineReducers({
   floorPlan: floorPlanReducer,
   areaMarkup: areaMarkupReducer,
   dxf: dxfReducer,
-  rooms: roomReducer, // this key must match the whitelist
+  rooms: roomReducer,
+  dialux: dialuxReducer,
+  lighting: lightingReducer,
+  power: powerReducer,
+
   [apiSlice.reducerPath]: apiSlice.reducer,
   [backofficeApi.reducerPath]: backofficeApi.reducer,
 });

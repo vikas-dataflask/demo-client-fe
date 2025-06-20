@@ -68,6 +68,15 @@ const roomsSlice = createSlice({
       }
     },
 
+    // redux/features/app/roomSlice.js
+    updateRoomArea(state, action) {
+      const { id, area } = action.payload;
+      const room = state.find((r) => r.id === id);
+      if (room) {
+        room.area = area;
+      }
+    },
+
     // 4th reducer: Reset all rooms
     resetRooms: () => {
       return [];
@@ -75,7 +84,12 @@ const roomsSlice = createSlice({
   },
 });
 
-export const { addRoom, updateRoomName, updateRoomPosition, resetRooms } =
-  roomsSlice.actions;
+export const {
+  addRoom,
+  updateRoomName,
+  updateRoomPosition,
+  updateRoomArea,
+  resetRooms,
+} = roomsSlice.actions;
 
 export default roomsSlice.reducer;

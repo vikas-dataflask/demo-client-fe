@@ -8,6 +8,7 @@ import Layout from "../components/ProjectLayout";
 import DbDetailForm from "../components/electrical/DbDetailForm";
 import BreakerSizingForm from "../components/electrical/BreakerSizingForm";
 import CableSizingForm from "../components/electrical/CableSizingForm";
+import PowerForm from "../components/electrical/PowerForm";
 
 export default function ElectricalPage() {
   const [activeSection, setActiveSection] = useState("dialux"); // Default
@@ -16,6 +17,8 @@ export default function ElectricalPage() {
     switch (activeSection) {
       case "dialux":
         return <Dialux />;
+      case "power":
+        return <PowerForm />;
       case "db-details":
         return <DbDetailForm />;
       case "breaker-sizing":

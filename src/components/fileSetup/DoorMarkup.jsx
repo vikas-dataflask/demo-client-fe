@@ -32,7 +32,7 @@ const DoorMarkup = () => {
   ];
 
   return (
-    <div className="w-[340px] h-[92vh] border-r border-gray-300 bg-white  p-4  text-sm font-medium ">
+    <div className="w-[340px] h-[90vh] border-r border-gray-300 bg-white  p-4  text-sm font-medium ">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
