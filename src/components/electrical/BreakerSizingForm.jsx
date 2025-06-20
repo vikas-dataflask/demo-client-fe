@@ -138,49 +138,46 @@ const BreakerSizingForm = () => {
   const [switchGearCurrent, setSwitchGearCurrent] = useState();
   const [breakerSelection, setBreakerSelection] = useState();
 
-  // const calculateMdLoad = () => {
-  //   const mdF = parseFloat(mdFactor);
-  //   const cl = parseFloat(connectedLoad);
-  //   const pf = parseFloat(powerFactor);
-
-  //   if (!isNaN(mdF) && !isNaN(cl) && !isNaN(pf) && pf !== 0) {
-  //     const mdL = (mdF * cl) / pf;
-  //     setMdLoad(mdL.toFixed(2));
-  //     return mdL;
-  //   }
-
-  //   return null;
-  // };
-
-  // const calculateKvar = () => {
-  //   // const pf = parseFloat(powerFactor);
-  //   const pf = 0.4;
-  //   const mdL = 3;
-  //   if (!isNaN(pf) && !isNaN(mdL)) {
-  //     console.log("-------------------", pf, mdL);
-  //     const kvarVal = Math.sqrt(1 - pf * pf) * mdL;
-  //     console.log(kvarVal);
-  //     setKvar(kvarVal.toFixed(2));
-  //     // console.log(kvarVal);
-  //   }
-  // };
-
   const handleCal = () => {
     const mdF = parseFloat(mdFactor);
     const cl = parseFloat(connectedLoad);
     const pf = parseFloat(powerFactor);
-    // const pf = 0.4;
+    const voltage = parseFloat(systemVoltage);
     let mdL;
 
     if (!isNaN(mdF) && !isNaN(cl) && !isNaN(pf) && pf !== 0) {
       mdL = (mdF * cl) / pf;
       setMdLoad(mdL.toFixed(2));
-      // return mdL;
     }
     if (!isNaN(pf) && !isNaN(mdL)) {
       const kvarVal = Math.sqrt(1 - pf * pf) * mdL;
       setKvar(kvarVal.toFixed(2));
-      // console.log(kvarVal);
+    }
+    if (!isNaN(voltage) && !isNaN(mdL)) {
+      let flc;
+      if (voltage === 415) {
+        flc = (mdL * 1000) / (415 * Math.sqrt(3));
+      } else {
+        flc = (mdL * 1000) / 240;
+      }
+      setFullLoadCurrent(flc.toFixed(2));
+    }
+  };
+
+  const handleCal2 = () => {
+    const SpCap = parseFloat(spareDesign);
+    console.log(SpCap);
+    const flc = parseFloat(fullLoadCurrent);
+    console.log(flc);
+    let Sgc;
+
+    if (!isNaN(SpCap) && !isNaN(flc)) {
+      if (SpCap === 1) {
+        Sgc = 1.2 * flc;
+      } else {
+        Sgc = flc;
+      }
+      setSwitchGearCurrent(Sgc.toFixed(2));
     }
   };
 
@@ -505,6 +502,7 @@ const BreakerSizingForm = () => {
                 type="text"
                 value={spareDesign}
                 onChange={(e) => setSpareDesign(e.target.value)}
+                onBlur={handleCal2}
                 className="w-[75%] rounded-md px-3 py-2 text-[13px] bg-gray-200 border border-gray-200 focus:outline-none focus:border-[#0083EE]"
                 placeholder="Enter value"
               />
