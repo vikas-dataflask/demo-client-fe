@@ -1,0 +1,437 @@
+
+// import React, { useState, useEffect, useMemo, useCallback } from "react";
+// import { useParams } from "react-router-dom";
+// import TopBarEQ from "./TopBarEQ";
+// import {
+//   useGetQEListByIdQuery,
+//   useUpdateQEMutation,
+// } from "../../redux/features/api/api"; // Import the new hook
+// import SidebarEQ from "./SidebarEQ";
+// import attributeMapping from "./attributeMapping";
+
+// // Service → bases mapping
+// const serviceLayers = {
+//   HVAC: ["CEILING SUSPENDED UNIT", "SPLIT UNIT", "CASSETTE UNIT", "OUTDOOR"],
+//   ELECTRICAL: ["DISTRIBUTION BOARDS", "LED BATTEN", "LED BULKHEAD"],
+//   "FIRE FIGHTING": [
+//     "HYDRANT MAIN FIRE PUMP",
+//     "JOCKEY PUMP",
+//     "PORTABLE FIRE EXTINGUISHERS",
+//   ],
+//   PLUMBING: ["BUTTERFLY VALVE", "NON RETURN VALVE"],
+// };
+// // Build list of options: “All” + each service
+// const serviceKeys = ["All", ...Object.keys(serviceLayers)];
+// // Flatten for “All”
+// const allBases = Array.from(new Set(Object.values(serviceLayers).flat()));
+
+// // Color map for table headers
+// const colorMap = {
+//   "CEILING SUSPENDED UNIT": "bg-[#FCE7CE]",
+//   "SPLIT UNIT": "bg-[#D9EDF8]",
+//   "CASSETTE UNIT": "bg-[#D9EDF8]",
+//   OUTDOOR: "bg-[#F4DAEB]",
+//   "DISTRIBUTION BOARDS": "bg-[#D9EDF8]",
+//   "LED BATTEN": "bg-[#FCE7CE]",
+//   "LED BULKHEAD": "bg-[#F4DAEB]",
+//   "HYDRANT MAIN FIRE PUMP": "bg-[#D9EDF8]",
+//   "JOCKEY PUMP": "bg-[#FCE7CE]",
+//   "PORTABLE FIRE EXTINGUISHERS": "bg-[#F4DAEB]",
+//   "BUTTERFLY VALVE": "bg-[#D9EDF8]",
+//   "NON RETURN VALVE": "bg-[#FCE7CE]",
+// };
+
+// export default function QuantityExtraction() {
+//   const { projectId } = useParams();
+//   // Renamed data to qeProjectData for clarity to avoid conflict with `data` in mutation
+//   const {
+//     data: qeProjectData,
+//     error,
+//     isLoading,
+//     refetch,
+//   } = useGetQEListByIdQuery(projectId);
+
+//   const [editableRawData, setEditableRawData] = useState([]);
+//   const [selectedService, setSelectedService] = useState("HVAC");
+//   const [activeLayer, setActiveLayer] = useState(null); // Stores the original layer name
+//   const [activeLayerData, setActiveLayerData] = useState(null); // Stores the editable data for the active layer
+
+//   // NEW: Initialize the mutation hook
+//   const [
+//     saveProjectQuantities,
+//     {
+//       isLoading: isSaving,
+//       isSuccess: saveSuccess,
+//       isError: saveError,
+//       error: saveErrorData,
+//     },
+//   ] = useUpdateQEMutation();
+
+//   // Memoize the layerDataMap for efficient lookups
+//   const layerDataMapRef = React.useRef(new Map());
+
+//   // Function to parse value from layer name (e.g., wattage, length, airflow)
+//   const parseValueFromLayerName = (layerName, attributeName) => {
+//     let match;
+//     switch (attributeName) {
+//       case "wattage":
+//         match = layerName.match(/(\d+)\s*W/i);
+//         return match ? parseFloat(match[1]) : null;
+//       case "length":
+//         match = layerName.match(/(\d+(?:\.\d+)?)\s*M/i);
+//         return match ? parseFloat(match[1]) : null;
+//       case "airflow":
+//         match = layerName.match(/(\d+)\s*CFM/i);
+//         return match ? parseFloat(match[1]) : null;
+//       // Add other attribute parsing logic here
+//       default:
+//         return null;
+//     }
+//   };
+
+//   // Helper to get base name from full layer name
+//   const getBaseNameFromLayer = useCallback((fullLayerName, currentService) => {
+//     if (!fullLayerName) return null;
+
+//     const basesToCheck =
+//       currentService === "All" ? allBases : serviceLayers[currentService] || [];
+
+//     for (const base of basesToCheck) {
+//       if (fullLayerName.includes(base)) {
+//         return base;
+//       }
+//     }
+//     return null;
+//   }, []);
+
+//   // Helper to get attributes for a layer based on its base
+//   const getAttributesForLayer = useCallback((layerName, base) => {
+//     if (!base) return {};
+
+//     let attributes = { layerName: layerName }; // Always include layerName
+
+//     // Find the attribute mapping for the given base
+//     for (const service of Object.values(attributeMapping)) {
+//       const headingMap = service.find((item) => item.heading === base);
+//       if (headingMap) {
+//         // Initialize attributes with default values/units from mapping
+//         for (const attrKey in headingMap.attributes) {
+//           if (attrKey !== "layerName") {
+//             // layerName is already added
+//             const parsedVal = parseValueFromLayerName(layerName, attrKey);
+//             if (parsedVal !== null) {
+//               attributes[attrKey] = parsedVal;
+//             } else {
+//               // Default to empty string or 0 if not found in layer name and no default
+//               attributes[attrKey] = "";
+//             }
+//           }
+//         }
+//         break; // Found the mapping, no need to check other services
+//       }
+//     }
+//     return attributes;
+//   }, []);
+
+//   // Function to map initial raw data from backend to editable format
+//   // This needs to handle both initial dxf_entities and already saved extracted_quantities_data
+//   const parseAndMapInitialData = useCallback(
+//     (backendData) => {
+//       if (!backendData) return [];
+
+//       // If backendData is already an array of `extracted_quantities_data` (saved data)
+//       if (Array.isArray(backendData)) {
+//         return backendData.map((item) => ({
+//           ...item,
+//           // Ensure attributes object is present, and other fields default if missing
+//           attributes: item.attributes || {},
+//           description: item.description || "",
+//           remark: item.remark || "",
+//           // Add any other default fields if your schema allows
+//         }));
+//       }
+
+//       // If backendData is `grouped_layers` from initial DXF processing (object of arrays)
+//       // Flatten the grouped_layers into a single array for `editableRawData`
+//       const flatLayers = Object.values(backendData).flat();
+
+//       return flatLayers.map((item) => {
+//         const base = getBaseNameFromLayer(item.layer, "All");
+//         const attributes = getAttributesForLayer(item.layer, base);
+
+//         // Include original qty and layer name
+//         return {
+//           layer: item.layer,
+//           qty: item.qty, // Original quantity from DXF
+//           base: base,
+//           description: "", // Default description
+//           remark: "", // Default remark
+//           attributes: { ...attributes, quantity: item.qty || "" }, // Populate quantity attribute with DXF qty
+//           entities: item.entities || [], // Keep reference to original entities if needed
+//         };
+//       });
+//     },
+//     [getBaseNameFromLayer, getAttributesForLayer]
+//   );
+
+//   // useEffect for initial data loading and populating editableRawData
+//   useEffect(() => {
+//     if (qeProjectData) {
+//       let dataToInitialize = [];
+
+//       // Prioritize loading from `extracted_quantities_data` if it exists and has content
+//       if (
+//         qeProjectData.extracted_quantities_data &&
+//         qeProjectData.extracted_quantities_data.length > 0
+//       ) {
+//         dataToInitialize = parseAndMapInitialData(
+//           qeProjectData.extracted_quantities_data
+//         );
+//       } else if (qeProjectData.grouped_layers) {
+//         // Fallback to `grouped_layers` if `extracted_quantities_data` is empty or not present
+//         dataToInitialize = parseAndMapInitialData(qeProjectData.grouped_layers);
+//       }
+
+//       setEditableRawData(dataToInitialize);
+
+//       // Initialize/update the map for efficient lookups
+//       const initialMap = new Map();
+//       dataToInitialize.forEach((item) => {
+//         initialMap.set(item.layer, item);
+//       });
+//       layerDataMapRef.current = initialMap;
+
+//       // Reset activeLayerData if the project data changes
+//       setActiveLayer(null);
+//       setActiveLayerData(null);
+//     }
+//   }, [qeProjectData, parseAndMapInitialData]); // Add parseAndMapInitialData to dependencies
+
+//   // Effect to update activeLayerData when activeLayer changes
+//   useEffect(() => {
+//     if (activeLayer && layerDataMapRef.current.has(activeLayer)) {
+//       setActiveLayerData(layerDataMapRef.current.get(activeLayer));
+//     } else {
+//       setActiveLayerData(null);
+//     }
+//   }, [activeLayer]);
+
+//   const handleUpdateLayerAttributes = useCallback(
+//     (oldLayerName, updatedData) => {
+//       setEditableRawData((prevData) => {
+//         const newData = prevData.map((item) => {
+//           if (item.layer === oldLayerName) {
+//             const newLayerName =
+//               updatedData.attributes?.layerName || item.layer;
+//             const updatedItem = {
+//               ...item,
+//               description: updatedData.description,
+//               remark: updatedData.remark,
+//               attributes: {
+//                 ...item.attributes,
+//                 ...updatedData.attributes,
+//               },
+//               layer: newLayerName, // Update the layer name if it changed
+//             };
+
+//             // Update the ref map
+//             if (oldLayerName !== newLayerName) {
+//               layerDataMapRef.current.delete(oldLayerName);
+//               layerDataMapRef.current.set(newLayerName, updatedItem);
+//             } else {
+//               layerDataMapRef.current.set(newLayerName, updatedItem);
+//             }
+
+//             return updatedItem;
+//           }
+//           return item;
+//         });
+
+//         // After updating editableRawData, re-set activeLayerData if the active layer was updated
+//         if (activeLayer === oldLayerName) {
+//           const newActiveLayer =
+//             updatedData.attributes?.layerName || oldLayerName;
+//           const updatedActiveItem = newData.find(
+//             (item) => item.layer === newActiveLayer
+//           );
+//           setActiveLayer(newActiveLayer); // Update the active layer name if it changed
+//           setActiveLayerData(updatedActiveItem);
+//         }
+
+//         return newData;
+//       });
+//     },
+//     [activeLayer]
+//   );
+
+//   // NEW: Function to handle saving the entire project
+//   const handleSaveProject = async () => {
+//     try {
+//       if (!projectId) {
+//         alert("Project ID is missing. Cannot save.");
+//         return;
+//       }
+
+//       // Prepare data for saving. Ensure it matches your Mongoose sub-schema.
+//       // Remove any temporary client-side only fields like `entities` if they exist.
+//       const dataToSave = editableRawData.map(({ entities, ...rest }) => ({
+//         ...rest,
+//         // Ensure attributes object is consistently present, even if empty
+//         attributes: rest.attributes || {},
+//       }));
+
+//       // Call the RTK Query mutation
+//       await saveProjectQuantities({ projectId, data: dataToSave }).unwrap();
+//       alert("Project saved successfully!");
+//       refetch(); // Refetch data to ensure UI is in sync with saved data
+//     } catch (err) {
+//       console.error("Failed to save project:", err);
+//       // More user-friendly error message
+//       alert(
+//         `Failed to save project: ${
+//           err.data?.message || err.error || "Unknown error occurred"
+//         }`
+//       );
+//     }
+//   };
+
+//   // Helper to build table sections dynamically
+//   const buildTableSections = useMemo(() => {
+//     const sections = {};
+//     editableRawData.forEach((item) => {
+//       if (item.base) {
+//         if (!sections[item.base]) {
+//           sections[item.base] = [];
+//         }
+//         sections[item.base].push(item);
+//       }
+//     });
+//     return sections;
+//   }, [editableRawData]);
+
+//   if (isLoading) return <div>Loading project data...</div>;
+//   if (error) return <div>Error loading project: {error.message}</div>;
+
+//   return (
+//     <div className="flex flex-col h-screen overflow-hidden">
+//       <TopBarEQ onSaveProject={handleSaveProject} />{" "}
+//       {/* Pass the new handler */}
+//       <div className="flex flex-1 overflow-hidden">
+//         {/* Sidebar */}
+//         <SidebarEQ
+//           entities={editableRawData}
+//           selectedService={selectedService}
+//           setSelectedService={setSelectedService}
+//           activeLayer={activeLayer}
+//           setActiveLayer={setActiveLayer}
+//           activeLayerData={activeLayerData}
+//           onUpdateLayerAttributes={handleUpdateLayerAttributes}
+//         />
+
+//         {/* Main Content Area */}
+//         <div className="flex-1 flex flex-col overflow-hidden">
+//           {/* Main Content - Scrollable */}
+//           <div className="flex-1 overflow-y-auto p-6 bg-[#F9FAFB]">
+//             <div className="bg-white p-6 rounded-lg shadow min-h-full">
+//               <h2 className="text-xl font-semibold mb-4 text-[#101828]">
+//                 Quantity Details
+//               </h2>
+//               <div className="overflow-x-auto">
+//                 {Object.keys(buildTableSections).length === 0 ? (
+//                   <p className="text-gray-500">
+//                     No quantity data available for this project. Upload a DXF
+//                     file or save quantities to see data here.
+//                   </p>
+//                 ) : (
+//                   <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
+//                     <thead>
+//                       <tr>
+//                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-[#F9FAFB]">
+//                           Layer
+//                         </th>
+//                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-[#F9FAFB]">
+//                           Quantity
+//                         </th>
+//                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-[#F9FAFB]">
+//                           Description
+//                         </th>
+//                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-[#F9FAFB]">
+//                           Brand
+//                         </th>
+//                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r border-gray-300 bg-[#F9FAFB]">
+//                           Rates
+//                         </th>
+//                         <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider bg-[#F9FAFB]">
+//                           Amount
+//                         </th>
+//                       </tr>
+//                     </thead>
+//                     <tbody className="bg-white divide-y divide-gray-200">
+//                       {Object.entries(buildTableSections).map(
+//                         ([base, items]) => (
+//                           <React.Fragment key={base}>
+//                             <tr>
+//                               <td
+//                                 colSpan="6"
+//                                 className={`p-3 text-sm font-semibold text-gray-900 ${
+//                                   colorMap[base] || "bg-gray-200"
+//                                 }`}
+//                               >
+//                                 {base}
+//                               </td>
+//                             </tr>
+//                             {items.map((item) => (
+//                               <tr
+//                                 key={item.layer}
+//                                 className={`cursor-pointer hover:bg-gray-50 ${
+//                                   activeLayer === item.layer ? "bg-blue-50" : ""
+//                                 }`}
+//                                 onClick={() => {
+//                                   setActiveLayer(item.layer);
+//                                 }}
+//                               >
+//                                 <td
+//                                   className="p-3 border border-gray-300 text-xs text-gray-800"
+//                                   style={{ wordBreak: "break-all" }}
+//                                 >
+//                                   {item.layer}
+//                                 </td>
+//                                 <td className="p-3 border border-gray-300 text-xs text-gray-800">
+//                                   {item.attributes?.quantity || item.qty}
+//                                 </td>
+//                                 <td
+//                                   className="p-3 border border-gray-300 text-xs text-gray-800"
+//                                   style={{ wordBreak: "break-all" }}
+//                                 >
+//                                   {item.description}
+//                                 </td>
+//                                 <td className="p-3 border border-gray-300 text-xs text-gray-800 break-words">
+//                                   {item.attributes?.brand || ""}
+//                                 </td>
+//                                 <td className="p-3 border border-gray-300 text-xs text-gray-800 break-words">
+//                                   {item.attributes?.rates || ""}
+//                                 </td>
+//                                 <td className="p-3 border border-gray-300 text-xs text-gray-800 break-words">
+//                                   {item.attributes?.amount || ""}
+//                                 </td>
+//                               </tr>
+//                             ))}
+//                           </React.Fragment>
+//                         )
+//                       )}
+//                     </tbody>
+//                   </table>
+//                 )}
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Footer - Sticky to the bottom of its immediate flex parent, filling its width */}
+//           <div className="sticky bottom-0 w-full bg-white border-t border-gray-300 text-base font-semibold text-black px-6 py-4 flex justify-end shadow z-50">
+//             Total Amount &nbsp;&nbsp;&nbsp; ₹0
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }

@@ -1,0 +1,669 @@
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useParams } from "react-router-dom";
+import TopBarEQ from "./TopBarEQ";
+import { useGetQEListByIdQuery } from "../../redux/features/api/api";
+import SidebarEQ from "./SidebarEQ";
+import attributeMapping from "./attributeMapping";
+
+// Service → bases mapping
+const serviceLayers = {
+  HVAC: ["CEILING SUSPENDED UNIT", "SPLIT UNIT", "CASSETTE UNIT", "OUTDOOR"],
+  ELECTRICAL: ["DISTRIBUTION BOARDS", "LED BATTEN", "LED BULKHEAD"],
+  "FIRE FIGHTING": [
+    "HYDRANT MAIN FIRE PUMP",
+    "JOCKEY PUMP",
+    "PORTABLE FIRE EXTINGUISHERS",
+  ],
+  PLUMBING: ["BUTTERFLY VALVE", "NON RETURN VALVE"],
+};
+// Build list of options: “All” + each service
+const serviceKeys = ["All", ...Object.keys(serviceLayers)];
+// Flatten for “All”
+const allBases = Array.from(new Set(Object.values(serviceLayers).flat()));
+
+// Color map for table headers
+const colorMap = {
+  "CEILING SUSPENDED UNIT": "bg-[#FCE7CE]",
+  "SPLIT UNIT": "bg-[#D9EDF8]",
+  "CASSETTE UNIT": "bg-[#D9EDF8]",
+  OUTDOOR: "bg-[#F4DAEB]",
+  "DISTRIBUTION BOARDS": "bg-[#E5E7EB]",
+  "LED BATTEN": "bg-[#EDEDED]",
+  "LED BULKHEAD": "bg-[#EDEDED]",
+  "HYDRANT MAIN FIRE PUMP": "bg-[#F4DAEB]",
+  "JOCKEY PUMP": "bg-[#F4DAEB]",
+  "PORTABLE FIRE EXTINGUISHERS": "bg-[#F4DAEB]",
+  "BUTTERFLY VALVE": "bg-[#F4DAEB]",
+  "NON RETURN VALVE": "bg-[#F4DAEB]",
+};
+const extraColor = "bg-[#EDEDED]";
+
+const flattenGroupedLayers = (grouped) => {
+  const result = [];
+  Object.entries(grouped).forEach(([base, layers]) => {
+    Object.entries(layers).forEach(([full, qty]) => {
+      result.push({ base, layer: full, qty });
+    });
+  });
+  return result;
+};
+
+// Helper to get base name from full layer name
+const getBaseNameFromLayer = (fullLayerName, currentService) => {
+  if (!fullLayerName) return null;
+
+  const basesToCheck =
+    currentService === "All" ? allBases : serviceLayers[currentService] || [];
+
+  for (const base of basesToCheck) {
+    if (fullLayerName.toUpperCase().startsWith(base.toUpperCase())) {
+      return base;
+    }
+  }
+  return null;
+};
+
+// Helper to get attribute definition
+const getAttributesForLayerDefinition = (serviceType, heading) => {
+  if (!heading) return null;
+
+  if (serviceType === "All") {
+    for (const svcKey in attributeMapping) {
+      const serviceCategory = attributeMapping[svcKey];
+      if (serviceCategory) {
+        const match = serviceCategory.find((item) => item.heading === heading);
+        if (match) {
+          return match.attributes;
+        }
+      }
+    }
+    return null;
+  } else {
+    const service = attributeMapping[serviceType];
+    if (!service) return null;
+    const match = service.find((item) => item.heading === heading);
+    return match?.attributes || null;
+  }
+};
+
+// Helper function to parse numerical values from layer names for *SPECIFIC* attributes.
+// This function is used to initialize attributes from the layer name.
+// It does NOT include 'quantity' as that comes from backend data.
+// It also explicitly EXCLUDES 'layerName' itself from this parsing.
+const parseValueFromLayerName = (layerName, attributeKey) => {
+  let value = "";
+  // Only parse if the attribute is expected to have a value embedded in the layer name
+  switch (attributeKey) {
+    case "wattage": // e.g., "LED BATTEN 20W"
+      const wattageMatch = layerName.match(/(\d+)\s*W/i);
+      if (wattageMatch) value = wattageMatch[1];
+      break;
+    case "length": // e.g., "LED BATTEN 1200MM"
+    case "diameterMM": // e.g., "BUTTERFLY VALVE 100MM"
+      const lengthMatch = layerName.match(/(\d+)\s*mm/i);
+      if (lengthMatch) value = lengthMatch[1];
+      break;
+    case "airflow": // e.g., "UNIT 500 CFM"
+      const airflowMatch = layerName.match(/(\d+)\s*CFM/i);
+      if (airflowMatch) value = airflowMatch[1];
+      break;
+    case "ratedAmperage": // e.g., "DB 100A"
+      const amperageMatch = layerName.match(/(\d+)\s*A/i);
+      if (amperageMatch) value = amperageMatch[1];
+      break;
+    case "lumenOutput": // e.g., "BULKHEAD 1500LM"
+      const lumenMatch = layerName.match(/(\d+)\s*lm/i);
+      if (lumenMatch) value = lumenMatch[1];
+      break;
+    case "headMeters": // e.g., "PUMP 50M" or "PUMP 50 METERS"
+      const headMatch = layerName.match(/(\d+)\s*(m|meters)/i);
+      if (headMatch) value = headMatch[1];
+      break;
+    case "capacityLPM": // e.g., "PUMP 1000 LPM"
+      const capacityMatch = layerName.match(/(\d+)\s*LPM/i);
+      if (capacityMatch) value = capacityMatch[1];
+      break;
+    default:
+      value = ""; // Default for attributes not parsed from layerName (including 'layerName' itself)
+      break;
+  }
+  return value;
+};
+
+export default function QuantityExtraction() {
+  const { projectId } = useParams();
+  const { data: apiData, isLoading, error } = useGetQEListByIdQuery(projectId);
+
+  // raw data is the immutable data from the API
+  const grouped = apiData?.grouped_layers ?? {};
+  const raw = useMemo(() => flattenGroupedLayers(grouped), [grouped]);
+
+  const [selectedService, setSelectedService] = useState();
+  const [activeLayer, setActiveLayer] = useState(null);
+  const [selected, setSelected] = useState({}); // Tracks which base layers are selected/visible in table
+
+  // editableRawData is the mutable state that reflects user edits, including layerName
+  const [editableRawData, setEditableRawData] = useState([]);
+  // Use a ref to store a mapping from original layer name to current layer data
+  // This helps when layer names change and we need to find the item.
+  const layerDataMapRef = React.useRef(new Map());
+
+  // Initialize selectedService based on API data or default
+  useEffect(() => {
+    if (apiData?.service) {
+      const svc = apiData.service.toUpperCase();
+      console.log("QE: API data service:", svc);
+      if (serviceKeys.includes(svc)) {
+        setSelectedService(svc);
+      } else {
+        setSelectedService(serviceKeys[1]); // Fallback to first real service
+        console.log(
+          "QE: API service not in keys, falling back to:",
+          serviceKeys[1]
+        );
+      }
+    } else {
+      setSelectedService(serviceKeys[1]); // Default to first real service if no API data yet
+      console.log("QE: No API data, defaulting to:", serviceKeys[1]);
+    }
+  }, [apiData]);
+
+  const serviceToUse = selectedService ?? serviceKeys[1]; // Ensure it's never undefined
+
+  const [sections, setSections] = useState([]); // State for the table display data
+
+  // Initialize editableRawData when API data loads or changes
+  useEffect(() => {
+    if (raw.length > 0) {
+      // Create a deep copy of raw data for local mutations
+      const initialEditable = raw.map((item) => ({
+        ...item,
+        // Ensure initial attributes are set up correctly upon first load
+        attributes: {}, // Initialize as empty, will be populated by buildTableSections
+      }));
+      setEditableRawData(initialEditable);
+    } else {
+      setEditableRawData([]); // Clear if raw is empty
+    }
+    // Reset active layer when raw data changes significantly
+    setActiveLayer(null);
+  }, [raw]);
+
+  // Function to build table sections based on editableRawData
+  const buildTableSections = useCallback(
+    (currentEditableRaw, currentServiceToUse, currentSelected) => {
+      console.log(
+        "QE: buildTableSections called. Service:",
+        currentServiceToUse,
+        "Selected:",
+        currentSelected,
+        "Editable Raw Data Length:",
+        currentEditableRaw.length
+      );
+      if (!currentEditableRaw.length || !currentServiceToUse) {
+        layerDataMapRef.current.clear(); // Clear map if no data
+        return [];
+      }
+
+      const basesForService =
+        currentServiceToUse === "All"
+          ? allBases
+          : serviceLayers[currentServiceToUse] || [];
+
+      const newMap = new Map(); // Temp map for current rendering cycle
+
+      const newSecs = basesForService.flatMap((baseName) => {
+        if (!currentSelected[baseName]) {
+          console.log(`QE: Skipping ${baseName} as it's not not selected.`);
+          return [];
+        }
+
+        // Filter from currentEditableRaw based on the *current* layer name in editableRawData
+        const matches = currentEditableRaw.filter(
+          (e) =>
+            e.layer.toUpperCase().startsWith(baseName.toUpperCase()) &&
+            getBaseNameFromLayer(e.layer, currentServiceToUse) === baseName // Ensure it strictly belongs to this base
+        );
+
+        if (!matches.length) {
+          console.log(`QE: No editable raw matches found for ${baseName}.`);
+          return [];
+        }
+
+        const counts = matches.reduce((acc, currItem) => {
+          // Use currItem.layer as the key, as it's the mutable layerName
+          // Initialize structure if not already present in accumulator
+          acc[currItem.layer] = acc[currItem.layer] || {
+            layerName: currItem.layer, // The mutable layerName
+            quantity: 0, // Summed from original currItem.qty, can be overridden by attributes.quantity.value
+            unit: "Nos", // Default unit for table quantity
+            description: currItem.description || "", // Preserve existing description
+            brand: "",
+            rates: "",
+            amount: "",
+            attributes: { ...currItem.attributes }, // Deep copy attributes to prevent mutation issues
+            remark: currItem.remark || "", // Preserve existing remark
+            base: currItem.base, // Ensure base is available for attribute mapping lookup
+          };
+
+          const itemInAcc = acc[currItem.layer];
+
+          const baseForAttrs = getBaseNameFromLayer(
+            itemInAcc.layerName,
+            currentServiceToUse
+          );
+          const attrsDefinition = getAttributesForLayerDefinition(
+            currentServiceToUse,
+            baseForAttrs
+          );
+
+          if (attrsDefinition) {
+            Object.entries(attrsDefinition).forEach(([key, attrDef]) => {
+              let valueToSet = "";
+
+              if (key === "layerName") {
+                // Special handling for layerName attribute
+                valueToSet = itemInAcc.layerName; // Its value is the item's layerName
+              } else if (key === "quantity") {
+                // Quantity value in attributes should reflect the editable sidebar value,
+                // fallback to summed backend quantity for display in table
+                valueToSet =
+                  itemInAcc.attributes[key]?.value ||
+                  currItem.qty.toString() ||
+                  "";
+              } else {
+                // For other attributes, prioritize existing edited value, then parse from layerName
+                let initialValueFromLayerName = parseValueFromLayerName(
+                  itemInAcc.layerName,
+                  key
+                );
+                valueToSet =
+                  itemInAcc.attributes[key]?.value ||
+                  initialValueFromLayerName ||
+                  "";
+              }
+
+              itemInAcc.attributes[key] = {
+                value: valueToSet,
+                unit: attrDef.unit || "",
+              };
+            });
+          }
+
+          itemInAcc.quantity += currItem.qty; // Sum quantities from the *original* backend qty
+          return acc;
+        }, {});
+
+        const items = Object.values(counts).map((item) => {
+          // Update top-level properties from attributes for table display
+          const brand = item.attributes?.brand?.value || "";
+          const rates = item.attributes?.rates?.value || "";
+          const amount = item.attributes?.amount?.value || "";
+          // The table's 'quantity' column should display the value from the 'quantity' attribute if edited,
+          // otherwise, it shows the sum from backend `curr.qty`
+          const quantityAttrValueForDisplay =
+            item.attributes?.quantity?.value || item.quantity;
+
+          const baseForAttrs = getBaseNameFromLayer(
+            item.layerName,
+            currentServiceToUse
+          );
+          const attrsDefinition = getAttributesForLayerDefinition(
+            currentServiceToUse,
+            baseForAttrs
+          );
+          const quantityAttrUnit =
+            item.attributes?.quantity?.unit ||
+            attrsDefinition?.quantity?.unit || // Get default unit from mapping for 'quantity'
+            "Nos"; // Final fallback
+
+          const finalItem = {
+            ...item,
+            quantity: quantityAttrValueForDisplay, // Use the potentially edited quantity attribute value
+            unit: quantityAttrUnit, // Use the unit from the quantity attribute or its definition
+            brand: brand,
+            rates: rates,
+            amount: amount,
+          };
+          newMap.set(finalItem.layerName, finalItem); // Populate temp map
+          return finalItem;
+        });
+
+        return [
+          {
+            title: baseName,
+            color: colorMap[baseName] || extraColor,
+            items,
+          },
+        ];
+      });
+      layerDataMapRef.current = newMap; // Update ref with the new map
+      console.log("QE: Generated new sections:", newSecs);
+      return newSecs;
+    },
+    [editableRawData, serviceToUse] // buildTableSections depends on editableRawData and serviceToUse
+  );
+
+  // Effect to update sections when editableRawData or selectedService changes
+  useEffect(() => {
+    // This effect ensures the table re-renders when editableRawData changes
+    const initialSelectedState = {};
+    const basesInCurrentService =
+      serviceToUse === "All" ? allBases : serviceLayers[serviceToUse] || [];
+
+    basesInCurrentService.forEach((baseName) => {
+      const hasDataForBase = editableRawData.some((e) =>
+        e.layer.toUpperCase().startsWith(baseName.toUpperCase())
+      );
+      if (hasDataForBase) {
+        initialSelectedState[baseName] = true;
+      }
+    });
+
+    if (JSON.stringify(initialSelectedState) !== JSON.stringify(selected)) {
+      setSelected(initialSelectedState);
+    }
+    setSections(
+      buildTableSections(editableRawData, serviceToUse, initialSelectedState)
+    );
+  }, [editableRawData, serviceToUse, buildTableSections, selected]);
+
+  const handleLayerSelect = useCallback(
+    (baseName) => {
+      console.log("QE: handleLayerSelect called for baseName:", baseName);
+      setSelected((prevSelected) => {
+        const isCurrentlySelected = prevSelected[baseName];
+        const newSelected = {
+          ...prevSelected,
+          [baseName]: !isCurrentlySelected,
+        };
+        console.log("QE: New selected state after toggle:", newSelected);
+
+        // Rebuild sections immediately based on the new selection state from editableRawData
+        setSections(
+          buildTableSections(editableRawData, serviceToUse, newSelected)
+        );
+
+        return newSelected; // Return the updated selected state
+      });
+    },
+    [editableRawData, serviceToUse, buildTableSections]
+  );
+
+  const handleCellClick = (si, ii, ci) => {
+    const clickedItem = sections[si]?.items[ii];
+    if (clickedItem) {
+      console.log(
+        "QE: Table cell clicked. Setting activeLayer to:",
+        clickedItem.layerName
+      );
+      setActiveLayer((prev) =>
+        prev === clickedItem.layerName ? null : clickedItem.layerName
+      );
+    }
+  };
+
+  const getActiveLayerData = useCallback(() => {
+    if (!activeLayer) return null;
+    // Look up the active layer data from the current layerDataMapRef
+    return layerDataMapRef.current.get(activeLayer) || null;
+  }, [activeLayer, sections]); // Depend on sections because that's what updates layerDataMapRef.current
+
+  const currentActiveLayerData = getActiveLayerData();
+
+  // Callback function to update layer attributes (including layerName) from SidebarEQ
+  const handleUpdateLayerAttributes = useCallback(
+    (oldLayerName, updatedData) => {
+      console.log(
+        "QE: handleUpdateLayerAttributes called for oldLayerName:",
+        oldLayerName,
+        "with updated data:",
+        updatedData
+      );
+
+      // Update editableRawData: find the item by its old layer name and apply changes
+      setEditableRawData((prevEditableRawData) => {
+        const newEditableRawData = prevEditableRawData.map((item) => {
+          if (item.layer === oldLayerName) {
+            // Find the item using its current layer name
+            const newItem = { ...item }; // Create a shallow copy of the item
+
+            // 1. Update layerName itself from updatedData.attributes.layerName.value
+            const newLayerNameFromAttributes =
+              updatedData.attributes?.layerName?.value;
+            if (
+              newLayerNameFromAttributes !== undefined &&
+              newLayerNameFromAttributes !== item.layer
+            ) {
+              newItem.layer = newLayerNameFromAttributes;
+              console.log(
+                `QE: Layer name updated from '${oldLayerName}' to '${newItem.layer}' (from attributes)`
+              );
+            }
+
+            // 2. Update description and remark
+            if (updatedData.description !== undefined) {
+              newItem.description = updatedData.description;
+            }
+            if (updatedData.remark !== undefined) {
+              newItem.remark = updatedData.remark;
+            }
+
+            // 3. Prepare attributes for re-derivation/update
+            // Get the base for the (potentially new) layerName to find its attribute definition
+            const currentBase = getBaseNameFromLayer(
+              newItem.layer,
+              selectedService
+            );
+            const attrsDefinition = getAttributesForLayerDefinition(
+              selectedService,
+              currentBase
+            );
+
+            // Initialize newItem.attributes, preferring existing values from updatedData.attributes
+            newItem.attributes = { ...newItem.attributes };
+            if (updatedData.attributes) {
+              Object.entries(updatedData.attributes).forEach(
+                ([attrKey, attrValueObj]) => {
+                  // Special handling for layerName: its value directly determines newItem.layer
+                  if (attrKey === "layerName") {
+                    // Do nothing here, it's handled above. This prevents double-processing or circular logic.
+                  } else {
+                    newItem.attributes[attrKey] = {
+                      ...newItem.attributes[attrKey], // Preserve existing parts like unit
+                      value: attrValueObj.value, // Update the value
+                    };
+                  }
+                }
+              );
+            }
+
+            // 4. Crucially: Re-derive/update numerical attributes from the NEW layerName.
+            // This ensures attributes like wattage, length update if the layerName string changes.
+            if (attrsDefinition) {
+              Object.entries(attrsDefinition).forEach(([key, attrDef]) => {
+                // Skip 'layerName' attribute itself, and 'quantity' which is handled separately.
+                if (key !== "layerName" && key !== "quantity") {
+                  let reParsedValue = parseValueFromLayerName(
+                    newItem.layer,
+                    key
+                  );
+                  // Only update if reParsedValue is found and different from current, or if current is empty
+                  if (
+                    reParsedValue &&
+                    (newItem.attributes[key]?.value !== reParsedValue ||
+                      !newItem.attributes[key]?.value)
+                  ) {
+                    newItem.attributes[key] = {
+                      value: reParsedValue,
+                      unit: attrDef.unit || "",
+                    };
+                  }
+                }
+              });
+            }
+
+            // 5. Sync top-level table columns from the updated attributes for display consistency
+            newItem.brand = newItem.attributes?.brand?.value ?? newItem.brand;
+            newItem.rates = newItem.attributes?.rates?.value ?? newItem.rates;
+            newItem.amount =
+              newItem.attributes?.amount?.value ?? newItem.amount;
+            // The table's main quantity should reflect the attribute's quantity value if edited
+            newItem.quantity =
+              newItem.attributes?.quantity?.value ?? newItem.quantity;
+            newItem.unit = newItem.attributes?.quantity?.unit ?? newItem.unit; // Unit for the main quantity column
+
+            console.log("QE: Item in editableRawData updated:", newItem);
+            return newItem;
+          }
+          return item;
+        });
+
+        // If the layerName itself changed, ensure activeLayer is updated so sidebar stays focused on the new name.
+        const updatedNewLayerName = updatedData.attributes?.layerName?.value;
+        if (updatedNewLayerName && updatedNewLayerName !== oldLayerName) {
+          setActiveLayer(updatedNewLayerName);
+        }
+        return newEditableRawData; // Return the updated array
+      });
+    },
+    [selectedService]
+  ); // selectedService is needed for getBaseNameFromLayer and getAttributesForLayerDefinition
+
+  return (
+    <div className="h-screen flex flex-col font-sans">
+      {" "}
+      {/* Added font-sans for Inter */}
+      {/* Top Bar - Fixed to the top, taking full width */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <TopBarEQ />
+      </div>
+      {/* Main content area: Flex container for Sidebar and Table */}
+      {/* pt-[60px] pushes content below the fixed TopBar */}
+      <div className="flex flex-grow pt-[60px] overflow-hidden">
+        {/* Sidebar component - Occupies fixed width and scrolls its own content */}
+        <div className="w-[320px] h-full overflow-y-auto border-r bg-white flex flex-col shrink-0">
+          <SidebarEQ
+            // Pass entities from editableRawData for the sidebar list
+            entities={editableRawData.map(({ layer, qty, base }) => ({
+              layer,
+              qty,
+              base,
+            }))}
+            onLayerSelect={handleLayerSelect}
+            selectedBase={Object.keys(selected).filter((k) => selected[k])}
+            selectedService={serviceToUse}
+            onServiceChange={(value) => {
+              console.log("QE: Setting selectedService to:", value);
+              setSelectedService(value);
+            }}
+            activeLayer={activeLayer}
+            setActiveLayer={setActiveLayer}
+            onUpdateLayerAttributes={handleUpdateLayerAttributes}
+            activeLayerData={currentActiveLayerData}
+          />
+        </div>
+
+        {/* Table Container - Takes remaining flexible space horizontally */}
+        <div className="flex-grow flex flex-col overflow-hidden">
+          <div className="flex-grow overflow-auto p-6">
+            <div className="w-full bg-white shadow flex flex-col min-h-full pb-20">
+              <div className="overflow-auto flex-grow">
+                {isLoading ? (
+                  <div className="p-4 text-gray-600">Loading...</div>
+                ) : error ? (
+                  <div className="p-4 text-red-600">Error loading data</div>
+                ) : (
+                  <table className="w-full text-left border-separate border-spacing-0 text-sm table-fixed">
+                    <thead className="bg-gray-100 text-gray-700 sticky top-0 z-10">
+                      <tr>
+                        {/* Original column widths */}
+                        <th className="p-3 border border-gray-300 w-[18%]">
+                          Item
+                        </th>
+                        <th className="p-3 border border-gray-300 w-[10%]">
+                          Quantity
+                        </th>
+                        <th className="p-3 border border-gray-300 w-[8%]">
+                          Unit
+                        </th>
+                        <th className="p-3 border border-gray-300 w-[30%]">
+                          Description
+                        </th>
+                        <th className="p-3 border border-gray-300 w-[12%]">
+                          Brand
+                        </th>
+                        <th className="p-3 border border-gray-300 w-[11%]">
+                          Rates
+                        </th>
+                        <th className="p-3 border border-gray-300 w-[11%]">
+                          Amount
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sections.map((sec, i) => (
+                        <React.Fragment key={sec.title || i}>
+                          <tr>
+                            <td
+                              colSpan="7" // colSpan reverted to 7
+                              className={`px-3 py-2 font-semibold text-sm ${sec.color} text-gray-800`}
+                            >
+                              {sec.title}
+                            </td>
+                          </tr>
+                          {sec.items.map((item, j) => (
+                            <tr
+                              key={item.layerName || j} // Key by the (potentially edited) layerName
+                              className={`hover:bg-gray-50 cursor-pointer ${
+                                item.layerName === activeLayer
+                                  ? "bg-blue-50"
+                                  : ""
+                              }`}
+                              onClick={() => handleCellClick(i, j, null)}
+                            >
+                              <td className="p-3 border border-gray-300 text-xs text-gray-800 break-words">
+                                {item.layerName}{" "}
+                                {/* Displays the mutable layerName */}
+                              </td>
+                              <td className="p-3 border border-gray-300 text-xs text-gray-800 break-words">
+                                {item.quantity}
+                              </td>
+                              <td className="p-3 border border-gray-300 text-xs text-gray-800 break-words">
+                                {item.unit}
+                              </td>
+                              <td
+                                className="p-3 border border-gray-300 text-xs text-gray-800"
+                                style={{ wordBreak: "break-all" }}
+                              >
+                                {item.description}
+                              </td>
+                              <td className="p-3 border border-gray-300 text-xs text-gray-800 break-words">
+                                {item.brand}
+                              </td>
+                              <td className="p-3 border border-gray-300 text-xs text-gray-800 break-words">
+                                {item.rates}
+                              </td>
+                              <td className="p-3 border border-gray-300 text-xs text-gray-800 break-words">
+                                {item.amount}
+                              </td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer - Sticky to the bottom of its immediate flex parent, filling its width */}
+          <div className="sticky bottom-0 w-full bg-white border-t border-gray-300 text-base font-semibold text-black px-6 py-4 flex justify-end shadow z-50">
+            Total Amount &nbsp;&nbsp;&nbsp; ₹0
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

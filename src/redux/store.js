@@ -14,7 +14,6 @@ import {
 import projectReducer from "./features/app/projectSlice";
 import userReducer from "./features/app/userSLice";
 import { apiSlice } from "./features/api/api";
-import { adminDataApiSlice } from "./features/api/adminDataApiSlice";
 import floorPlanReducer from "./features/app/FloorPlanSlice";
 import areaMarkupReducer from "./features/app/areaMarkupSlice";
 import dxfReducer from "./features/app/dxfSlice";
@@ -43,7 +42,7 @@ const rootReducer = combineReducers({
   power: powerReducer,
 
   [apiSlice.reducerPath]: apiSlice.reducer,
-  [adminDataApiSlice.reducerPath]: adminDataApiSlice.reducer,
+  [backofficeApi.reducerPath]: backofficeApi.reducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -60,7 +59,7 @@ export const store = configureStore({
       },
     })
       .concat(apiSlice.middleware)
-      .concat(adminDataApiSlice.middleware),
+      .concat(backofficeApi.middleware),
 });
 
 export const persistor = persistStore(store);

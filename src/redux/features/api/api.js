@@ -1,41 +1,4 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import { data } from "react-router-dom";
-
-// export const apiSlice = createApi({
-//   reducerPath: "api",
-//   baseQuery: fetchBaseQuery({ baseUrl: "/api" }),
-//   tagTypes: ["User"],
-//   endpoints: (builder) => ({
-// signup: builder.mutation({
-//   query: (newUser) => ({
-//     url: "auth/signup",
-//     method: "POST",
-//     body: newUser,
-//   }),
-//   invalidatesTags: ["User"],
-// }),
-
-// login: builder.mutation({
-//   query: (User) => ({
-//     url: `auth/login`,
-//     method: "POST",
-//     body: User,
-//   }),
-//   invalidatesTags: ["User"],
-// }),
-
-//     addProject: builder.mutation({
-//       query: (data) => ({
-//         url: `api/project`,
-//         method: "POST",
-//         body: data.body,
-//       }),
-//       invalidatesTags: ["Project"],
-//     }),
-//   }),
-// });
-
-// src/features/api/apiSlice.js or wherever you define your API
 
 export const apiSlice = createApi({
   reducerPath: "api",
@@ -83,7 +46,7 @@ export const apiSlice = createApi({
         url: "api/project",
         method: "GET",
       }),
-      providesTags: ["Project"],
+      providesTags: ["Project", "QE"],
     }),
 
     deleteProject: builder.mutation({
@@ -186,7 +149,7 @@ export const apiSlice = createApi({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["QE"],
+      invalidatesTags: ["QE", "Project"],
     }),
     getQEList: builder.query({
       query: (id) => ({
@@ -206,8 +169,17 @@ export const apiSlice = createApi({
       query: (id) => ({
         url: `api/qe/${id}`,
         method: "GET",
-        providesTags: (result, error, id) => [{ type: "QE", id }],
       }),
+      providesTags: (result, error, id) => [{ type: "QE", id }],
+    }),
+   // NEW: Mutation for updating Quantity Extraction data for a specific project
+    updateQE: builder.mutation({
+      query: ({ projectId, updatedData  }) => ({
+        url: `api/qe/${projectId}`, // Assuming you want to update QE for a specific project
+        method: "PATCH", // Use PUT for updating an existing resource
+        body: updatedData,
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: "QE", id: projectId }, { type: "Project", id: projectId }], // Invalidate QE and Project tags
     }),
   }),
 });
@@ -233,4 +205,5 @@ export const {
   useGetQEListQuery,
   useDeleteQEMutation,
   useGetQEListByIdQuery,
+   useUpdateQEMutation,
 } = apiSlice;

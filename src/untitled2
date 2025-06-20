@@ -1,0 +1,335 @@
+
+import React, { useState, useEffect } from "react";
+
+import { ReloadIcon } from "../../icons/ReloadIcon";
+import EyeIcon from "../../icons/EyeIcon";
+import EyeCloseIcon from "../../icons/EyeCloseIcon";
+import SearchIcon from "../../icons/SearchIcon";
+import attributeMapping from "./attributeMapping"; // Ensure this import is correct
+
+// Service → bases mapping (duplicated for helper functions' scope within this file for self-containment)
+const serviceLayers = {
+  HVAC: ["CEILING SUSPENDED UNIT", "SPLIT UNIT", "CASSETTE UNIT", "OUTDOOR"],
+  ELECTRICAL: ["DISTRIBUTION BOARDS", "LED BATTEN", "LED BULKHEAD"],
+  "FIRE FIGHTING": [
+    "HYDRANT MAIN FIRE PUMP",
+    "JOCKEY PUMP",
+    "PORTABLE FIRE EXTINGUISHERS",
+    "Sprinkler Main Fire Pumps", // Added based on attributeMapping
+  ],
+  PLUMBING: ["BUTTERFLY VALVE", "NON RETURN VALVE"],
+};
+
+// “All” flattens every base once (duplicated for helper functions' scope within this file for self-containment)
+const allBases = Array.from(new Set(Object.values(serviceLayers).flat()));
+
+// Helper to get base name from full layer name
+const getBaseNameFromLayer = (fullLayerName, currentService) => {
+  if (!fullLayerName) return null;
+
+  const basesToCheck =
+    currentService === "All" ? allBases : serviceLayers[currentService] || [];
+
+  for (const base of basesToCheck) {
+    if (fullLayerName.startsWith(base)) {
+      return base;
+    }
+  }
+  return null;
+};
+
+// Helper function to parse attribute from layer name for sidebar display
+const parseLayerNameForSidebar = (layerName, attributeName) => {
+  if (!layerName || !attributeName) return "";
+  const regex = new RegExp(`${attributeName}([^_]+)`, "i"); // Case-insensitive, captures value after attribute name until next underscore
+  const match = layerName.match(regex);
+  return match ? match[1] : "";
+};
+
+export default function SidebarEQ({
+  groupedLayers, // Receive the grouped layers from parent
+  onLayerDataChange, // Receive the callback from parent
+  activeLayer,
+  setActiveLayer,
+  selectedService,
+  searchTerm,
+  setSearchTerm,
+  showHidden,
+  setShowHidden,
+}) {
+  const [localActiveLayerData, setLocalActiveLayerData] = useState(null);
+
+  // Update local state when activeLayer prop changes
+  useEffect(() => {
+    if (activeLayer) {
+      // Deep copy activeLayer to local state to allow independent editing
+      setLocalActiveLayerData({ ...activeLayer, attributes: { ...activeLayer.attributes } });
+    } else {
+      setLocalActiveLayerData(null);
+    }
+  }, [activeLayer]);
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (name.startsWith("attribute-")) {
+      const attributeName = name.split("attribute-")[1];
+      setLocalActiveLayerData((prev) => ({
+        ...prev,
+        attributes: {
+          ...prev.attributes,
+          [attributeName]: value,
+        },
+      }));
+    } else if (type === "checkbox") {
+      setLocalActiveLayerData((prev) => ({
+        ...prev,
+        [name]: checked,
+      }));
+    } else {
+      setLocalActiveLayerData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  const handleSaveAttributes = () => {
+    if (localActiveLayerData) {
+      // Ensure baseName and fullLayerName are included for identification in parent
+      const dataToPass = {
+        ...localActiveLayerData,
+        baseName: localActiveLayerData.baseName || getBaseNameFromLayer(localActiveLayerData.fullLayerName, selectedService),
+        fullLayerName: localActiveLayerData.fullLayerName
+      };
+      onLayerDataChange(dataToPass);
+      alert("Changes reflected to main table. Click 'Save Project' in top bar to persist.");
+    }
+  };
+
+  // Helper to get attribute value for sidebar display
+  const getSidebarAttributeValue = (attributeKey) => {
+    if (localActiveLayerData?.attributes && localActiveLayerData.attributes[attributeKey] !== undefined) {
+      return localActiveLayerData.attributes[attributeKey];
+    }
+    // Fallback to parsing from layer name if not explicitly saved
+    return parseLayerNameForSidebar(localActiveLayerData?.fullLayerName, attributeKey);
+  };
+
+  const getServiceForActiveLayer = () => {
+    if (!activeLayer || !activeLayer.baseName) return null;
+    for (const service in serviceLayers) {
+      if (serviceLayers[service].includes(activeLayer.baseName)) {
+        return service;
+      }
+    }
+    return null;
+  };
+
+  const activeLayerService = getServiceForActiveLayer();
+  const attributesForActiveLayer = activeLayerService
+    ? attributeMapping[activeLayerService]?.find(
+        (map) => map.heading === activeLayer.baseName
+      )?.attributes || {}
+    : {};
+
+  const filteredLayers = useMemo(() => {
+    const filtered = [];
+    Object.entries(groupedLayers).forEach(([baseName, layers]) => {
+      // Check if the baseName is relevant to the selected service
+      const isBaseRelevantToService =
+        selectedService === "All" ||
+        (serviceLayers[selectedService] && serviceLayers[selectedService].includes(baseName));
+
+      if (isBaseRelevantToService) {
+        Object.entries(layers).forEach(([fullLayerName, layerData]) => {
+            const data = typeof layerData === 'object' ? layerData : { count: layerData, attributes: {}, description: "", remark: "" };
+
+          const matchesSearch = searchTerm
+            ? fullLayerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              (data.description && data.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+              (data.remark && data.remark.toLowerCase().includes(searchTerm.toLowerCase()))
+            : true;
+
+          if (matchesSearch && (showHidden || !data.isHidden)) {
+            filtered.push({
+              id: `${baseName}-${fullLayerName}`, // Unique ID
+              baseName,
+              fullLayerName,
+              count: data.count,
+              attributes: data.attributes || {},
+              description: data.description || "",
+              remark: data.remark || "",
+              isHidden: data.isHidden || false,
+            });
+          }
+        });
+      }
+    });
+    return filtered;
+  }, [groupedLayers, selectedService, searchTerm, showHidden]);
+
+  return (
+    <div className="flex-none w-[360px] bg-[#F9FAFB] border-l border-gray-300 overflow-y-auto relative">
+      {/* Search and filter section */}
+      <div className="p-4 border-b border-gray-300">
+        <div className="relative mb-3">
+          <input
+            type="text"
+            placeholder="Search layers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <SearchIcon />
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-sm font-medium text-gray-700">
+          <span>Show hidden layers</span>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              value=""
+              className="sr-only peer"
+              checked={showHidden}
+              onChange={(e) => setShowHidden(e.target.checked)}
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+      </div>
+
+      {/* Layer List */}
+      <div className="p-4 max-h-[calc(100vh-250px)] overflow-y-auto"> {/* Adjust max-height as needed */}
+        {filteredLayers.length > 0 ? (
+          <ul className="space-y-2">
+            {filteredLayers.map((layer) => (
+              <li
+                key={layer.id}
+                className={`p-3 rounded-md cursor-pointer transition flex justify-between items-center
+                            ${activeLayer?.id === layer.id ? "bg-blue-100 border border-blue-500" : "bg-white border border-gray-200"}
+                            ${layer.isHidden ? "opacity-60" : ""}
+                            hover:bg-gray-50`}
+                onClick={() => setActiveLayer(layer)}
+              >
+                <span className="text-sm font-medium text-gray-800 break-words flex-1 pr-2">
+                  {layer.fullLayerName}
+                </span>
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                                    ${layer.isHidden ? "bg-gray-300 text-gray-700" : "bg-blue-200 text-blue-800"}`}>
+                  {layer.count} Nos
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[14px] text-gray-500">No layers match the criteria.</p>
+        )}
+      </div>
+
+      {/* Layer Details and Edit Section */}
+      <div className="p-4 flex-grow">
+        {localActiveLayerData ? (
+          <>
+            {/* Layer Name Display */}
+            <div className="mb-4">
+              <label className="block text-sm text-gray-700 font-medium mb-1">Layer Name</label>
+              <input
+                type="text"
+                value={localActiveLayerData.fullLayerName || ""}
+                readOnly
+                className="w-full px-3 py-2 rounded-md border border-gray-300 text-gray-500 bg-gray-100 cursor-not-allowed"
+              />
+            </div>
+
+            {/* Is Hidden Checkbox */}
+            <div className="mb-4 flex items-center">
+              <input
+                type="checkbox"
+                id="isHidden"
+                name="isHidden"
+                checked={localActiveLayerData.isHidden || false}
+                onChange={handleInputChange}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="isHidden" className="ml-2 text-sm text-gray-700">Hide Layer</label>
+            </div>
+
+            {/* Description Section */}
+            <div className="mb-4">
+              <label className="block text-sm text-gray-700 font-medium mb-1">Description</label>
+              <textarea
+                rows={3}
+                name="description"
+                placeholder="Add a description..."
+                value={localActiveLayerData.description || ""}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 rounded-md border border-gray-300 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-y"
+              />
+            </div>
+
+            {/* Attributes Section */}
+            {Object.keys(attributesForActiveLayer).length > 0 && (
+              <div className="mb-4 p-3 border border-[#D1D5DB] rounded-[8px] overflow-hidden">
+                <div className="bg-white px-3 py-2 border-b border-[#E5E7EB] text-[13px] font-medium">
+                  Attributes
+                </div>
+                <div className="p-3 grid grid-cols-2 gap-3">
+                  {Object.entries(attributesForActiveLayer).map(([key, attr]) => (
+                    // Skip 'layerName' as it's displayed separately
+                    key !== 'layerName' && (
+                      <div key={key}>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          {attr.label}
+                          {attr.unit && <span className="text-gray-500 ml-1">({attr.unit})</span>}
+                        </label>
+                        <input
+                          type="text"
+                          name={`attribute-${key}`}
+                          value={getSidebarAttributeValue(key)}
+                          onChange={handleInputChange}
+                          className="w-full px-2 py-1 rounded-md border border-gray-300 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Remark Section */}
+            <div className="mb-4 p-3 border border-[#D1D5DB] rounded-[8px] overflow-hidden">
+              <div className="bg-white px-3 py-2 border-b border-[#E5E7EB] text-[13px] font-medium">
+                Add Remark
+              </div>
+              <textarea
+                rows={4}
+                name="remark"
+                placeholder="Enter remark here..."
+                value={localActiveLayerData.remark || ""}
+                onChange={handleInputChange}
+                className="w-full m-3 text-[13px] text-[#374151] placeholder-[#6B7280] focus:outline-none resize-none"
+              />
+            </div>
+          </>
+        ) : (
+          <p className="text-[14px] text-gray-500 p-4">
+            Select an item from the list to view and edit its details.
+          </p>
+        )}
+      </div>
+
+      {/* Save Button at the bottom of the attribute section */}
+      {localActiveLayerData && (
+        <div className="sticky bottom-0 w-full bg-white border-t border-gray-300 p-3 flex justify-end shadow">
+          <button
+            onClick={handleSaveAttributes}
+            className="bg-[#007AFF] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-600 transition"
+          >
+            Save Changes
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
