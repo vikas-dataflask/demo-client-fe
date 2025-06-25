@@ -3,12 +3,18 @@ import React from "react";
 import HeatLoadIcon from "../../icons/HeatLoadIcon";
 import VentilationIcon from "../../icons/VentilationIcon";
 import DuctSizingIcon from "../../icons/DuctSizingIcon";
+import HeadLossIcon from "../../icons/HeadLossIcon";
+import FirePumpIcon from "../../icons/FirePumpIcon";
+import AssignMaterialIcon from "../../icons/AssignMaterialIcon";
 
 function SidebarHVAC({ activeSection, setActiveSection }) {
   const sidebarItems = [
     { icon: <HeatLoadIcon />, id: "heat-load" },
     { icon: <VentilationIcon />, id: "ventilation" },
     { icon: <DuctSizingIcon />, id: "duct-sizing" },
+    { icon: <HeadLossIcon />, id: "ahu" },
+    { icon: <FirePumpIcon />, id: "chiller" },
+    { icon: <AssignMaterialIcon />, id: "condenser" },
   ];
 
   return (

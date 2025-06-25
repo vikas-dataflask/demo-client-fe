@@ -42,7 +42,7 @@ const ExtractQuantity = () => {
   };
 
   return (
-   <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-white overflow-hidden">
       {/* Sidebar */}
       <div className="w-[280px] border-r border-gray-200 bg-white">
         <DraftSideBar />
