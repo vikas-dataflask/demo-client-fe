@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import AddProjectModal from "./AddProjectModal";
 import {
@@ -9,7 +9,6 @@ import {
 import DraftSideBar from "../shared/DraftSideBar";
 
 const ExtractQuantity = () => {
-  const location = useLocation();
   const [showModal, setShowModal] = useState(false);
   const navigate = useNavigate();
 
@@ -42,7 +41,7 @@ const ExtractQuantity = () => {
   };
 
   return (
-   <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-white overflow-hidden">
       {/* Sidebar */}
       <div className="w-[280px] border-r border-gray-200 bg-white">
         <DraftSideBar />

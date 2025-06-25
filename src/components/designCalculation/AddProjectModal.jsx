@@ -13,6 +13,8 @@ import {
 } from "../../redux/features/api/backofficeApi";
 
 const AddProjectModal = ({ onClose, setProjectAdded }) => {
+  const [building, setBuilding] = useState();
+  const [subBuilding, setSubBuilding] = useState();
   const [addProject] = useAddProjectMutation();
   const {
     data: locationData,
@@ -28,12 +30,12 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
     data: subBuildingData,
     isLoading: isSubBuildingLoading,
     isError: isSubBuildingError,
-  } = useGetSubBuildingListQuery();
+  } = useGetSubBuildingListQuery(building);
   const {
     data: leveldata,
     isLoading: isLevelLaoding,
     isError: isLevelError,
-  } = useGetLevelsListQuery();
+  } = useGetLevelsListQuery(subBuilding);
   const [selectedFile, setSelectedFile] = useState(null);
 
   const token = localStorage.getItem("token");
@@ -61,6 +63,12 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "building_type") {
+      setBuilding(value);
+    }
+    if (name === "sub_building_type") {
+      setSubBuilding(value);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -133,6 +141,10 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
                 onChange={handleChange}
                 className="w-full overflow-y-auto px-3 py-2 rounded-md border border-gray-300 text-gray-500 focus:outline-none bg-gray-200"
               >
+                <option value="" disabled selected>
+                  Select a Location
+                </option>
+
                 {/* Loading State */}
                 {isLocationLoading && (
                   <option value="" disabled>
@@ -163,9 +175,13 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
               <select
                 name="building_type"
                 value={formData.building_type}
+                disabled={!formData.location}
                 onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-gray-300 text-gray-500 focus:outline-none bg-gray-200"
               >
+                <option value="" disabled selected>
+                  Select a Building Type
+                </option>
                 {/* Loading State */}
                 {isBuildingLoading && (
                   <option value="" disabled>
@@ -196,9 +212,13 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
               <select
                 name="sub_building_type"
                 value={formData.sub_building_type}
+                disabled={!formData.building_type}
                 onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-gray-300 text-gray-500 focus:outline-none bg-gray-200"
               >
+                <option value="" disabled selected>
+                  Select a Sub Building Type
+                </option>
                 {/* Loading State */}
                 {isSubBuildingLoading && (
                   <option value="" disabled>
@@ -227,19 +247,23 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
               <select
                 name="level"
                 value={formData.level}
+                disabled={!formData.sub_building_type}
                 onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-gray-300 text-gray-500 focus:outline-none bg-gray-200"
               >
+                <option value="" disabled selected>
+                  Select a Level
+                </option>
                 {isLevelLaoding && (
                   <option value="" disabled>
-                    Loading Sub-building...
+                    Loading Levels...
                   </option>
                 )}
 
                 {/* Error State */}
                 {isLevelError && (
                   <option value="" disabled>
-                    Error loading Sub-building
+                    Error loading Levels
                   </option>
                 )}
                 {!isLevelLaoding &&
