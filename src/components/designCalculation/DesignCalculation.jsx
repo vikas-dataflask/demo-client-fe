@@ -6,6 +6,7 @@ import {
   resetFloorPlan,
   resetArea,
 } from "../../redux/features/app/FloorPlanSlice";
+import { clearRoomLights } from "../../redux/features/app/lightingSlice";
 
 import DraftSideBar from "./DraftSideBar";
 import AddProjectModal from "./AddProjectModal";
@@ -13,6 +14,7 @@ import {
   useGetProjectListQuery,
   useDeleteProjectMutation,
 } from "../../redux/features/api/api";
+import { clearPower } from "../../redux/features/app/powerSlice";
 
 const DesignCalculation = () => {
   const location = useLocation(); // NEW
@@ -35,6 +37,9 @@ const DesignCalculation = () => {
   dispatch(resetRooms()); // this will clear all room data
   dispatch(resetFloorPlan());
   dispatch(resetArea());
+  dispatch(clearRoomLights());
+  dispatch(clearPower());
+  dispatch(clearRoomLights());
 
   useEffect(() => {
     localStorage.removeItem("floorPlan");
@@ -105,9 +110,11 @@ const DesignCalculation = () => {
                       Delete
                     </button>
                     <button
-                      onClick={() =>
-                        navigate(`/project/${project._id}/file-setup`)
-                      }
+                      onClick={() => {
+                        localStorage.removeItem("confirmedLightingDbs");
+                        localStorage.removeItem("confirmedPowerDbs");
+                        navigate(`/project/${project._id}/file-setup`);
+                      }}
                       className="text-sm font-semibold text-blue-600 bg-blue-100 px-4 py-1 rounded border border-blue-600 hover:bg-blue-200 transition"
                     >
                       Open

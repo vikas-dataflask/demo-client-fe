@@ -18,7 +18,7 @@ const DrawingFile = () => {
 
   return (
     <div className="flex ">
-      <div className="w-[340px] h-[92vh] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
+      <div className="w-[340px] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
         <DrawingFileSideBar />
       </div>
       <div className="flex-1 h-full">

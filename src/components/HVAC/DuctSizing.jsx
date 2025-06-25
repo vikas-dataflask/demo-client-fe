@@ -17,9 +17,18 @@ const DuctSizing = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleCalculate = () => {
+    console.log("Calculate button clicked!", formData);
+    // Add your calculation logic here
+  };
+
   return (
-    <div className="flex h-screen">
-      <div className="w-[340px] h-[92vh] p-4 bg-white border-r border-gray-300  text-sm font-medium space-y-4">
+    <div className="flex h-screen relative">
+      {" "}
+      {/* Add 'relative' to the parent for absolute positioning of the button container */}
+      <div className="w-[340px] h-[92vh] p-4 bg-white border-r border-gray-300 text-sm font-medium space-y-4 overflow-y-auto pb-20">
+        {" "}
+        {/* Add pb-20 to create space for the fixed button */}
         {/* Header */}
         <div className="flex justify-between items-start">
           <div>
@@ -35,9 +44,7 @@ const DuctSizing = () => {
             <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
           </button>
         </div>
-
         <hr className="border-gray-200" />
-
         {/* Select Area */}
         <div className="space-y-1">
           <label className="text-gray-800 mb-1 block">Select Area</label>
@@ -50,7 +57,6 @@ const DuctSizing = () => {
             <option value="3">3</option>
           </select>
         </div>
-
         {/* Air Flowrate Capacity */}
         <div className="space-y-1">
           <label className="text-gray-800 mb-1 block">
@@ -74,7 +80,6 @@ const DuctSizing = () => {
             </select>
           </div>
         </div>
-
         {/* Maximum Air Velocity */}
         <div className="space-y-1">
           <label className="text-gray-800 mb-1 block">
@@ -98,7 +103,6 @@ const DuctSizing = () => {
             </select>
           </div>
         </div>
-
         {/* Maximum Static Loss */}
         <div className="space-y-1">
           <label className="text-gray-800 mb-1 block">
@@ -122,6 +126,15 @@ const DuctSizing = () => {
             </select>
           </div>
         </div>
+      </div>
+      {/* Calculate Button Container */}
+      <div className="absolute bottom-0 left-0 w-[340px] pb-20 bg-white p-4 border-t border-gray-300">
+        <button
+          onClick={handleCalculate}
+          className="w-full bg-[#0083EE] text-white py-3 rounded-md text-base font-semibold hover:bg-[#1C78DC] transition"
+        >
+          Calculate
+        </button>
       </div>
       {/* Right: Floor Preview */}
       <div className="flex-1 h-full">
