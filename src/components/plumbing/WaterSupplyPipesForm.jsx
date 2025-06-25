@@ -59,8 +59,8 @@ const WaterSupplyPipesForm = ({ setData }) => {
   };
 
   return (
-    <div className="flex h-screen">
-      <div className="w-[340px] h-[92vh] flex flex-col bg-white border border-[#E5E7EB] overflow-hidden relative">
+    <div className="flex ">
+      <div className="w-[340px] h-[90vh] flex flex-col bg-white border-r border-[#E5E7EB] overflow-hidden relative">
         {/* Header */}
         <div className="flex justify-between items-start px-4 pt-3 pb-2 border-b border-[#E5E7EB]">
           <div>
@@ -80,7 +80,7 @@ const WaterSupplyPipesForm = ({ setData }) => {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 pb-[80px] bg-white">
+        <div className="flex-1 overflow-y-auto px-4  bg-white">
           <InputRow label="Number of WB" value={numWb} onChange={setNumWb} />
           <InputRow
             label="Number of Health Faucet"
@@ -137,7 +137,7 @@ const WaterSupplyPipesForm = ({ setData }) => {
         </div>
       </div>
       {/* Right: Floor Preview */}
-      <div className="flex-1 h-full">
+      <div className="flex-1 h-[90vh]">
         <FloorPreview />
       </div>
     </div>

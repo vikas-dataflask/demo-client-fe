@@ -77,6 +77,7 @@ const FireHeadLossForm = ({ setData }) => {
   const [staticGain, setStaticGain] = useState(0);
 
   const [addFireHL, { isLoading }] = useAddFireHLMutation();
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleCalculate = async () => {
     const requestData = {
@@ -102,16 +103,16 @@ const FireHeadLossForm = ({ setData }) => {
 
     try {
       const response = await addFireHL(requestData).unwrap();
-      console.log("Mutation Result:", response.data);
       setData(response.data);
+      setErrorMsg(""); // Clear error on success
     } catch (error) {
-      console.error("Mutation Error:", error);
+      setErrorMsg(error?.data?.message || error?.error || "An error occurred. Please try again.");
     }
   };
 
   return (
     <div className="flex h-screen">
-      <div className="w-[340px] h-[92vh] flex flex-col bg-white border border-[#E5E7EB] overflow-hidden relative">
+      <div className="w-[340px] h-[92vh] flex flex-col bg-white border-r border-[#E5E7EB] overflow-hidden relative">
         {/* Header */}
         <div className="flex justify-between items-start px-4 pt-3 pb-2 border-b border-[#E5E7EB]">
           <div>
@@ -185,6 +186,9 @@ const FireHeadLossForm = ({ setData }) => {
             value={staticGain}
             onChange={setStaticGain}
           />
+          {errorMsg && (
+            <div className="text-red-600 text-xs mt-2 mb-2">{errorMsg}</div>
+          )}
         </div>
 
         {/* Bottom Button */}

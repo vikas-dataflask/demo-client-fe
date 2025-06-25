@@ -57,11 +57,14 @@ const AreaMarkup = () => {
 
   return (
     <div className="flex">
-      <div>
+      <div className="w-[340px] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
         <AreaMarkupSidebar />
       </div>
 
-      <div style={{ position: "relative", width: 1400, height: 700 }}>
+      <div
+        className="flex-1 h-full"
+        // style={{ position: "relative", width: 1400, height: 710 }}
+      >
         {hasEntities ? (
           <>
             <EntityRenderer

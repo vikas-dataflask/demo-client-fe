@@ -105,7 +105,7 @@ const HeatLoad = () => {
 
   return (
     <div className="flex h-screen">
-      <div className="bg-white px-4 pt-4 pb-6 border border-gray-200 w-[340px] font-sans text-[13px] overflow-hidden relative h-[92vh] overflow-y-auto flex flex-col">
+      <div className="bg-white px-4 pt-4 pb-6 border-r border-gray-200 w-[340px] font-sans text-[13px] overflow-hidden relative h-[92vh] overflow-y-auto flex flex-col">
         {/* Header */}
         <div className="flex justify-between items-start mb-3 sticky top-0 bg-white z-10 pb-3">
           <div>
