@@ -245,7 +245,7 @@ const VentilationForm = () => {
         </div>
 
         {/* Submit Button */}
-        <div className="p-4 border-t border-gray-200 bg-white">
+        <div className="p-4 pb-8.5 border-t border-gray-200 bg-white">
           <button
             type="submit"
             disabled={isLoading}

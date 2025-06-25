@@ -95,6 +95,34 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["Ventilation"],
     }),
+    // New mutation for AHU calculations
+    calculateAHU: builder.mutation({
+      query: (body) => ({
+        url: `api/ahu`, // Full path relative to your `/api` baseUrl
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["AHU"], // You might want to define a new tag for AHU
+    }),
+    // New Chiller calculation mutation
+    calculateChiller: builder.mutation({
+      query: (body) => ({
+        url: `api/chiller`, // New endpoint for Chiller
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Chiller"], // Add a new tag for Chiller
+    }),
+    calculateCondenser: builder.mutation({
+      // New: Condenser Mutation
+      query: (body) => ({
+        url: `api/condenser`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Condenser"], // Add a new tag for Chiller
+    }),
+
     addWaterDemand: builder.mutation({
       query: (body) => ({
         url: `api/waterdemand`,
@@ -172,14 +200,17 @@ export const apiSlice = createApi({
       }),
       providesTags: (result, error, id) => [{ type: "QE", id }],
     }),
-   // NEW: Mutation for updating Quantity Extraction data for a specific project
+    // NEW: Mutation for updating Quantity Extraction data for a specific project
     updateQE: builder.mutation({
-      query: ({ projectId, updatedData  }) => ({
+      query: ({ projectId, updatedData }) => ({
         url: `api/qe/${projectId}`, // Assuming you want to update QE for a specific project
         method: "PATCH", // Use PUT for updating an existing resource
         body: updatedData,
       }),
-      invalidatesTags: (result, error, { projectId }) => [{ type: "QE", id: projectId }, { type: "Project", id: projectId }], // Invalidate QE and Project tags
+      invalidatesTags: (result, error, { projectId }) => [
+        { type: "QE", id: projectId },
+        { type: "Project", id: projectId },
+      ], // Invalidate QE and Project tags
     }),
   }),
 });
@@ -195,6 +226,9 @@ export const {
   useAddFirePumpMutation,
   useAddHeatLoadMutation,
   useAddVentilationMutation,
+  useCalculateAHUMutation, // Exported for AHU
+  useCalculateChillerMutation, // Exported for Chiller
+  useCalculateCondenserMutation, // Exported for Condenser
   useAddWaterDemandMutation,
   useAddWaterSupplyPipesMutation,
   useAddDrainagePipesMutation,
@@ -205,5 +239,5 @@ export const {
   useGetQEListQuery,
   useDeleteQEMutation,
   useGetQEListByIdQuery,
-   useUpdateQEMutation,
+  useUpdateQEMutation,
 } = apiSlice;
