@@ -4,6 +4,12 @@ export const backofficeApi = createApi({
   reducerPath: "backofficeApi",
   baseQuery: fetchBaseQuery({ baseUrl: "/backoffice-api" }),
   endpoints: (builder) => ({
+    getServiceList: builder.query({
+      query: () => ({
+        url: "services",
+        method: "GET",
+      }),
+    }),
     getLocationList: builder.query({
       query: () => ({
         url: "locations",
@@ -17,14 +23,14 @@ export const backofficeApi = createApi({
       }),
     }),
     getSubBuildingList: builder.query({
-      query: () => ({
-        url: "sub-buildings",
+      query: (building_id) => ({
+        url: `sub-buildings?building_id=${building_id}`,
         method: "GET",
       }),
     }),
     getLevelsList: builder.query({
-      query: () => ({
-        url: "levels",
+      query: (sub_building_id) => ({
+        url: `levels?sub_building_id=${sub_building_id}`,
         method: "GET",
       }),
     }),
@@ -32,6 +38,7 @@ export const backofficeApi = createApi({
 });
 
 export const {
+  useGetServiceListQuery,
   useGetLocationListQuery,
   useGetBuildingListQuery,
   useGetSubBuildingListQuery,

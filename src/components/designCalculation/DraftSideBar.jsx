@@ -64,7 +64,7 @@ export default function DraftSideBar() {
           style={{ backgroundImage: "url('/src/images/dd.svg')" }}
         ></div>
         <div className="text-[16px] font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Design Draft
+          Design Drafter
         </div>
       </div>
 
@@ -196,14 +196,19 @@ export default function DraftSideBar() {
       </ul>
 
       {/* Profile */}
-      <div className="flex items-center justify-between bg-gray-100 p-2.5 m-3 rounded-md">
+      <div
+        className="flex items-center justify-between bg-gray-100 hover:bg-gray-200 p-2.5 m-3 rounded-md"
+        onClick={() => navigate("/profile")}
+      >
         <div className="flex items-center gap-2.5">
           <img
             src="/src/images/ProfileIcon.png"
             alt="user"
             className="w-8 h-8 rounded-full bg-gray-300"
           />
-          <span className="text-sm text-gray-800">{displayName}</span>
+          <span className="text-sm text-gray-800 font-semibold">
+            {displayName}
+          </span>
         </div>
       </div>
     </div>
