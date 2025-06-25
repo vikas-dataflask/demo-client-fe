@@ -1,84 +1,305 @@
+import React from "react";
 import jsPDF from "jspdf";
 
-export default function WaterDemandModal({ data }) {
-  const handleDownload = () => {
-    const doc = new jsPDF();
+// Helper function to add a section with a title and content to the PDF.
+const addSection = (
+  doc,
+  title,
+  contentRows,
+  startY,
+  pageWidth,
+  margin,
+  lineHeight
+) => {
+  let y = startY;
 
-    doc.setFillColor(63, 81, 181);
-    doc.rect(0, 10, 210, 20, "F");
+  // Section Title
+  doc.setFillColor(240, 240, 240); // Light gray background for section title
+  doc.rect(margin, y, pageWidth - 2 * margin, 8, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(51, 51, 51); // Dark gray text
+  doc.text(title, margin + 2, y + 6);
+  y += 10;
 
-    // Heading text
+  // Optional Headers for "Input Data" and "Calculation Result"
+  if (title === "CALCULATION INPUT DATA" || title === "CALCULATION RESULT") {
+    const col1Width = (pageWidth - 2 * margin) * 0.4;
+    const col2Width = (pageWidth - 2 * margin) * 0.3;
+    const col3Width = (pageWidth - 2 * margin) * 0.15;
+    const col4Width = (pageWidth - 2 * margin) * 0.15;
+
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(255, 255, 255);
-    doc.text("Plumbing - Plumbing Pump Report", 10, 23);
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0); // Black text for headers
 
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(16);
-    doc.text("LPM:", 10, 40);
+    doc.text("FACTOR", margin + 2, y);
+    doc.text("VALUE", margin + col1Width + 2, y);
+    doc.text("UNIT", margin + col1Width + col2Width + 2, y);
+    doc.text("CODAL REF", margin + col1Width + col2Width + col3Width + 2, y);
+    y += lineHeight;
+  }
 
-    doc.setFontSize(12);
-    doc.text(`${data.flowrateLpm}`, 10, 48);
+  // Section Content
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(0, 0, 0); // Black text for content
 
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(16);
-    doc.text("Head:", 10, 60);
+  contentRows.forEach((row) => {
+    const [label, value, unit = "", codalRef = ""] = row;
+    doc.text(label, margin + 2, y);
+    doc.text(String(value), margin + (pageWidth - 2 * margin) * 0.4 + 2, y);
+    doc.text(unit, margin + (pageWidth - 2 * margin) * 0.7 + 2, y);
+    doc.text(codalRef, margin + (pageWidth - 2 * margin) * 0.85 + 2, y);
+    y += lineHeight;
+  });
 
-    doc.setFontSize(12);
-    doc.text(`${data.totalHead}`, 10, 68);
+  y += 5; // Add some space after the section
+  return y;
+};
 
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(16);
-    doc.text("HP:", 10, 80);
+/**
+ * Generates a Plumbing Calculation Report PDF.
+ * @param {object} calculationResult - The result data from the plumbing calculation API.
+ * @param {object} formData - The form input data used for the calculation.
+ * @param {string} projectName - The name of the project.
+ * @param {string} activity - The activity related to the calculation (e.g., "Plumbing Pump").
+ * @param {string} reportTitle - The main title for the report (e.g., "Plumbing Pump Calculation Report").
+ * @param {Array<Array<string>>} inputFields - An array of arrays [label, key, unit, codalRef] for input data.
+ * @param {Array<Array<string>>} resultFields - An array of arrays [label, key, unit, codalRef] for result data.
+ */
+const generatePlumbingReportPdf = (
+  calculationResult,
+  formData,
+  projectName,
+  activity,
+  reportTitle,
+  inputFields,
+  resultFields
+) => {
+  if (!calculationResult || !calculationResult.data) {
+    console.warn("No calculation result data available to generate PDF.");
+    return;
+  }
 
-    doc.setFontSize(12);
-    doc.text(`${data.pumpCapacityHP}`, 10, 88);
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const lineHeight = 6;
+  let y = margin;
 
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(16);
-    doc.text("KW:", 10, 100);
+  // --- Header ---
+  doc.setFillColor(63, 81, 181); // Dark blue header
+  doc.rect(0, 0, pageWidth, 25, "F"); // Header bar
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255); // White text
+  doc.text(reportTitle, pageWidth / 2, 15, { align: "center" });
 
-    doc.setFontSize(12);
-    doc.text(`${data.pumpCapacityKW}`, 10, 108);
+  y = 35; // Start content below the header
 
-    // Save the PDF
-    doc.save("Plumbing(Plumbing Pump).pdf");
+  // --- Project Information ---
+  const projectInfoRows = [
+    ["Project Name", projectName || "N/A", "", ""],
+    ["Activity", activity || "N/A", "", ""],
+    ["Date", new Date().toLocaleDateString(), "", ""],
+  ];
+  y = addSection(
+    doc,
+    "PROJECT INFORMATION",
+    projectInfoRows,
+    y,
+    pageWidth,
+    margin,
+    lineHeight
+  );
+
+  // Add a small space between sections
+  y += 10;
+
+  // --- Calculation Input Data ---
+  const inputDataRows = inputFields.map(([label, key, unit, codalRef]) => [
+    label,
+    formData[key] !== undefined ? String(formData[key]) : "N/A",
+    unit,
+    codalRef,
+  ]);
+  y = addSection(
+    doc,
+    "CALCULATION INPUT DATA",
+    inputDataRows,
+    y,
+    pageWidth,
+    margin,
+    lineHeight
+  );
+
+  // Add a small space between sections
+  y += 10;
+
+  // --- Calculation Result ---
+  const calculatedData = calculationResult.data || {}; // Assuming result is directly in data for pump
+
+  const resultDataRows = resultFields.map(([label, key, unit, codalRef]) => [
+    label,
+    calculatedData[key] !== undefined
+      ? parseFloat(calculatedData[key]).toFixed(4)
+      : "N/A", // Fixed: Parse to float before toFixed
+    unit,
+    codalRef,
+  ]);
+  y = addSection(
+    doc,
+    "CALCULATION RESULT",
+    resultDataRows,
+    y,
+    pageWidth,
+    margin,
+    lineHeight
+  );
+
+  // Save the PDF
+  doc.save(`${reportTitle.replace(/ /g, "_")}.pdf`);
+};
+
+export default function PlumbingPumpModal({
+  data,
+  formData,
+  projectName,
+  activity,
+  onClose,
+}) {
+  // Define the input fields for the PDF and UI (mapped to formData keys from PlumbingPumpForm.jsx)
+  const inputFields = [
+    ["Total Water To Pump", "totalWaterToPump", "Liters", ""],
+    ["Filling Time", "fillingTime", "Hours", ""],
+    ["Station Height", "statonHeight", "m", ""],
+    ["Flow Rate Q", "flowrateMeter", "m³/s", ""], // This might be calculated, but it's an input in the form
+    ["Pipe Material", "pipeMaterial", "", ""],
+    ["Friction Loss Coefficient", "frictionLoss", "", ""],
+    ["Pipe Diameter", "pipeDiameter", "mm", ""],
+    ["Residual Head", "residualHead", "m", ""],
+    ["Total Pressure Loss", "pressureLoss", "Pa", ""],
+    ["Efficiency", "efficiency", "%", ""],
+    ["Pump Capacity (Watts)", "pumpCapacity", "W", ""], // This is also an input in the form
+  ];
+
+  // Define the result fields for the PDF and UI (mapped to data keys from API response)
+  const resultFields = [
+    ["Flowrate (LPM)", "flowrateLpm", "LPM", ""],
+    ["Total Head", "totalHead", "m", ""],
+    ["Pump Capacity (HP)", "pumpCapacityHP", "HP", ""],
+    ["Pump Capacity (KW)", "pumpCapacityKW", "KW", ""],
+  ];
+
+  const handleDownload = () => {
+    generatePlumbingReportPdf(
+      { data: data }, // Wrap the data object as { data: data } to match the structure expected by generatePlumbingReportPdf
+      formData,
+      projectName,
+      activity,
+      "Plumbing - Plumbing Pump Report",
+      inputFields,
+      resultFields
+    );
   };
+
+  const calculationResult = data || null; // Assuming 'data' prop is directly the result object
+
   return (
-    <div className="px-6">
+    <div className="px-6 relative">
+      {" "}
+      {/* Added relative for positioning close button */}
       <div className="py-4">
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-0 right-0 mt-2 mr-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-1 px-3 rounded-full text-sm"
+          aria-label="Close report"
+        >
+          X
+        </button>
+
         <div className="text-lg font-bold border-b border-gray-300 p-6 text-gray-800">
-          Pump Capacity
+          Plumbing Pump Report
         </div>
-        <div className="flex flex-col gap-4 py-8 px-4">
-          <div className="flex flex-col gap-2">
-            <div className="font-semibold text-gray-600 text-sm">LPM</div>
-            <div className="border border-gray-300 p-2 rounded bg-gray-100">
-              {data.flowrateLpm}
+
+        {/* Project Information Section */}
+        <div className="flex flex-col gap-4 py-4 px-4 border-b border-gray-200">
+          <h3 className="text-md font-semibold text-gray-800">
+            PROJECT INFORMATION:
+          </h3>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div className="flex flex-col">
+              <div className="font-semibold text-gray-600">PROJECT NAME:</div>
+              <div className="p-2 border border-gray-300 rounded bg-gray-100">
+                {projectName || "N/A"}
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <div className="font-semibold text-gray-600">ACTIVITY:</div>
+              <div className="p-2 border border-gray-300 rounded bg-gray-100">
+                {activity || "N/A"}
+              </div>
+            </div>
+            <div className="flex flex-col">
+              <div className="font-semibold text-gray-600">DATE:</div>
+              <div className="p-2 border border-gray-300 rounded bg-gray-100">
+                {new Date().toLocaleDateString()}
+              </div>
             </div>
           </div>
-          <div className="flex-col gap">
-            <div className="font-semibold text-gray-600 text-sm">Head</div>
-            <div className="border border-gray-300 p-2 rounded bg-gray-100">
-              {data.totalHead}
-            </div>
+        </div>
+
+        {/* Calculation Input Data Section */}
+        <div className="flex flex-col gap-4 py-4 px-4 border-b border-gray-200">
+          <h3 className="text-md font-semibold text-gray-800">
+            CALCULATION INPUT DATA:
+          </h3>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            {inputFields.map(([label, key, unit]) => (
+              <div key={key} className="flex flex-col">
+                <div className="font-semibold text-gray-600">
+                  {label.toUpperCase()}:
+                </div>
+                <div className="p-2 border border-gray-300 rounded bg-gray-100">
+                  {formData?.[key] !== undefined
+                    ? `${formData[key]} ${unit}`.trim()
+                    : "N/A"}
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="flex-col">
-            <div className="font-semibold text-gray-600 text-sm">HP</div>
-            <div className="border border-gray-300 p-2 rounded bg-gray-100">
-              {data.pumpCapacityHP}
+        </div>
+
+        {/* Calculation Result Section */}
+        <div className="flex flex-col gap-4 py-4 px-4">
+          <h3 className="text-md font-semibold text-gray-800">
+            CALCULATION RESULT:
+          </h3>
+          {calculationResult ? (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              {resultFields.map(([label, key, unit]) => (
+                <div key={key} className="flex flex-col">
+                  <div className="font-semibold text-gray-600">
+                    {label.toUpperCase()}:
+                  </div>
+                  <div className="p-2 border border-gray-300 rounded bg-gray-100">
+                    {/* Fixed: Parse to float before toFixed to prevent TypeError */}
+                    {calculationResult[key] !== undefined
+                      ? `${parseFloat(calculationResult[key]).toFixed(
+                          4
+                        )} ${unit}`.trim()
+                      : "N/A"}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-          <div className="flex-col">
-            <div className="font-semibold text-gray-600 text-sm">KW</div>
-            <div className="border border-gray-300 p-2 rounded bg-gray-100">
-              {data.pumpCapacityKW}
+          ) : (
+            <div className="text-gray-500">
+              Perform a calculation to see the results.
             </div>
-          </div>
+          )}
         </div>
       </div>
       <div

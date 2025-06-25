@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import { useAddPlumbingPumpMutation } from "../../redux/features/api/api"; // adjust path as needed
 import FloorPreview from "../shared/FloorPreview";
+import PlumbingPumpModal from "./PlumbingPumpModal"; // Import the modal (now acting as the report view)
 
 // Reusable InputRow
 const InputRow = ({ label, unit, value, onChange }) => (
@@ -61,7 +62,10 @@ const SelectRow = ({ label, value, onChange, options }) => (
   </div>
 );
 
-const PlumbingPumpForm = ({ setData }) => {
+const PlumbingPumpForm = ({
+  projectName = "Default Project",
+  activity = "Plumbing Pump",
+}) => {
   const [totalWaterToPump, setTotalWaterToPump] = useState("");
   const [fillingTime, setFillingTime] = useState("");
   const [statonHeight, setStatonHeight] = useState("");
@@ -71,11 +75,27 @@ const PlumbingPumpForm = ({ setData }) => {
   const [pipeDiameter, setPipeDiameter] = useState("Select");
   const [residualHead, setResidualHead] = useState("");
   const [pressureLoss, setPressureLoss] = useState("");
-  const [totalHead, setTotalHead] = useState("");
+  const [totalHead, setTotalHead] = useState(""); // This looks like an output, not an input based on original modal
   const [efficiency, setEfficiency] = useState("");
-  const [pumpCapacity, setPumpCapacity] = useState("Hour");
+  const [pumpCapacity, setPumpCapacity] = useState(""); // This looks like an output, not an input based on original modal
 
   const [addPump, { isLoading, error }] = useAddPlumbingPumpMutation();
+  const [calculationResult, setCalculationResult] = useState(null); // State to hold API response
+
+  // Collect all form data into a single object for passing to the report/PDF
+  const formData = {
+    totalWaterToPump,
+    fillingTime,
+    statonHeight,
+    flowrateMeter,
+    pipeMaterial,
+    frictionLoss,
+    pipeDiameter,
+    residualHead,
+    pressureLoss,
+    efficiency,
+    pumpCapacity,
+  };
 
   const handleCalculate = async () => {
     try {
@@ -93,10 +113,33 @@ const PlumbingPumpForm = ({ setData }) => {
 
       const response = await addPump(payload).unwrap();
       console.log(response);
-      setData(response.data); // assuming `data` is inside `response`
+      setCalculationResult(response.data); // Store the calculation result
     } catch (err) {
       console.error("Error calculating pump:", err);
+      setCalculationResult(null); // Clear results on error
+      // Optionally, set an error state here to display error message on UI
     }
+  };
+
+  const handleReload = () => {
+    setTotalWaterToPump("");
+    setFillingTime("");
+    setStatonHeight("");
+    setFlowRateMeter("");
+    setPipeMaterial("Select");
+    setFrictionLoss("");
+    setPipeDiameter("Select");
+    setResidualHead("");
+    setPressureLoss("");
+    setTotalHead("");
+    setEfficiency("");
+    setPumpCapacity("");
+    setCalculationResult(null); // Clear previous results to show FloorPreview again
+    console.log("Form reloaded");
+  };
+
+  const handleCloseReport = () => {
+    setCalculationResult(null); // Clear calculation result to show FloorPreview
   };
 
   return (
@@ -112,7 +155,7 @@ const PlumbingPumpForm = ({ setData }) => {
           </div>
           <button
             className="w-[24px] h-[24px] bg-[#2E90FA] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC] transition"
-            onClick={() => console.log("Reload clicked")}
+            onClick={handleReload}
           >
             <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
           </button>
@@ -172,6 +215,9 @@ const PlumbingPumpForm = ({ setData }) => {
             value={efficiency}
             onChange={setEfficiency}
           />
+          {/* Note: Original code had Pump Capacity {Watts} as input.
+                   If this is truly an input, keep it. If it's an output, remove from input fields.
+                   Based on PlumbingPumpModal, it looks like an output. */}
           <InputRow
             label="Pump Capacity {Watts}"
             value={pumpCapacity}
@@ -195,9 +241,19 @@ const PlumbingPumpForm = ({ setData }) => {
           )}
         </div>
       </div>
-      {/* Right: Floor Preview */}
-      <div className="flex-1 h-[90vh]">
-        <FloorPreview />
+      {/* Right: Report Display or Floor Preview */}
+      <div className="flex-1 h-[90vh] overflow-y-auto">
+        {calculationResult ? (
+          <PlumbingPumpModal
+            data={calculationResult}
+            formData={formData} // Pass collected form data
+            projectName={projectName} // Pass projectName
+            activity={activity} // Pass activity
+            onClose={handleCloseReport} // Pass the close handler
+          />
+        ) : (
+          <FloorPreview />
+        )}
       </div>
     </div>
   );
