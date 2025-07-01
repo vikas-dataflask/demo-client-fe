@@ -20,10 +20,17 @@ import PlumbingPumpModal from "../components/plumbing/PlumbingPumpModal";
 import RainWaterDroppingModal from "../components/plumbing/RainWaterDroppingModal";
 import RwhModal from "../components/plumbing/RwhModal";
 import PlumbingHLFormModal from "../components/plumbing/PlumbingHLFormModal";
+import { useParams } from "react-router-dom";
+import { useGetProjectListQuery } from "../redux/features/api/api";
 
 export default function PlumbingPage() {
   const [activeSection, setActiveSection] = useState("water-demand"); // Default
   const [data, setData] = useState();
+
+  const { projectId } = useParams(); // Get projectId from URL
+  const { data: projects } = useGetProjectListQuery(); // Fetch projects
+  const project = projects?.find((p) => p._id === projectId); // Find the current project
+  const projectName = project?.name || ""; // Extract project name
 
   const renderContent = () => {
     switch (activeSection) {
@@ -32,12 +39,22 @@ export default function PlumbingPage() {
       case "water-supply":
         return <WaterSupplyPipesForm setData={setData} />;
       case "drainage-pipe":
-        return <DrainagePipesForm setData={setData} />;
+        return (
+          <DrainagePipesForm
+            projectName={projectName}
+            activity={activeSection}
+          />
+        );
 
       case "head-loss":
         return <PlumbingHeadLossForm setData={setData} />;
       case "plumbing-pump":
-        return <PlumbingPumpForm setData={setData} />;
+        return (
+          <PlumbingPumpForm
+            projectName={projectName}
+            activity={activeSection}
+          />
+        );
       case "RainWater-Dropping":
         return <RainWaterDropping setData={setData} />;
       case "RWH":

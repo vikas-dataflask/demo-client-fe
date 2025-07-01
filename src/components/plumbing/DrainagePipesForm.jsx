@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import { useAddDrainagePipesMutation } from "../../redux/features/api/api"; // Adjust the path as needed
 import FloorPreview from "../shared/FloorPreview";
+import DrainagePipesModal from "./DrainagePipesModal"; // Import the modal (now acting as the report view)
 
 // Reusable Components
 const InputRow = ({ label, unit, value, onChange }) => (
@@ -37,9 +38,13 @@ const SelectRow = ({ label, value, onChange, options }) => (
   </div>
 );
 
-const DrainagePipesForm = ({ setData }) => {
+const DrainagePipesForm = ({
+  projectName = "Default Project",
+  activity = "Drainage Pipes",
+}) => {
   const [addDrainagePipes] = useAddDrainagePipesMutation();
 
+  // State for form inputs
   const [wb, setWb] = useState(10);
   const [healthFaucet, setHealthFaucet] = useState(10);
   const [floorDrain, setFloorDrain] = useState(10);
@@ -54,6 +59,27 @@ const DrainagePipesForm = ({ setData }) => {
   const [pipeSlope, setPipeSlope] = useState(1.5);
   const [velocity, setVelocity] = useState(1.5);
   const [pipeSize, setPipeSize] = useState("");
+
+  // State for calculation result
+  const [calculationResult, setCalculationResult] = useState(null);
+
+  // Collect all form data into a single object for passing to the report/PDF
+  const formData = {
+    wb,
+    healthFaucet,
+    floorDrain,
+    serviceSink,
+    kitchenSink,
+    shower,
+    wc,
+    urinal,
+    urinalTrap,
+    fixtureUnit,
+    SoilWastePipeSize,
+    pipeSlope,
+    velocity,
+    pipeSize,
+  };
 
   const handleCalculate = async () => {
     try {
@@ -71,13 +97,39 @@ const DrainagePipesForm = ({ setData }) => {
             num_urinal_trap: urinalTrap,
           },
         ],
-      }).unwrap(); // unwrap to handle errors and get the raw response
+      }).unwrap();
 
-      console.log(res?.data?.[0]?.total_raw_water);
-      setData(res.data);
+      setCalculationResult(res.data); // Store the calculation result
+      console.log(res?.data?.[0]?.total_raw_water); // This might be a typo, check API response for correct key
     } catch (error) {
       console.error("API Error:", error);
+      // Optionally handle error display to the user
     }
+  };
+
+  const handleReload = () => {
+    // Reset all form fields to their initial state or empty
+    setWb(10);
+    setHealthFaucet(10);
+    setFloorDrain(10);
+    setServiceSink(10);
+    setKitchenSink(10);
+    setShower(10);
+    setWc(10);
+    setUrinal(10);
+    setUrinalTrap(10);
+    setFixtureUnit(646);
+    setSoilWastePipeSize(50);
+    setPipeSlope(1.5);
+    setVelocity(1.5);
+    setPipeSize("");
+    setCalculationResult(null); // Clear previous results to show FloorPreview again
+    console.log("Form reloaded");
+  };
+
+  // Function to close the report and show FloorPreview
+  const handleCloseReport = () => {
+    setCalculationResult(null);
   };
 
   return (
@@ -93,7 +145,7 @@ const DrainagePipesForm = ({ setData }) => {
           </div>
           <button
             className="w-[24px] h-[24px] bg-[#0083EE] text-white hover:bg-sky-600 rounded-md flex items-center justify-center transition"
-            onClick={() => console.log("Reload clicked")}
+            onClick={handleReload}
           >
             <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
           </button>
@@ -167,9 +219,19 @@ const DrainagePipesForm = ({ setData }) => {
           </button>
         </div>
       </div>
-      {/* Right: Floor Preview */}
-      <div className="flex-1 h-[90vh]">
-        <FloorPreview />
+      {/* Right: Report Display or Floor Preview */}
+      <div className="flex-1 h-[90vh] overflow-y-auto">
+        {calculationResult ? (
+          <DrainagePipesModal
+            data={calculationResult}
+            formData={formData} // Pass collected form data
+            projectName={projectName} // Pass projectName
+            activity={activity} // Pass activity
+            onClose={handleCloseReport}
+          />
+        ) : (
+          <FloorPreview />
+        )}
       </div>
     </div>
   );

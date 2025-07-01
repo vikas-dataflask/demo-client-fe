@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react"; // Import useRef
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import { useAddPlumbingPumpMutation } from "../../redux/features/api/api"; // adjust path as needed
 import FloorPreview from "../shared/FloorPreview";
+import PlumbingPumpModal from "./PlumbingPumpModal"; // Import the modal (now acting as the report view)
+import html2canvas from "html2canvas"; // Import html2canvas
 
 // Reusable InputRow
 const InputRow = ({ label, unit, value, onChange }) => (
@@ -61,7 +63,10 @@ const SelectRow = ({ label, value, onChange, options }) => (
   </div>
 );
 
-const PlumbingPumpForm = ({ setData }) => {
+const PlumbingPumpForm = ({
+  projectName = "Default Project",
+  activity = "Plumbing Pump",
+}) => {
   const [totalWaterToPump, setTotalWaterToPump] = useState("");
   const [fillingTime, setFillingTime] = useState("");
   const [statonHeight, setStatonHeight] = useState("");
@@ -73,11 +78,49 @@ const PlumbingPumpForm = ({ setData }) => {
   const [pressureLoss, setPressureLoss] = useState("");
   const [totalHead, setTotalHead] = useState("");
   const [efficiency, setEfficiency] = useState("");
-  const [pumpCapacity, setPumpCapacity] = useState("Hour");
+  const [pumpCapacity, setPumpCapacity] = useState("");
 
   const [addPump, { isLoading, error }] = useAddPlumbingPumpMutation();
+  const [calculationResult, setCalculationResult] = useState(null);
+  const [floorImageBase64, setFloorImageBase64] = useState(null); // State to store Base64 image
+  const floorPreviewRef = useRef(null); // Ref to target FloorPreview component
+
+  const formData = {
+    totalWaterToPump,
+    fillingTime,
+    statonHeight,
+    flowrateMeter,
+    pipeMaterial,
+    frictionLoss,
+    pipeDiameter,
+    residualHead,
+    pressureLoss,
+    efficiency,
+    pumpCapacity,
+  };
+
+  const captureFloorPreview = async () => {
+    if (floorPreviewRef.current) {
+      try {
+        const canvas = await html2canvas(floorPreviewRef.current, {
+          // You might need to adjust these options based on your FloorPreview implementation
+          useCORS: true, // If FloorPreview loads images from other domains
+          scale: 2, // Increase scale for better quality in PDF
+          logging: true, // Enable logging for debugging
+        });
+        const imgData = canvas.toDataURL("image/png");
+        setFloorImageBase64(imgData);
+      } catch (err) {
+        console.error("Error capturing floor preview:", err);
+        setFloorImageBase64(null); // Clear image on error
+      }
+    }
+  };
 
   const handleCalculate = async () => {
+    // Capture the floor preview before making the API call and showing the report
+    await captureFloorPreview();
+
     try {
       const payload = {
         totalWater: parseFloat(totalWaterToPump),
@@ -93,10 +136,35 @@ const PlumbingPumpForm = ({ setData }) => {
 
       const response = await addPump(payload).unwrap();
       console.log(response);
-      setData(response.data); // assuming `data` is inside `response`
+      setCalculationResult(response.data);
     } catch (err) {
       console.error("Error calculating pump:", err);
+      setCalculationResult(null);
+      setFloorImageBase64(null); // Clear image if calculation fails
     }
+  };
+
+  const handleReload = () => {
+    setTotalWaterToPump("");
+    setFillingTime("");
+    setStatonHeight("");
+    setFlowRateMeter("");
+    setPipeMaterial("Select");
+    setFrictionLoss("");
+    setPipeDiameter("Select");
+    setResidualHead("");
+    setPressureLoss("");
+    setTotalHead("");
+    setEfficiency("");
+    setPumpCapacity("");
+    setCalculationResult(null);
+    setFloorImageBase64(null); // Clear image on reload
+    console.log("Form reloaded");
+  };
+
+  const handleCloseReport = () => {
+    setCalculationResult(null);
+    setFloorImageBase64(null); // Clear image when report is closed
   };
 
   return (
@@ -112,7 +180,7 @@ const PlumbingPumpForm = ({ setData }) => {
           </div>
           <button
             className="w-[24px] h-[24px] bg-[#2E90FA] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC] transition"
-            onClick={() => console.log("Reload clicked")}
+            onClick={handleReload}
           >
             <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
           </button>
@@ -195,9 +263,22 @@ const PlumbingPumpForm = ({ setData }) => {
           )}
         </div>
       </div>
-      {/* Right: Floor Preview */}
-      <div className="flex-1 h-[90vh]">
-        <FloorPreview />
+      {/* Right: Report Display or Floor Preview */}
+      <div className="flex-1 h-[90vh] overflow-y-auto" ref={floorPreviewRef}>
+        {" "}
+        {/* Assign ref here */}
+        {calculationResult ? (
+          <PlumbingPumpModal
+            data={calculationResult}
+            formData={formData}
+            projectName={projectName}
+            activity={activity}
+            onClose={handleCloseReport}
+            floorDrawingImageBase64={floorImageBase64}
+          />
+        ) : (
+          <FloorPreview />
+        )}
       </div>
     </div>
   );

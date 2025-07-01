@@ -2,7 +2,9 @@
 import React, { useState, useEffect } from "react";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import { useCalculateAHUMutation } from "../../redux/features/api/api";
-import jsPDF from "jspdf";
+import { generateAHUReportPdf } from "./AhuPdfMaker";
+// Import the new PDF generation utility
+// import { generateAHUReportPdf } f"; // Adjust path as needed based on where you save pdfGenerator.js
 
 // Receive projectName and activity as props
 const AHU = ({ projectName, activity }) => {
@@ -14,9 +16,6 @@ const AHU = ({ projectName, activity }) => {
     length: "",
   });
 
-  // Use useEffect to update formData if props change (though projectName/activity
-  // are not user-editable in this component, this keeps internal state consistent
-  // if the parent HVACPage remounts AHU with different props)
   useEffect(() => {
     // This effect ensures that if projectName or activity were ever needed in formData for other
     // purposes (e.g., sending to backend with form fields), they would be updated.
@@ -24,7 +23,7 @@ const AHU = ({ projectName, activity }) => {
     // this specific `setFormData` might be redundant for projectName/activity,
     // but useful if `formData` had a different structure or `handleCalculate` used `formData.projectName`.
     // For clarity, we'll keep them used directly from props in handleCalculate/handleDownload.
-  }, [projectName, activity]); // Dependency array to re-run if these props change
+  }, [projectName, activity]);
 
   const [
     calculateAHU,
@@ -41,8 +40,8 @@ const AHU = ({ projectName, activity }) => {
 
     try {
       const dataToSend = {
-        projectName: projectName, // Use prop directly for API payload
-        activity: activity, // Use prop directly for API payload
+        projectName: projectName,
+        activity: activity,
         equipment: formData.equipment,
         flowrate: parseFloat(formData.flowrate),
         width: parseFloat(formData.width),
@@ -65,220 +64,12 @@ const AHU = ({ projectName, activity }) => {
       height: "",
       length: "",
     });
-    // projectName and activity are props, so they don't reset with local form data.
   };
 
-  // PDF download function
+  // PDF download function - now calls the external utility
   const handleDownload = () => {
-    if (!calculationResult || !calculationResult.data) return;
-
-    const calculatedData = calculationResult.data;
-
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15; // Left/Right margin for content
-    const lineHeight = 8; // Consistent line height for data rows
-
-    // --- Header ---
-    doc.setFillColor(63, 81, 181); // Dark blue header
-    doc.rect(0, 0, pageWidth, 25, "F"); // Header bar
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.setTextColor(255, 255, 255); // White text
-    doc.text("AHU Calculation Report", pageWidth / 2, 15, { align: "center" });
-
-    // --- Content Start Position ---
-    let yPos = 35; // Starting Y position for the content below the header
-    const contentX = margin;
-    const contentWidth = pageWidth - 2 * margin;
-
-    // Helper function to add a section with title and content in a box
-    const addSection = (title, items) => {
-      // Section Title Header Bar
-      doc.setFillColor(240, 240, 240); // Light gray for section title background
-      doc.rect(contentX, yPos, contentWidth, 10, "F"); // Background for title bar
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(50, 50, 50); // Darker gray for title text
-      doc.text(title, contentX + 5, yPos + 7); // Title within the bar
-      yPos += 10; // Move yPos past the title bar
-
-      const sectionContentYStart = yPos; // Y position where content begins for this section
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0); // Black text for content
-
-      // Calculate the maximum key width in this section for consistent value alignment
-      let maxKeyWidth = 0;
-      // Temporarily set font to bold to get accurate width of keys
-      doc.setFont("helvetica", "bold");
-      items.forEach(([key]) => {
-        const currentKeyWidth = doc.getTextWidth(`${key}:`);
-        if (currentKeyWidth > maxKeyWidth) {
-          maxKeyWidth = currentKeyWidth;
-        }
-      });
-      // Reset font to normal for values
-      doc.setFont("helvetica", "normal");
-
-      // Define the starting X for values based on maxKeyWidth plus a buffer
-      const valueStartX = contentX + maxKeyWidth + 10; // 10 units buffer from the longest key
-
-      items.forEach(([key, value, unit]) => {
-        doc.setFont("helvetica", "bold");
-        doc.text(`${key}:`, contentX + 5, yPos); // Key text inside the section box, slightly indented
-        doc.setFont("helvetica", "normal"); // Reset font for value
-        const valueText =
-          value !== null && value !== undefined ? String(value) : "N/A";
-        doc.text(`${valueText} ${unit}`, valueStartX, yPos); // Use dynamically calculated valueStartX
-        yPos += lineHeight;
-      });
-
-      // Draw border around the content of the section
-      doc.setDrawColor(200, 200, 200); // Light gray border
-      doc.rect(
-        contentX,
-        sectionContentYStart,
-        contentWidth,
-        yPos - sectionContentYStart,
-        "S"
-      );
-
-      yPos += 7; // Space after section
-    };
-
-    // --- Project Information Section ---
-    addSection("PROJECT INFORMATION", [
-      ["PROJECT", projectName || "N/A", ""],
-      ["DATE", new Date().toLocaleDateString("en-GB"), ""],
-      ["CALCULATION", `HVAC - ${activity.toUpperCase()}`, ""],
-    ]);
-
-    // Prepare data for input and result sections
-    const inputDataItems = [
-      ["EQUIPMENT", formData.equipment || "N/A", ""],
-      [
-        "FLOWRATE",
-        formData.flowrate !== ""
-          ? parseFloat(formData.flowrate).toFixed(4)
-          : "N/A",
-        "m³/s",
-      ],
-      [
-        "WIDTH",
-        formData.width !== "" ? parseFloat(formData.width).toFixed(4) : "N/A",
-        "m",
-      ],
-      [
-        "HEIGHT",
-        formData.height !== "" ? parseFloat(formData.height).toFixed(4) : "N/A",
-        "m",
-      ],
-      [
-        "LENGTH",
-        formData.length !== "" ? parseFloat(formData.length).toFixed(4) : "N/A",
-        "m",
-      ],
-    ];
-
-    const calculationResultItems = [
-      [
-        "Area",
-        calculatedData.area_m2 !== undefined
-          ? calculatedData.area_m2.toFixed(4)
-          : "N/A",
-        "m²",
-      ],
-      [
-        "Mean Velocity (U)",
-        calculatedData.u !== undefined ? calculatedData.u.toFixed(4) : "N/A",
-        "m/s",
-      ],
-      [
-        "Hydraulic Diameter (Dh)",
-        calculatedData.dh !== undefined ? calculatedData.dh.toFixed(4) : "N/A",
-        "m",
-      ],
-      [
-        "Equivalent Diameter (De)",
-        calculatedData.de !== undefined ? calculatedData.de.toFixed(4) : "N/A",
-        "m",
-      ],
-      [
-        "Equivalent Length (Le)",
-        calculatedData.le !== undefined ? calculatedData.le.toFixed(4) : "N/A",
-        "m",
-      ],
-      [
-        "Reynolds Number (Re)",
-        calculatedData.re !== undefined ? calculatedData.re.toFixed(4) : "N/A",
-        "-",
-      ],
-      [
-        "Velocity Pressure (Pv)",
-        calculatedData.pv !== undefined ? calculatedData.pv.toFixed(4) : "N/A",
-        "Pa",
-      ],
-      [
-        "Roughness (ε)",
-        calculatedData.fixed_epsilon !== undefined
-          ? calculatedData.fixed_epsilon.toFixed(6)
-          : "N/A",
-        "m",
-      ],
-      [
-        "Friction Factor (λ)",
-        calculatedData.lambda !== undefined
-          ? calculatedData.lambda.toFixed(4)
-          : "N/A",
-        "-",
-      ],
-      [
-        "Local Velocity (U₀)",
-        calculatedData.fixed_u0 !== undefined
-          ? calculatedData.fixed_u0.toFixed(4)
-          : "N/A",
-        "m/s",
-      ],
-      [
-        "Loss Coefficient (C₀)",
-        calculatedData.fixed_c0 !== undefined
-          ? calculatedData.fixed_c0.toFixed(4)
-          : "N/A",
-        "-",
-      ],
-      [
-        "Frictional Pressure Drop (ΔPf)",
-        calculatedData.calculated_deltaPf !== undefined
-          ? calculatedData.calculated_deltaPf.toFixed(4)
-          : "N/A",
-        "Pa",
-      ],
-      [
-        "Local Pressure Drop (ΔPl)",
-        calculatedData.calculated_deltaPl !== undefined
-          ? calculatedData.calculated_deltaPl.toFixed(4)
-          : "N/A",
-        "Pa",
-      ],
-      [
-        "Total Pressure Drop (ΔPt)",
-        calculatedData.calculated_deltaPt !== undefined
-          ? calculatedData.calculated_deltaPt.toFixed(4)
-          : "N/A",
-        "Pa",
-      ],
-    ];
-
-    // Using the new addSection function for input and result data
-    addSection("CALCULATION INPUT DATA", inputDataItems);
-    addSection("CALCULATION RESULT", calculationResultItems);
-
-    // Save the PDF
-    doc.save(
-      `AHU_${projectName || "Report"}_${new Date().toLocaleDateString()}.pdf`
-    );
+    // Pass all necessary data to the external PDF generation function
+    generateAHUReportPdf(calculationResult, formData, projectName, activity);
   };
 
   // Input fields for the left sidebar (user editable)
@@ -329,9 +120,6 @@ const AHU = ({ projectName, activity }) => {
 
         {/* Scrollable form */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Project Name and Activity fields are intentionally REMOVED from this UI */}
-          {/* They are passed as props and used directly in the report */}
-
           {/* Equipment Dropdown */}
           <div className="space-y-1">
             <label className="text-gray-800 block">EQUIPMENT</label>
@@ -442,9 +230,9 @@ const AHU = ({ projectName, activity }) => {
       </div>
 
       {/* Right Pane (Report Display - Mimicking Sample Result Sheet) */}
-      <div className="flex-grow p-6 bg-gray-50 overflow-y-auto">
+      <div className="flex-grow p-6  bg-gray-50 overflow-y-auto">
         {isSuccess && calculationResult && calculationResult.data ? (
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white p-12 rounded-lg shadow-md">
             {/* Report Header - Mimicking Screenshot */}
             <div className="bg-[#3F51B5] text-white p-4 rounded-t-lg mb-4 text-center">
               <h2 className="text-2xl font-bold">AHU Calculation Report</h2>
@@ -464,7 +252,6 @@ const AHU = ({ projectName, activity }) => {
                     {projectName || "N/A"}
                   </div>
                 </div>
-                {/* Removed CLIENT, LOCATION, DESIGN BY, CHECKED BY, SHEET No. as requested */}
                 <div className="flex flex-col">
                   <div className="font-semibold text-gray-600">DATE:</div>
                   <div className="p-2 border border-gray-300 rounded bg-gray-50">
@@ -539,8 +326,7 @@ const AHU = ({ projectName, activity }) => {
                   <div key={key} className="flex flex-col">
                     <div className="font-semibold text-gray-600">
                       {label.toUpperCase()}:
-                    </div>{" "}
-                    {/* Match sample's ALL CAPS */}
+                    </div>
                     <div className="p-2 border border-gray-300 rounded bg-gray-50">
                       {calculationResult.data[key] !== undefined
                         ? calculationResult.data[key].toFixed(4)
@@ -553,7 +339,7 @@ const AHU = ({ projectName, activity }) => {
 
             {/* Download Button */}
             <div
-              onClick={handleDownload}
+              onClick={handleDownload} // This now calls the wrapper function
               className="flex justify-center items-center bg-blue-500 h-12 rounded-lg cursor-pointer hover:bg-blue-600 transition mt-6"
             >
               <div className="text-white font-semibold text-lg">
