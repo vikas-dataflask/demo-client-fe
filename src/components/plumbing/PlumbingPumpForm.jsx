@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react"; // Import useRef
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import { useAddPlumbingPumpMutation } from "../../redux/features/api/api"; // adjust path as needed
 import FloorPreview from "../shared/FloorPreview";
 import PlumbingPumpModal from "./PlumbingPumpModal"; // Import the modal (now acting as the report view)
+import html2canvas from "html2canvas"; // Import html2canvas
 
 // Reusable InputRow
 const InputRow = ({ label, unit, value, onChange }) => (
@@ -75,14 +76,15 @@ const PlumbingPumpForm = ({
   const [pipeDiameter, setPipeDiameter] = useState("Select");
   const [residualHead, setResidualHead] = useState("");
   const [pressureLoss, setPressureLoss] = useState("");
-  const [totalHead, setTotalHead] = useState(""); // This looks like an output, not an input based on original modal
+  const [totalHead, setTotalHead] = useState("");
   const [efficiency, setEfficiency] = useState("");
-  const [pumpCapacity, setPumpCapacity] = useState(""); // This looks like an output, not an input based on original modal
+  const [pumpCapacity, setPumpCapacity] = useState("");
 
   const [addPump, { isLoading, error }] = useAddPlumbingPumpMutation();
-  const [calculationResult, setCalculationResult] = useState(null); // State to hold API response
+  const [calculationResult, setCalculationResult] = useState(null);
+  const [floorImageBase64, setFloorImageBase64] = useState(null); // State to store Base64 image
+  const floorPreviewRef = useRef(null); // Ref to target FloorPreview component
 
-  // Collect all form data into a single object for passing to the report/PDF
   const formData = {
     totalWaterToPump,
     fillingTime,
@@ -97,7 +99,28 @@ const PlumbingPumpForm = ({
     pumpCapacity,
   };
 
+  const captureFloorPreview = async () => {
+    if (floorPreviewRef.current) {
+      try {
+        const canvas = await html2canvas(floorPreviewRef.current, {
+          // You might need to adjust these options based on your FloorPreview implementation
+          useCORS: true, // If FloorPreview loads images from other domains
+          scale: 2, // Increase scale for better quality in PDF
+          logging: true, // Enable logging for debugging
+        });
+        const imgData = canvas.toDataURL("image/png");
+        setFloorImageBase64(imgData);
+      } catch (err) {
+        console.error("Error capturing floor preview:", err);
+        setFloorImageBase64(null); // Clear image on error
+      }
+    }
+  };
+
   const handleCalculate = async () => {
+    // Capture the floor preview before making the API call and showing the report
+    await captureFloorPreview();
+
     try {
       const payload = {
         totalWater: parseFloat(totalWaterToPump),
@@ -113,11 +136,11 @@ const PlumbingPumpForm = ({
 
       const response = await addPump(payload).unwrap();
       console.log(response);
-      setCalculationResult(response.data); // Store the calculation result
+      setCalculationResult(response.data);
     } catch (err) {
       console.error("Error calculating pump:", err);
-      setCalculationResult(null); // Clear results on error
-      // Optionally, set an error state here to display error message on UI
+      setCalculationResult(null);
+      setFloorImageBase64(null); // Clear image if calculation fails
     }
   };
 
@@ -134,12 +157,14 @@ const PlumbingPumpForm = ({
     setTotalHead("");
     setEfficiency("");
     setPumpCapacity("");
-    setCalculationResult(null); // Clear previous results to show FloorPreview again
+    setCalculationResult(null);
+    setFloorImageBase64(null); // Clear image on reload
     console.log("Form reloaded");
   };
 
   const handleCloseReport = () => {
-    setCalculationResult(null); // Clear calculation result to show FloorPreview
+    setCalculationResult(null);
+    setFloorImageBase64(null); // Clear image when report is closed
   };
 
   return (
@@ -215,9 +240,6 @@ const PlumbingPumpForm = ({
             value={efficiency}
             onChange={setEfficiency}
           />
-          {/* Note: Original code had Pump Capacity {Watts} as input.
-                   If this is truly an input, keep it. If it's an output, remove from input fields.
-                   Based on PlumbingPumpModal, it looks like an output. */}
           <InputRow
             label="Pump Capacity {Watts}"
             value={pumpCapacity}
@@ -242,14 +264,17 @@ const PlumbingPumpForm = ({
         </div>
       </div>
       {/* Right: Report Display or Floor Preview */}
-      <div className="flex-1 h-[90vh] overflow-y-auto">
+      <div className="flex-1 h-[90vh] overflow-y-auto" ref={floorPreviewRef}>
+        {" "}
+        {/* Assign ref here */}
         {calculationResult ? (
           <PlumbingPumpModal
             data={calculationResult}
-            formData={formData} // Pass collected form data
-            projectName={projectName} // Pass projectName
-            activity={activity} // Pass activity
-            onClose={handleCloseReport} // Pass the close handler
+            formData={formData}
+            projectName={projectName}
+            activity={activity}
+            onClose={handleCloseReport}
+            floorDrawingImageBase64={floorImageBase64}
           />
         ) : (
           <FloorPreview />

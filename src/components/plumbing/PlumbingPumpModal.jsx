@@ -67,6 +67,7 @@ const addSection = (
  * @param {string} reportTitle - The main title for the report (e.g., "Plumbing Pump Calculation Report").
  * @param {Array<Array<string>>} inputFields - An array of arrays [label, key, unit, codalRef] for input data.
  * @param {Array<Array<string>>} resultFields - An array of arrays [label, key, unit, codalRef] for result data.
+ * @param {string} floorDrawingImageBase64 - Base64 string of the floor drawing image.
  */
 const generatePlumbingReportPdf = (
   calculationResult,
@@ -75,7 +76,8 @@ const generatePlumbingReportPdf = (
   activity,
   reportTitle,
   inputFields,
-  resultFields
+  resultFields,
+  floorDrawingImageBase64 // New parameter for floor drawing
 ) => {
   if (!calculationResult || !calculationResult.data) {
     console.warn("No calculation result data available to generate PDF.");
@@ -158,6 +160,60 @@ const generatePlumbingReportPdf = (
     lineHeight
   );
 
+  // Add a small space between sections
+  y += 10;
+
+  // --- Floor Drawing ---
+  if (floorDrawingImageBase64) {
+    doc.addPage(); // Add a new page for the drawing
+    y = margin; // Reset y for the new page
+    doc.setFillColor(240, 240, 240); // Light gray background for section title
+    doc.rect(margin, y, pageWidth - 2 * margin, 8, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(51, 51, 51); // Dark gray text
+    doc.text("FLOOR DRAWING", margin + 2, y + 6);
+    y += 10;
+
+    // Calculate image dimensions to fit page while maintaining aspect ratio
+    const imgProps = doc.getImageProperties(floorDrawingImageBase64);
+    const imgWidth = imgProps.width;
+    const imgHeight = imgProps.height;
+    const aspectRatio = imgWidth / imgHeight;
+
+    const maxContentWidth = pageWidth - 2 * margin;
+    const maxContentHeight = doc.internal.pageSize.getHeight() - y - margin;
+
+    let finalImgWidth = maxContentWidth;
+    let finalImgHeight = maxContentWidth / aspectRatio;
+
+    if (finalImgHeight > maxContentHeight) {
+      finalImgHeight = maxContentHeight;
+      finalImgWidth = maxContentHeight * aspectRatio;
+    }
+
+    const imgX = margin + (maxContentWidth - finalImgWidth) / 2; // Center image horizontally
+    const imgY = y + (maxContentHeight - finalImgHeight) / 2; // Center image vertically
+
+    doc.addImage(
+      floorDrawingImageBase64,
+      "PNG", // Or 'JPEG' if that's the format
+      imgX,
+      imgY,
+      finalImgWidth,
+      finalImgHeight,
+      undefined,
+      "FAST" // Quality setting
+    );
+  } else {
+    // Optionally add a note if no image is provided
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text("No floor drawing available for this report.", margin, y + 10);
+    y += 20;
+  }
+
   // Save the PDF
   doc.save(`${reportTitle.replace(/ /g, "_")}.pdf`);
 };
@@ -168,6 +224,7 @@ export default function PlumbingPumpModal({
   projectName,
   activity,
   onClose,
+  floorDrawingImageBase64,
 }) {
   // Define the input fields for the PDF and UI (mapped to formData keys from PlumbingPumpForm.jsx)
   const inputFields = [
@@ -200,7 +257,8 @@ export default function PlumbingPumpModal({
       activity,
       "Plumbing - Plumbing Pump Report",
       inputFields,
-      resultFields
+      resultFields,
+      floorDrawingImageBase64 // Pass the image data to the PDF generator
     );
   };
 
@@ -285,7 +343,6 @@ export default function PlumbingPumpModal({
                     {label.toUpperCase()}:
                   </div>
                   <div className="p-2 border border-gray-300 rounded bg-gray-100">
-                    {/* Fixed: Parse to float before toFixed to prevent TypeError */}
                     {calculationResult[key] !== undefined
                       ? `${parseFloat(calculationResult[key]).toFixed(
                           4
@@ -298,6 +355,23 @@ export default function PlumbingPumpModal({
           ) : (
             <div className="text-gray-500">
               Perform a calculation to see the results.
+            </div>
+          )}
+        </div>
+        {/* Placeholder for Floor Drawing in UI - you would add actual image if captured */}
+        <div className="flex flex-col gap-4 py-4 px-4 border-t border-gray-200 mt-4">
+          <h3 className="text-md font-semibold text-gray-800">
+            FLOOR DRAWING:
+          </h3>
+          {floorDrawingImageBase64 ? (
+            <img
+              src={floorDrawingImageBase64}
+              alt="Floor Drawing"
+              className="max-w-full h-auto rounded-md border border-gray-300"
+            />
+          ) : (
+            <div className="text-gray-500">
+              No floor drawing preview available.
             </div>
           )}
         </div>

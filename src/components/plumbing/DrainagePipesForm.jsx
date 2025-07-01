@@ -127,6 +127,11 @@ const DrainagePipesForm = ({
     console.log("Form reloaded");
   };
 
+  // Function to close the report and show FloorPreview
+  const handleCloseReport = () => {
+    setCalculationResult(null);
+  };
+
   return (
     <div className="flex ">
       <div className="w-[340px] h-[90vh] flex flex-col bg-white border-r border-gray-200 overflow-hidden relative">
@@ -216,14 +221,13 @@ const DrainagePipesForm = ({
       </div>
       {/* Right: Report Display or Floor Preview */}
       <div className="flex-1 h-[90vh] overflow-y-auto">
-        {" "}
-        {/* Added overflow-y-auto */}
         {calculationResult ? (
           <DrainagePipesModal
             data={calculationResult}
             formData={formData} // Pass collected form data
             projectName={projectName} // Pass projectName
             activity={activity} // Pass activity
+            onClose={handleCloseReport}
           />
         ) : (
           <FloorPreview />
