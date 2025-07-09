@@ -6,7 +6,7 @@ import CentralModal from "./CentralModal";
 import {
   addRoom,
   updateRoomPosition,
-} from "../../redux/features/app/roomSlice"; // ✅
+} from "../../redux/features/app/roomSlice";
 
 const CANVAS_WIDTH = 1300;
 const CANVAS_HEIGHT = 700;
@@ -18,7 +18,8 @@ const RoomDrawer = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
 
   const dispatch = useDispatch();
-  const reduxRooms = useSelector((state) => state.rooms); // ✅ Persisted rooms
+  const reduxRooms = useSelector((state) => state.rooms);
+  const selectedScale = useSelector((state) => state.project.scale); // ⬅️ Scale from Redux
 
   const draggingRoomId = useRef(null);
   const initialRoomPosition = useRef(null);
@@ -31,6 +32,20 @@ const RoomDrawer = () => {
     a.x + a.width > b.x &&
     a.y < b.y + b.height &&
     a.y + a.height > b.y;
+
+  const convertArea = (pixelArea) => {
+    const areaInMeters = pixelArea / 10000; // pixel^2 to m^2
+    switch (selectedScale) {
+      case "Inches":
+        return areaInMeters * 1550.0031;
+      case "Feet":
+        return areaInMeters * 10.7639;
+      case "Square Yards":
+        return areaInMeters * 1.19599;
+      default:
+        return areaInMeters; // meters
+    }
+  };
 
   const handleMouseDown = (e) => {
     if (isDrawing) return;
@@ -61,13 +76,15 @@ const RoomDrawer = () => {
       return;
     }
 
+    const area = convertArea(width * height); // ✅ apply area conversion
+
     const finalRoom = {
       id: uuidv4(),
       x: newRoom.width < 0 ? newRoom.x + newRoom.width : newRoom.x,
       y: newRoom.height < 0 ? newRoom.y + newRoom.height : newRoom.y,
       width,
       height,
-      area: width * height,
+      area, // ✅ scaled area
     };
 
     const overlaps = reduxRooms.some((r) => isOverlapping(finalRoom, r));
@@ -77,7 +94,7 @@ const RoomDrawer = () => {
       return;
     }
 
-    dispatch(addRoom(finalRoom)); // ✅ save full room data to Redux
+    dispatch(addRoom(finalRoom));
     setSelectedRoom(finalRoom);
     setIsModalOpen(true);
 
@@ -120,18 +137,23 @@ const RoomDrawer = () => {
       return;
     }
 
-    dispatch(updateRoomPosition({ id, x: newX, y: newY })); // ✅ update position in Redux
+    dispatch(updateRoomPosition({ id, x: newX, y: newY }));
   };
 
   return (
     <>
       <Stage
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
+        width={window.innerWidth - 440}
+        height={window.innerHeight - 80}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        style={{ position: "absolute", top: 0, left: 0, zIndex: 10 }}
+        style={{
+          position: "absolute",
+          top: 100,
+          left: 600,
+          zIndex: 10,
+        }}
       >
         <Layer>
           {reduxRooms.map((room) => (

@@ -38,12 +38,12 @@ export default function FireFightPage() {
           }}
         />
         <div className="flex h-screen overflow-y-auto">{renderContent()}</div>
-        {data && (
+        {/* {data && (
           <RightModal>
             {activeSection === "head-loss" && <FireHLFormModal data={data} />}
             {activeSection === "fire-pump" && <FirePumpPageModal data={data} />}
           </RightModal>
-        )}
+        )} */}
       </div>
     </div>
   );

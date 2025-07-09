@@ -1,218 +1,1053 @@
-import React, { useState, useEffect } from "react"; // Added useEffect
-import { ReloadIcon } from "../../icons/ReloadIcon";
-import { useCalculateCondenserMutation } from "../../redux/features/api/api";
-// import { useCalculateCondenserMutation } from "../../api/apiSlice"; // Import the Condenser mutation hook
+import React, { useState, useMemo } from "react";
+import {
+  useCalculateCondenserMutation,
+  useCalculateChillerPressureDropMutation,
+  useGetFluidPropertiesQuery,
+  useGetFluidTypesQuery,
+  useCalculateFittingLossesMutation,
+  useGetStandardFittingsQuery,
+} from "../../redux/features/api/api";
 
 const Condenser = () => {
+  // Add console.log to confirm component is loading
+  console.log("🔥 Condenser component loaded - NEW VERSION!");
+
   const [formData, setFormData] = useState({
-    // Initializing new fields
-    totalHeatLoadTonnage: "0.0",
-    totalHeatLoadKW: "0.0",
-    numberOfChillers: "0",
-    totalLoadLPS: "0.0",
-    totalPumpCapacity: "0.0",
-    selectSystem: "Air Separator", // Set initial value to one of the new options
-    pipeSize: "0",
-    straight: "0.0",
-    bend: "0",
-    tee: "0",
-    butterflyValve: "0",
-    checkValve: "0",
-    balancingValve: "0", // New: Balancing Valve (Nos)
-    suddenEnlargementChillerInlet: "254", // Renamed for clarity in Condenser, but keep value for now
-    suddenContractionChillerOutlet: "254", // Renamed for clarity in Condenser, but keep value for now
-    totalEquivalentLength: "0.0",
-    headLoss: "0.0",
+    chillerTonnage: 100,
+    flowRateLps: 18.9,
+    pipeInnerDiameterMm: 100,
+    mode: "data",
+    fluidType: "water",
+    temperatureC: 25,
+    systemType: "condenser-pump-outlet-riser",
   });
 
-  const [calculateCondenser, { data, isLoading, isSuccess, isError, error }] =
-    useCalculateCondenserMutation(); // Initialize the mutation
+  const [result, setResult] = useState(null);
+  const [calculateCondenser, { isLoading, error }] =
+    useCalculateCondenserMutation();
+  const { data: fluidTypes } = useGetFluidTypesQuery();
+  const { data: fluidProps } = useGetFluidPropertiesQuery({
+    fluidType: formData.fluidType,
+    temperatureC: parseInt(formData.temperatureC),
+  });
 
-  useEffect(() => {
-    if (isSuccess && data) {
-      // Update form data with calculated results received from the API
-      setFormData((prev) => ({
-        ...prev,
-        totalEquivalentLength: data.data.totalEquivalentLength,
-        headLoss: data.data.headLoss,
-      }));
-    }
-    if (isError) {
-      console.error("Failed to perform calculation:", error);
-      alert(
-        `Failed to perform calculation: ${
-          error.data?.message || error.error || "Unknown error"
-        }`
-      );
-    }
-  }, [data, isSuccess, isError, error]); // Dependencies for useEffect
+  // Fittings-related state and hooks
+  const [fittingLosses, setFittingLosses] = useState({});
+  const [showFittingSelector, setShowFittingSelector] = useState(false);
+  const [selectedFittings, setSelectedFittings] = useState([]);
+  const [selectedFittingsQuantities, setSelectedFittingsQuantities] = useState(
+    {}
+  );
+  const [fittingVelocity, setFittingVelocity] = useState("");
+  const [airDensity, setAirDensity] = useState("");
+  const [sumTotalFittingLoss, setSumTotalFittingLoss] = useState(null);
+
+  const [calculateFittingLosses, { isLoading: fittingLoading }] =
+    useCalculateFittingLossesMutation();
+  const {
+    data: standardFittings,
+    isLoading: fittingsLoading,
+    error: fittingsError,
+  } = useGetStandardFittingsQuery();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "mode" || name === "fluidType" ? value : Number(value),
+    }));
   };
 
-  const handleCalculate = async () => {
-    console.log("Calculate button clicked!");
-    console.log("Current form data:", formData);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      ...formData,
+      ...(formData.mode === "theoretical" &&
+        fluidProps?.data && {
+          fluidDensity: fluidProps.data.fluidDensity,
+          fluidViscosity: fluidProps.data.fluidViscosity,
+        }),
+    };
 
     try {
-      // Call the RTK Query mutation instead of local calculation
-      await calculateCondenser(formData);
+      const response = await calculateCondenser(payload).unwrap();
+      setResult(response.data);
     } catch (err) {
-      console.error("Failed to send calculation request:", err);
+      console.error("Condenser calculation error:", err);
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      chillerTonnage: 100,
+      flowRateLps: 18.9,
+      pipeInnerDiameterMm: 100,
+      mode: "data",
+      fluidType: "water",
+      temperatureC: 25,
+      systemType: "condenser-pump-outlet-riser",
+    });
+    setResult(null);
+    setFittingLosses({});
+    setSelectedFittings([]);
+    setSelectedFittingsQuantities({});
+    setFittingVelocity("");
+    setAirDensity("");
+    setSumTotalFittingLoss(null);
+  };
+
+  // Fittings-related functions
+  const handleFittingChange = (e) => {
+    const { value, checked } = e.target;
+    if (checked) {
+      setSelectedFittings([...selectedFittings, value]);
+      setSelectedFittingsQuantities((prev) => ({
+        ...prev,
+        [value]: prev[value] || 1,
+      }));
+    } else {
+      setSelectedFittings(selectedFittings.filter((f) => f !== value));
+      const { [value]: _, ...restQuantities } = selectedFittingsQuantities;
+      setSelectedFittingsQuantities(restQuantities);
+    }
+  };
+
+  const handleFittingQuantityChange = (fittingName, quantity) => {
+    setSelectedFittingsQuantities((prev) => ({
+      ...prev,
+      [fittingName]: Math.max(1, Number(quantity)),
+    }));
+  };
+
+  const handleCalculateFittingLosses = async () => {
+    if (!selectedFittings.length || !fittingVelocity) {
+      alert("Please select fittings and enter velocity");
+      return;
+    }
+
+    try {
+      // Build the array of fitting objects with type, quantity, and kValue
+      const fittingsArray = selectedFittings.map((fittingName) => {
+        const fitting = Object.values(groupedFittings)
+          .flat()
+          .find((f) => f.name === fittingName);
+        return {
+          type: fittingName,
+          quantity: selectedFittingsQuantities[fittingName] || 1,
+          kValue: fitting?.kValue || 0,
+        };
+      });
+
+      const dataToSend = {
+        fittingsArray,
+        airVelocity: parseFloat(fittingVelocity),
+      };
+
+      if (airDensity) {
+        dataToSend.airDensity = parseFloat(airDensity);
+      }
+
+      const response = await calculateFittingLosses(dataToSend).unwrap();
+
+      // Store fitting losses for the current system type
+      setFittingLosses((prev) => ({
+        ...prev,
+        [formData.systemType]: response.data,
+      }));
+
+      console.log(
+        "Fitting losses calculated for system type:",
+        formData.systemType,
+        response
+      );
+    } catch (err) {
+      console.error("Failed to calculate fitting losses:", err);
+      alert("Failed to calculate fitting losses");
+    }
+  };
+
+  // Helper function to categorize fittings
+  const getFittingCategory = (fittingKey) => {
+    if (fittingKey.includes("elbow")) return "Elbows";
+    if (
+      fittingKey.includes("transition") ||
+      fittingKey.includes("expansion") ||
+      fittingKey.includes("contraction")
+    )
+      return "Transitions";
+    if (fittingKey.includes("tee")) return "Tees";
+    if (fittingKey.includes("entry") || fittingKey.includes("exit"))
+      return "Entries/Exits";
+    if (fittingKey.includes("damper")) return "Dampers";
+    return "Others";
+  };
+
+  const groupedFittings = useMemo(() => {
+    try {
+      const fittingsData = standardFittings?.data?.standardFittings;
+
+      if (!fittingsData || typeof fittingsData !== "object") {
+        return {};
+      }
+
+      // Convert the object to an array and group by category
+      const fittingsArray = Object.entries(fittingsData).map(
+        ([key, fitting]) => {
+          return {
+            name: key,
+            kValue: fitting.kValue || 0,
+            description: fitting.description || key,
+            category: getFittingCategory(key),
+          };
+        }
+      );
+
+      const result = fittingsArray.reduce((acc, fitting) => {
+        if (!acc[fitting.category]) {
+          acc[fitting.category] = [];
+        }
+        acc[fitting.category].push(fitting);
+        return acc;
+      }, {});
+
+      return result;
+    } catch (err) {
+      console.error("Error in groupedFittings calculation:", err);
+      return {};
+    }
+  }, [standardFittings]);
+
   return (
-    <div className="flex h-screen">
+    <div className="flex h-[92vh]">
       {/* Left Sidebar */}
-      <div className="w-[340px] bg-white border-r border-gray-300 text-sm font-medium flex flex-col h-full">
+      <div className="flex-1 bg-white border-r border-gray-300 text-sm font-medium flex flex-col ">
         {/* Header */}
         <div className="p-4 pb-0 border-b border-gray-200">
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-[15px] font-semibold text-gray-800">
-                Condenser
+                Condenser Pressure Drop
               </h2>
               <p className="text-xs text-gray-400">Updated: Just now</p>
             </div>
             <button
               className="w-[24px] h-[24px] bg-[#0083EE] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC] transition"
-              onClick={() => {
-                setFormData({
-                  totalHeatLoadTonnage: "0.0",
-                  totalHeatLoadKW: "0.0",
-                  numberOfChillers: "0",
-                  totalLoadLPS: "0.0",
-                  totalPumpCapacity: "0.0",
-                  selectSystem: "Air Separator",
-                  pipeSize: "0",
-                  straight: "0.0",
-                  bend: "0",
-                  tee: "0",
-                  butterflyValve: "0",
-                  checkValve: "0",
-                  balancingValve: "0",
-                  suddenEnlargementChillerInlet: "254",
-                  suddenContractionChillerOutlet: "254",
-                  totalEquivalentLength: "0.0", // Reset calculated fields
-                  headLoss: "0.0", // Reset calculated fields
-                });
-                console.log("Form reset!");
-              }}
+              onClick={resetForm}
             >
-              <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
+              <svg
+                className="w-[16px] h-[16px] stroke-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
             </button>
           </div>
         </div>
 
         {/* Scrollable form */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Dropdown - Moved to Top */}
-          <div className="space-y-1">
-            <label className="text-gray-800 block">SYSTEM TYPE</label>
-            <select
-              name="selectSystem"
-              value={formData.selectSystem}
-              onChange={handleChange}
-              className="w-full bg-gray-200 p-2 rounded-md text-gray-500"
-            >
-              {[
-                "Air Separator",
-                "Chiller Bypass",
-                "Cooling Tower",
-                "Heat Exchanger",
-                "Pumps",
-                "Valves",
-                "Expansion Tank",
-              ].map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-800">
+                Condenser Pressure Drop Calculator
+              </h1>
+              <button
+                onClick={resetForm}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                Reset
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Calculation Mode Section */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  Calculation Mode
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mode Selection
+                    </label>
+                    <select
+                      name="mode"
+                      value={formData.mode}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="data">Data Mode (Rule-of-thumb)</option>
+                      <option value="theoretical">
+                        Theoretical Mode (Darcy-Weisbach)
+                      </option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Flow Rate (L/s)
+                    </label>
+                    <input
+                      type="number"
+                      name="flowRateLps"
+                      value={formData.flowRateLps}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter flow rate"
+                      required
+                      step="0.1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* System Selection Section */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  System Configuration
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      System Type
+                    </label>
+                    <select
+                      name="systemType"
+                      value={formData.systemType}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="condenser-pump-outlet-riser">
+                        Condenser Pump - Outlet Riser To Header
+                      </option>
+                      <option value="header-pump-to-condenser">
+                        Header From Pump To Condenser
+                      </option>
+                      <option value="main-header-to-condenser-inlet">
+                        Main Header - To Condenser Inlet
+                      </option>
+                      <option value="condenser-outlet-riser-to-main">
+                        Condenser Out Let- Riser To Main Header
+                      </option>
+                      <option value="main-header-to-cooling-tower">
+                        Main Header to Cooling Tower
+                      </option>
+                      <option value="main-header-to-sub-header">
+                        From Main Header To Sub Header
+                      </option>
+                      <option value="sub-header">Sub Header</option>
+                      <option value="sub-header-to-cooling-tower">
+                        Sub Header to Cooling Tower Inlet
+                      </option>
+                      <option value="cooling-tower-to-sub-header">
+                        From Cooling Tower to Sub Header
+                      </option>
+                      <option value="sub-header-return">Sub Header</option>
+                      <option value="main-header-to-sub-header-return">
+                        From Main Header To Sub Header
+                      </option>
+                      <option value="main-header-cooling-tower-to-pump">
+                        Main Header from cooling tower to pump
+                      </option>
+                      <option value="main-header-to-pump-inlet">
+                        From Main Header to Pump Inlet
+                      </option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select the specific condenser water system section for
+                      calculation
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-md">
+                    <h3 className="text-sm font-medium text-blue-800 mb-2">
+                      System Description
+                    </h3>
+                    <div className="text-xs text-blue-700">
+                      {formData.systemType ===
+                        "condenser-pump-outlet-riser" && (
+                        <p>
+                          Calculates pressure drop from condenser pump discharge
+                          through vertical riser to the main distribution
+                          header. Includes pipe friction and elevation head.
+                        </p>
+                      )}
+                      {formData.systemType === "header-pump-to-condenser" && (
+                        <p>
+                          Pressure drop calculation for the header from pump
+                          discharge to condenser inlet. Includes fittings and
+                          pipe friction losses in condenser water supply.
+                        </p>
+                      )}
+                      {formData.systemType ===
+                        "main-header-to-condenser-inlet" && (
+                        <p>
+                          Main distribution header to condenser inlet
+                          connection. Critical for maintaining proper flow
+                          distribution to multiple condensers.
+                        </p>
+                      )}
+                      {formData.systemType ===
+                        "condenser-outlet-riser-to-main" && (
+                        <p>
+                          Return path from condenser outlet through riser back
+                          to main return header. Considers higher temperature
+                          return water characteristics.
+                        </p>
+                      )}
+                      {formData.systemType ===
+                        "main-header-to-cooling-tower" && (
+                        <p>
+                          Distribution from main header to cooling tower inlet.
+                          Important for cooling tower performance and heat
+                          rejection.
+                        </p>
+                      )}
+                      {formData.systemType === "main-header-to-sub-header" && (
+                        <p>
+                          Primary distribution from main header to sub-header
+                          for zone-based cooling tower distribution.
+                        </p>
+                      )}
+                      {formData.systemType === "sub-header" && (
+                        <p>
+                          Sub-header pressure drop calculation for local
+                          distribution within cooling tower zones or equipment
+                          groups.
+                        </p>
+                      )}
+                      {formData.systemType ===
+                        "sub-header-to-cooling-tower" && (
+                        <p>
+                          Final distribution from sub-header to cooling tower
+                          inlet. Ensures proper flow to individual cooling tower
+                          cells.
+                        </p>
+                      )}
+                      {formData.systemType ===
+                        "cooling-tower-to-sub-header" && (
+                        <p>
+                          Return path from cooling tower outlet to sub-header.
+                          Considers cooled water temperature and density
+                          changes.
+                        </p>
+                      )}
+                      {formData.systemType === "sub-header-return" && (
+                        <p>
+                          Return sub-header for collecting cooled water from
+                          multiple cooling towers before main header connection.
+                        </p>
+                      )}
+                      {formData.systemType ===
+                        "main-header-to-sub-header-return" && (
+                        <p>
+                          Connection from main return header to sub-header
+                          return system for distributed cooling tower
+                          configurations.
+                        </p>
+                      )}
+                      {formData.systemType ===
+                        "main-header-cooling-tower-to-pump" && (
+                        <p>
+                          Main return header from cooling tower back to
+                          condenser pump suction. Critical for pump NPSH and
+                          system hydraulics.
+                        </p>
+                      )}
+                      {formData.systemType === "main-header-to-pump-inlet" && (
+                        <p>
+                          Final connection from main return header to condenser
+                          pump inlet. Essential for proper pump operation and
+                          system performance.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Mode Parameters */}
+              {formData.mode === "data" && (
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                    Data Mode Parameters
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Condenser Tonnage (tons)
+                      </label>
+                      <input
+                        type="number"
+                        name="chillerTonnage"
+                        value={formData.chillerTonnage}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter condenser tonnage"
+                        required
+                        step="0.1"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Theoretical Mode Parameters */}
+              {formData.mode === "theoretical" && (
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                    Theoretical Mode Parameters
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pipe Inner Diameter (mm)
+                      </label>
+                      <input
+                        type="number"
+                        name="pipeInnerDiameterMm"
+                        value={formData.pipeInnerDiameterMm}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter pipe diameter"
+                        required
+                        step="0.1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fluid Type
+                      </label>
+                      <select
+                        name="fluidType"
+                        value={formData.fluidType}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {fluidTypes?.data?.map((fluid) => (
+                          <option key={fluid.type} value={fluid.type}>
+                            {fluid.name}
+                          </option>
+                        )) ||
+                          [
+                            { type: "water", name: "Water" },
+                            { type: "glycol_30", name: "30% Glycol Solution" },
+                            { type: "glycol_50", name: "50% Glycol Solution" },
+                          ].map((fluid) => (
+                            <option key={fluid.type} value={fluid.type}>
+                              {fluid.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Temperature (°C)
+                      </label>
+                      <input
+                        type="number"
+                        name="temperatureC"
+                        value={formData.temperatureC}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter temperature"
+                        min="0"
+                        max="100"
+                        step="1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fluid Properties Display */}
+                  {fluidProps?.data && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-md">
+                      <h3 className="font-semibold text-blue-800 mb-2">
+                        Fluid Properties
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-700">
+                        <div>
+                          <span className="font-medium">Density:</span>{" "}
+                          {fluidProps.data.fluidDensity} kg/m³
+                        </div>
+                        <div>
+                          <span className="font-medium">Viscosity:</span>{" "}
+                          {fluidProps.data.fluidViscosity} Pa.s
+                        </div>
+                        <div>
+                          <span className="font-medium">Temperature:</span>{" "}
+                          {fluidProps.data.temperatureC}°C
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Fitting Selection Section */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    Fitting Losses
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowFittingSelector(!showFittingSelector)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    {showFittingSelector ? "Hide" : "Select Fittings"}
+                  </button>
+                </div>
+
+                {showFittingSelector && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Fitting Velocity (m/s)
+                      </label>
+                      <input
+                        type="number"
+                        value={fittingVelocity}
+                        onChange={(e) => setFittingVelocity(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter velocity for fittings"
+                        step="0.1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Air Density (kg/m³){" "}
+                        <span className="text-gray-400">(optional)</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={airDensity}
+                        onChange={(e) => setAirDensity(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Default: 1.2"
+                        step="any"
+                        min="0"
+                      />
+                    </div>
+
+                    {fittingsLoading ? (
+                      <div className="text-center py-4">
+                        Loading fittings...
+                      </div>
+                    ) : fittingsError ? (
+                      <div className="text-center py-4 text-red-600">
+                        Error loading fittings:{" "}
+                        {fittingsError.message || "Unknown error"}
+                      </div>
+                    ) : Object.keys(groupedFittings).length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">
+                        No fittings available. Please check the API connection.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {Object.entries(groupedFittings).map(
+                          ([category, fittings]) => (
+                            <div
+                              key={category}
+                              className="border border-gray-200 rounded-lg p-4"
+                            >
+                              <h3 className="font-medium text-gray-800 mb-3">
+                                {category}
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {fittings.map((fitting) => (
+                                  <div
+                                    key={fitting.name}
+                                    className="flex items-center space-x-2"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      value={fitting.name}
+                                      checked={selectedFittings.includes(
+                                        fitting.name
+                                      )}
+                                      onChange={handleFittingChange}
+                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="text-sm text-gray-700">
+                                      {fitting.description} (K={fitting.kValue})
+                                    </span>
+                                    {selectedFittings.includes(
+                                      fitting.name
+                                    ) && (
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={
+                                          selectedFittingsQuantities[
+                                            fitting.name
+                                          ] || 1
+                                        }
+                                        onChange={(e) =>
+                                          handleFittingQuantityChange(
+                                            fitting.name,
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-16 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ml-2"
+                                        style={{ marginLeft: 8 }}
+                                        title="Quantity"
+                                      />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleCalculateFittingLosses}
+                      disabled={
+                        fittingLoading ||
+                        !selectedFittings.length ||
+                        !fittingVelocity
+                      }
+                      className="w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {fittingLoading
+                        ? "Calculating..."
+                        : "Calculate Fitting Losses"}
+                    </button>
+                  </div>
+                )}
+
+                {Object.keys(fittingLosses).length > 0 && (
+                  <div className="mt-4 space-y-3">
+                    {Object.entries(fittingLosses).map(
+                      ([systemType, losses]) => (
+                        <div
+                          key={systemType}
+                          className="bg-green-50 border border-green-200 rounded-lg p-4"
+                        >
+                          <h3 className="font-medium text-green-800 mb-2">
+                            Fitting Losses Results (
+                            {systemType
+                              .replace(/-/g, " ")
+                              .replace(/\b\w/g, (l) => l.toUpperCase())}
+                            )
+                          </h3>
+                          <div className="space-y-1 text-sm text-green-700">
+                            <p>
+                              Total Fitting Loss:{" "}
+                              {losses?.totalFittingLoss?.toFixed(2)} Pa
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    )}
+
+                    {Object.keys(fittingLosses).length >= 2 && (
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const sum = Object.values(fittingLosses).reduce(
+                              (total, losses) =>
+                                total + (losses?.totalFittingLoss || 0),
+                              0
+                            );
+                            setSumTotalFittingLoss(sum);
+                          }}
+                          className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                          Sum of Total Fitting Loss
+                        </button>
+                      </div>
+                    )}
+
+                    {sumTotalFittingLoss !== null && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 className="font-medium text-blue-800 mb-2">
+                          Sum Total Fitting Loss
+                        </h3>
+                        <div className="space-y-1 text-sm text-blue-700">
+                          <p>Total: {sumTotalFittingLoss.toFixed(2)} Pa</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Calculate Button */}
+              <button
+                onClick={handleSubmit}
+                className="w-full px-6 py-3 text-lg font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                disabled={isLoading}
+              >
+                {isLoading ? "Calculating..." : "Calculate Pressure Drop"}
+              </button>
+            </form>
           </div>
-
-          {/* First set of Input Fields (now below the dropdown) */}
-          {[
-            ["Total Heat Load", "totalHeatLoadTonnage", "Tonnage"],
-            ["Total Heat Load", "totalHeatLoadKW", "KW"],
-            ["Number of Chillers", "numberOfChillers", "Nos"],
-            ["Total Load", "totalLoadLPS", "lps"],
-            ["Total Pump Capacity", "totalPumpCapacity", "LPS/GPM"],
-          ].map(([label, name, unit]) => (
-            <div key={name} className="space-y-1">
-              <label className="text-gray-800 block">{label}</label>
-              <div className="flex space-x-2 items-center">
-                <input
-                  type="number"
-                  name={name}
-                  value={formData[name]}
-                  onChange={handleChange}
-                  className="w-3/4 bg-gray-200 p-2 rounded-md text-gray-500"
-                />
-                <span className="w-1/4 text-center bg-gray-200 p-2 rounded-md text-gray-500">
-                  {unit}
-                </span>
-              </div>
-            </div>
-          ))}
-
-          {/* Second set of Input Fields including new ones (remain below the first set) */}
-          {[
-            ["Pipe size", "pipeSize", "mm"],
-            ["Straight", "straight", "m"],
-            ["Bend", "bend", "Nos"],
-            ["Tee", "tee", "Nos"],
-            ["Butterfly Valve", "butterflyValve", "Nos"],
-            ["Check Valve", "checkValve", "Nos"],
-            ["Balancing Valve", "balancingValve", "Nos"],
-            [
-              "Sudden Enlargement - Inlet size", // Changed label for Condenser context
-              "suddenEnlargementChillerInlet",
-              "mm",
-            ],
-            [
-              "Sudden Contraction - Outlet size", // Changed label for Condenser context
-              "suddenContractionChillerOutlet",
-              "mm",
-            ],
-            // Calculated fields
-            ["Total Equivalent length", "totalEquivalentLength", "m", true],
-            ["Head Loss", "headLoss", "m", true],
-          ].map(([label, name, unit, readOnly = false]) => (
-            <div key={name} className="space-y-1">
-              <label className="text-gray-800 block">{label}</label>
-              <div className="flex space-x-2 items-center">
-                <input
-                  type="number"
-                  name={name}
-                  value={isLoading ? "" : formData[name]} // Set value to empty string when loading
-                  onChange={handleChange}
-                  readOnly={readOnly || isLoading} // Disable while loading
-                  className={`w-3/4 p-2 rounded-md ${
-                    readOnly || isLoading
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-gray-200 text-gray-500"
-                  }`}
-                />
-                <span className="w-1/4 text-center bg-gray-200 p-2 rounded-md text-gray-500">
-                  {unit}
-                </span>
-              </div>
-            </div>
-          ))}
         </div>
+      </div>
+      {/* Right Side - Results */}
+      <div className="w-96 bg-gray-50 p-6 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+            Pressure Drop Results
+          </h2>
 
-        {/* Button at bottom (not scrollable) */}
-        <div className="pb-20 border-t border-gray-200 p-4">
-          <button
-            onClick={handleCalculate}
-            className="w-full bg-[#0083EE] text-white p-3 rounded-md font-semibold hover:bg-[#1C78DC] transition"
-            disabled={isLoading} // Disable button while loading
-          >
-            {isLoading ? "Calculating..." : "Calculate"}
-          </button>
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+              <div className="text-red-800 font-semibold">Error</div>
+              <div className="text-red-700">
+                {error.data?.message || error.error || "An error occurred"}
+              </div>
+            </div>
+          )}
+
+          {result && (
+            <div className="space-y-6">
+              {/* Main Result */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Calculation Summary
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-md">
+                    <div className="text-sm text-blue-600 font-medium">
+                      Estimated Pressure Drop
+                    </div>
+                    <div className="text-2xl font-bold text-blue-800">
+                      {result.estimatedDropKpa || "N/A"} kPa
+                    </div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-md">
+                    <div className="text-sm text-green-600 font-medium">
+                      Calculation Mode
+                    </div>
+                    <div className="text-lg font-semibold text-green-800 capitalize">
+                      {result.mode || "N/A"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Input Parameters */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Input Parameters
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">
+                      Flow Rate:
+                    </span>
+                    <span className="ml-2 text-gray-800">
+                      {result.flowRateLps} L/s
+                    </span>
+                  </div>
+                  {result.chillerTonnage && (
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Condenser Tonnage:
+                      </span>
+                      <span className="ml-2 text-gray-800">
+                        {result.chillerTonnage} tons
+                      </span>
+                    </div>
+                  )}
+                  {result.pipeInnerDiameterMm && (
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Pipe Diameter:
+                      </span>
+                      <span className="ml-2 text-gray-800">
+                        {result.pipeInnerDiameterMm} mm
+                      </span>
+                    </div>
+                  )}
+                  {result.velocity && (
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Flow Velocity:
+                      </span>
+                      <span className="ml-2 text-gray-800">
+                        {result.velocity} m/s
+                      </span>
+                    </div>
+                  )}
+                  {result.reynoldsNumber && (
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Reynolds Number:
+                      </span>
+                      <span className="ml-2 text-gray-800">
+                        {result.reynoldsNumber.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="font-medium text-gray-600">
+                      System Type:
+                    </span>
+                    <span className="ml-2 text-gray-800 capitalize">
+                      {formData.systemType?.replace?.("-", " ") || "Unknown"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Assumptions */}
+              {result.assumptionsUsed && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                    Assumptions Used
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-600">Method:</span>
+                      <span className="ml-2 text-gray-800">
+                        {result.assumptionsUsed?.method || "Not available"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Formula:
+                      </span>
+                      <span className="ml-2 text-gray-800">
+                        {result.assumptionsUsed?.formula || "Not available"}
+                      </span>
+                    </div>
+                    {result.assumptionsUsed?.typicalRange && (
+                      <div>
+                        <span className="font-medium text-gray-600">
+                          Typical Range:
+                        </span>
+                        <span className="ml-2 text-gray-800">
+                          {result.assumptionsUsed.typicalRange}
+                        </span>
+                      </div>
+                    )}
+                    {result.assumptionsUsed?.chillerLength && (
+                      <div>
+                        <span className="font-medium text-gray-600">
+                          Condenser Length:
+                        </span>
+                        <span className="ml-2 text-gray-800">
+                          {result.assumptionsUsed.chillerLength}
+                        </span>
+                      </div>
+                    )}
+                    {result.assumptionsUsed?.frictionFactor && (
+                      <div>
+                        <span className="font-medium text-gray-600">
+                          Friction Factor:
+                        </span>
+                        <span className="ml-2 text-gray-800">
+                          {result.assumptionsUsed.frictionFactor}
+                        </span>
+                      </div>
+                    )}
+                    {result.assumptionsUsed?.flowRegime && (
+                      <div>
+                        <span className="font-medium text-gray-600">
+                          Flow Regime:
+                        </span>
+                        <span className="ml-2 text-gray-800">
+                          {result.assumptionsUsed.flowRegime}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Fitting Losses Results */}
+              {Object.keys(fittingLosses).length > 0 && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                    Fitting Losses
+                  </h3>
+                  <div className="space-y-4">
+                    {Object.entries(fittingLosses).map(
+                      ([systemType, losses]) => (
+                        <div
+                          key={systemType}
+                          className="border border-gray-200 rounded-lg p-4"
+                        >
+                          <h4 className="font-medium text-gray-800 mb-2">
+                            {systemType
+                              .replace(/-/g, " ")
+                              .replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </h4>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="bg-green-50 p-3 rounded-md">
+                              <div className="text-sm text-green-600 font-medium">
+                                Total Fitting Loss
+                              </div>
+                              <div className="text-lg font-bold text-green-800">
+                                {losses?.totalFittingLoss?.toFixed(2)} Pa
+                              </div>
+                            </div>
+                            <div className="bg-blue-50 p-3 rounded-md">
+                              <div className="text-sm text-blue-600 font-medium">
+                                Total K Value
+                              </div>
+                              <div className="text-lg font-bold text-blue-800">
+                                {losses?.totalKValue?.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Warning */}
+              {result.warning && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                  <div className="text-yellow-800 font-semibold">
+                    ⚠️ Warning
+                  </div>
+                  <div className="text-yellow-700">{result.warning}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!result && !isLoading && (
+            <div className="text-center text-gray-500 mt-20">
+              <div className="text-6xl mb-4">🧮</div>
+              <div className="text-xl font-medium">
+                No calculation performed yet
+              </div>
+              <div className="text-sm">
+                Fill in the form and click "Calculate Pressure Drop" to see
+                results
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

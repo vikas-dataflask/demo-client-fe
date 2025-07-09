@@ -1,138 +1,540 @@
 import React, { useState } from "react";
-import { ReloadIcon } from "../../icons/ReloadIcon";
-import { useAddRwhSizingMutation } from "../../redux/features/api/api"; // ✅ Adjust the path as per your project
 import FloorPreview from "../shared/FloorPreview";
+import { useAddRwhSizingMutation } from "../../redux/features/api/api";
 
-// Reusable InputRow
-const InputRow = ({ label, unit, value, onChange }) => (
-  <div className="mb-[14px]">
-    <label className="block text-[11px] text-[#6B7280] mb-[6px]">{label}</label>
-    <div className="flex gap-[8px]">
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className={`${
-          unit ? "w-1/2" : "w-full"
-        } h-[36px] px-3 text-[13px] rounded-[6px] text-[#374151] border border-gray-200 focus:outline-none focus:border-[#0083EE] bg-gray-200 focus:ring-0 hover:border-gray-400`}
-      />
-    </div>
-  </div>
-);
+const DEFAULTS = {
+  annualRainfallMm: 800,
+  pitVolumeM3: 10,
+  areas: [
+    { type: "paved", area: 100, label: "Paved/Concrete" },
+    { type: "roof", area: 50, label: "Roof" },
+    { type: "lawn", area: 30, label: "Lawns" },
+    { type: "road", area: 20, label: "Road" },
+  ],
+};
+
+const AREA_TYPES = [
+  {
+    type: "paved",
+    label: "Paved/Concrete",
+    coefficient: 0.8,
+    color: "#3B82F6",
+  },
+  { type: "roof", label: "Roof", coefficient: 0.7, color: "#EF4444" },
+  { type: "lawn", label: "Lawns", coefficient: 0.5, color: "#10B981" },
+  { type: "road", label: "Road", coefficient: 0.9, color: "#6B7280" },
+  { type: "garden", label: "Garden", coefficient: 0.3, color: "#059669" },
+  { type: "parking", label: "Parking", coefficient: 0.85, color: "#7C3AED" },
+];
+
+// CSV Export function
+const exportToCSV = (result) => {
+  const csvContent = [
+    ["Parameter", "Value", "Unit"],
+    ["Total Catchment Area", result.totalCatchmentAreaM2, "m²"],
+    ["Annual Rainfall", result.annualRainfallMm, "mm"],
+    ["Weighted Runoff Coefficient", result.weightedRunoffCoefficient, ""],
+    ["Pit Volume", result.recommendedPitSizeM3, "m³"],
+    ["Total Annual Harvest", result.totalAnnualHarvestL, "L/year"],
+    ["Number of Pits Required", result.pitCount, ""],
+    ["", "", ""],
+    ["Area Breakdown:", "", ""],
+    ...result.areas.map((area) => [area.label, area.area, "m²"]),
+    ["", "", ""],
+    ["Calculation Date", new Date().toLocaleDateString(), ""],
+    ["Calculation Time", new Date().toLocaleTimeString(), ""],
+  ]
+    .map((row) => row.join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `rwh_calculation_${new Date().toISOString().split("T")[0]}.csv`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
 
 const RWH = ({ setData }) => {
+  const [form, setForm] = useState(DEFAULTS);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [addRwhSizing, { isLoading }] = useAddRwhSizingMutation();
 
-  const [area, setArea] = useState("3280");
-  const [intensity, setIntensity] = useState("109");
-  const [runOff, setRunOff] = useState("0.9");
-  const [qMeterPerSecond, setQMeterPerSecond] = useState("0.9");
-  const [qLpm, setQLpm] = useState("0.9");
-  const [storageTime, setStorageTime] = useState("5");
-  const [harvestPitDepthMeter, setHarvestPitDepthMeter] = useState("5");
-  const [harvestPitDiaMeter, setHarvestPitDiaMeter] = useState("5");
-  const [harvestPitLengthXWidth, setHarvestPitLengthXWidth] = useState("5");
-  const [pipeDiameter, setPipeDiameter] = useState("5");
+  const [error, setError] = useState("");
 
-  const handleCalculate = async () => {
-    try {
-      const response = await addRwhSizing({
-        rwh: [
-          {
-            area_m2: parseFloat(area),
-            intensity_mmhr: parseFloat(intensity),
-            runoff_coefficient: parseFloat(runOff),
-            storage_time_min: parseFloat(storageTime),
-          },
-        ],
-      }).unwrap();
+  // Calculate weighted runoff coefficient
+  const calculateWeightedRunoffCoefficient = (areas) => {
+    const totalArea = areas.reduce((sum, area) => sum + area.area, 0);
+    if (totalArea === 0) return 0;
 
-      console.log(response.data[0].discharge_m3hr);
-      setData(response.data);
-    } catch (error) {
-      console.error("Failed to calculate RWH sizing:", error);
+    const weightedSum = areas.reduce((sum, area) => {
+      const areaType = AREA_TYPES.find((type) => type.type === area.type);
+      return sum + area.area * (areaType?.coefficient || 0);
+    }, 0);
+
+    return weightedSum / totalArea;
+  };
+
+  // Calculate total catchment area
+  const totalCatchmentArea = form.areas.reduce(
+    (sum, area) => sum + area.area,
+    0
+  );
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]:
+        name === "pitVolumeM3" || name === "annualRainfallMm"
+          ? Number(value)
+          : value,
+    }));
+  };
+
+  const handleAreaChange = (index, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      areas: prev.areas.map((area, i) =>
+        i === index
+          ? { ...area, [field]: field === "area" ? Number(value) : value }
+          : area
+      ),
+    }));
+  };
+
+  const addArea = () => {
+    setForm((prev) => ({
+      ...prev,
+      areas: [...prev.areas, { type: "paved", area: 0, label: "New Area" }],
+    }));
+  };
+
+  const removeArea = (index) => {
+    if (form.areas.length > 1) {
+      setForm((prev) => ({
+        ...prev,
+        areas: prev.areas.filter((_, i) => i !== index),
+      }));
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (totalCatchmentArea === 0) {
+      setError("Please add at least one area with a value greater than 0");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setResult(null);
+
+    try {
+      const weightedRunoffCoefficient = calculateWeightedRunoffCoefficient(
+        form.areas
+      );
+
+      const requestData = {
+        catchmentAreaM2: totalCatchmentArea,
+        annualRainfallMm: form.annualRainfallMm,
+        runoffCoefficient: weightedRunoffCoefficient,
+        pitVolumeM3: form.pitVolumeM3,
+        areas: form.areas.map((area) => ({
+          ...area,
+          coefficient:
+            AREA_TYPES.find((type) => type.type === area.type)?.coefficient ||
+            0,
+        })),
+      };
+
+      const response = await addRwhSizing(requestData).unwrap();
+
+      if (!response.success) {
+        setError(response.message || "Calculation failed");
+      } else {
+        const enhancedResult = {
+          ...response.data,
+          totalCatchmentAreaM2: totalCatchmentArea,
+          weightedRunoffCoefficient,
+          areas: form.areas.map((area) => ({
+            ...area,
+            coefficient:
+              AREA_TYPES.find((type) => type.type === area.type)?.coefficient ||
+              0,
+          })),
+        };
+
+        setResult(enhancedResult);
+        setData(enhancedResult);
+      }
+    } catch (err) {
+      console.error("RWH API Error:", err);
+      setError("Network or server error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const weightedRunoffCoefficient = calculateWeightedRunoffCoefficient(
+    form.areas
+  );
+
   return (
-    <div className="flex ">
-      <div className="w-[340px] h-[90vh] flex flex-col bg-white border-r border-[#E5E7EB] overflow-hidden relative">
-        {/* Header */}
-        <div className="flex justify-between items-start px-4 pt-3 pb-2 border-b border-[#E5E7EB]">
-          <div>
-            <h2 className="text-[14px] font-semibold text-[#111827] leading-none">
-              RWH
-            </h2>
-            <p className="text-[11px] text-[#9CA3AF] mt-[4px]">No update yet</p>
+    <div className="flex h-[92vh]">
+      <div className="flex-1 bg-white border-r border-gray-300 text-sm font-medium flex flex-col ">
+        <div className="p-4 pb-0 border-b border-gray-200">
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-[15px] font-semibold text-gray-800">
+                Rainwater Harvesting Pit Sizing Calculator
+              </h2>
+              <p className="text-xs text-gray-400">Multi-Area Support</p>
+            </div>
           </div>
-          <button
-            className="w-[24px] h-[24px] bg-[#0083EE] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC] transition"
-            onClick={() => console.log("Reload clicked")}
-          >
-            <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
-          </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 pb-[80px] bg-white">
-          <InputRow label="Roof Area" value={area} onChange={setArea} />
-          <InputRow
-            label="Intensity of Rainfall"
-            value={intensity}
-            onChange={setIntensity}
-          />
-          <InputRow
-            label="Run Off Coefficient"
-            value={runOff}
-            onChange={setRunOff}
-          />
-          <InputRow
-            label="Q Meter Per Second"
-            value={qMeterPerSecond}
-            onChange={setQMeterPerSecond}
-          />
-          <InputRow label="Q LPM" value={qLpm} onChange={setQLpm} />
-          <InputRow
-            label="Storage Time Minutes"
-            value={storageTime}
-            onChange={setStorageTime}
-          />
-          <InputRow
-            label="Harvest Pit Depth Meter"
-            value={harvestPitDepthMeter}
-            onChange={setHarvestPitDepthMeter}
-          />
-          <InputRow
-            label="Harvest Pit Dia Meter"
-            value={harvestPitDiaMeter}
-            onChange={setHarvestPitDiaMeter}
-          />
-          <InputRow
-            label="Harvest Pit Length X Width"
-            value={harvestPitLengthXWidth}
-            onChange={setHarvestPitLengthXWidth}
-          />
-          <InputRow
-            label="Pipe Diameter"
-            value={pipeDiameter}
-            onChange={setPipeDiameter}
-          />
-        </div>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-4xl mx-auto">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Area Configuration */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">
+                    Catchment Areas
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={addArea}
+                    className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition text-sm"
+                  >
+                    + Add Area
+                  </button>
+                </div>
 
-        {/* Bottom Button */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-[#E5E7EB] px-4 py-4">
-          <button
-            className="w-full h-[40px] bg-[#2E90FA] hover:bg-[#1C78DC] text-white text-[14px] font-semibold rounded-md transition"
-            onClick={handleCalculate}
-            disabled={isLoading}
-          >
-            {isLoading ? "Calculating..." : "Calculate"}
-          </button>
+                <div className="space-y-4">
+                  {form.areas.map((area, index) => (
+                    <div
+                      key={index}
+                      className="flex gap-4 items-end p-4 bg-white rounded-lg border"
+                    >
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Area Type
+                        </label>
+                        <select
+                          value={area.type}
+                          onChange={(e) => {
+                            const selectedType = AREA_TYPES.find(
+                              (type) => type.type === e.target.value
+                            );
+                            handleAreaChange(index, "type", e.target.value);
+                            handleAreaChange(
+                              index,
+                              "label",
+                              selectedType?.label || "New Area"
+                            );
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {AREA_TYPES.map((type) => (
+                            <option key={type.type} value={type.type}>
+                              {type.label} (Coeff: {type.coefficient})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Area (m²)
+                        </label>
+                        <input
+                          type="number"
+                          value={area.area}
+                          onChange={(e) =>
+                            handleAreaChange(index, "area", e.target.value)
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="Enter area"
+                          step="0.1"
+                          min="0"
+                          max="10000"
+                          required
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Runoff Coeff.
+                        </label>
+                        <div className="px-3 py-2 bg-gray-100 rounded-md text-sm">
+                          {AREA_TYPES.find((type) => type.type === area.type)
+                            ?.coefficient || 0}
+                        </div>
+                      </div>
+                      {form.areas.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeArea(index)}
+                          className="px-3 py-2 text-red-600 hover:text-red-800 transition"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Summary */}
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Total Catchment Area:
+                      </span>
+                      <span className="ml-2 font-semibold text-blue-800">
+                        {totalCatchmentArea} m²
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">
+                        Weighted Runoff Coefficient:
+                      </span>
+                      <span className="ml-2 font-semibold text-blue-800">
+                        {weightedRunoffCoefficient.toFixed(3)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Other Configuration */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  Configuration
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Annual Rainfall (mm)
+                    </label>
+                    <input
+                      type="number"
+                      name="annualRainfallMm"
+                      value={form.annualRainfallMm}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter annual rainfall"
+                      step="0.1"
+                      min="1"
+                      max="5000"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Range: 1 - 5,000 mm
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pit Volume (m³)
+                    </label>
+                    <input
+                      type="number"
+                      name="pitVolumeM3"
+                      value={form.pitVolumeM3}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter pit volume"
+                      step="0.1"
+                      min="1"
+                      max="1000"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Range: 1 - 1,000 m³
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full px-6 py-3 text-lg font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                disabled={loading || totalCatchmentArea === 0}
+              >
+                {loading ? "Calculating..." : "Calculate RWH Pit Sizing"}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
-      {/* Right: Floor Preview */}
-      <div className="flex-1 h-[90vh]">
-        <FloorPreview />
+
+      <div className="w-96 bg-gray-50 p-6 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+            Sizing Results
+          </h2>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+              <div className="text-red-800 font-semibold">Error</div>
+              <div className="text-red-700">{error}</div>
+            </div>
+          )}
+
+          {result && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Calculation Summary
+                  </h3>
+                  <button
+                    onClick={() => exportToCSV(result)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-sm"
+                  >
+                    📊 Export CSV
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 p-4 rounded-md">
+                    <div className="text-sm text-blue-600 font-medium">
+                      Total Annual Harvest
+                    </div>
+                    <div className="text-2xl font-bold text-blue-800">
+                      {result.totalAnnualHarvestL.toLocaleString()} L/year
+                    </div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-md">
+                    <div className="text-sm text-green-600 font-medium">
+                      Number of Pits
+                    </div>
+                    <div className="text-lg font-semibold text-green-800">
+                      {result.pitCount}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Area Breakdown
+                </h3>
+                <div className="space-y-3">
+                  {result.areas.map((area, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center p-2 bg-gray-50 rounded"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{
+                            backgroundColor: AREA_TYPES.find(
+                              (type) => type.type === area.type
+                            )?.color,
+                          }}
+                        ></div>
+                        <span className="text-sm font-medium">
+                          {area.label}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {area.area} m² (Coeff: {area.coefficient})
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Detailed Results
+                </h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Total Catchment Area:
+                    </span>
+                    <span className="text-gray-800">
+                      {result.totalCatchmentAreaM2} m²
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Annual Rainfall:
+                    </span>
+                    <span className="text-gray-800">
+                      {result.annualRainfallMm} mm
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Weighted Runoff Coefficient:
+                    </span>
+                    <span className="text-gray-800">
+                      {result.weightedRunoffCoefficient.toFixed(3)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Pit Volume:
+                    </span>
+                    <span className="text-gray-800">
+                      {result.recommendedPitSizeM3} m³
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Total Harvest:
+                    </span>
+                    <span className="text-gray-800">
+                      {result.totalAnnualHarvestL.toLocaleString()} L/year
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Pits Required:
+                    </span>
+                    <span className="text-gray-800">{result.pitCount}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Interpretation
+                </h3>
+                <div className="text-sm text-gray-700">
+                  For a total catchment area of{" "}
+                  <b>{result.totalCatchmentAreaM2} m²</b> with a weighted runoff
+                  coefficient of{" "}
+                  <b>{result.weightedRunoffCoefficient.toFixed(3)}</b> and
+                  annual rainfall of <b>{result.annualRainfallMm} mm</b>, you
+                  can harvest approximately{" "}
+                  <b>{result.totalAnnualHarvestL.toLocaleString()} liters</b> of
+                  rainwater per year. With a pit size of{" "}
+                  <b>{result.recommendedPitSizeM3} m³</b>, you will need{" "}
+                  <b>{result.pitCount}</b> pit(s) to store the annual harvest.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!result && !loading && (
+            <div className="text-center text-gray-500 mt-20">
+              <div className="text-6xl mb-4">🌧️</div>
+              <div className="text-xl font-medium">
+                No calculation performed yet
+              </div>
+              <div className="text-sm">
+                Add areas and click "Calculate RWH Pit Sizing" to see results
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,11 +1,31 @@
-import { useState } from "react";
-import { useSelector } from "react-redux";
+import { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { ReloadIcon } from "../../icons/ReloadIcon";
-import { useAddHeatLoadMutation } from "../../redux/features/api/api"; // Update with your actual API path
+import {
+  useAddHeatLoadMutation,
+  useAddHeatLoadToDbMutation,
+  useGetProjectListQuery,
+  useGetHeatLoadAutofillQuery,
+} from "../../redux/features/api/api";
+import { setRoomHeatLoad } from "../../redux/features/app/heatLoadSlice";
 import FloorPreview from "../shared/FloorPreview";
 
+const defaultWall = { area: "", uValue: "", deltaT: "" };
+const defaultWindow = { area: "", sc: "", shgf: "" };
+const defaultPerson = { count: "", sensible: "", latent: "" };
+const defaultEquipment = { power: "", diversity: "" };
+const defaultRoof = { area: "", uValue: "", deltaT: "" };
+const defaultLighting = { watts: "", cuf: "", llf: "" };
+const defaultInfiltration = { ach: "", volume: "", deltaT: "", latent: "" };
+
 const HeatLoad = () => {
+  const dispatch = useDispatch();
   const [addHeatLoad, { isLoading }] = useAddHeatLoadMutation();
+  const [addHeatLoadToDb] = useAddHeatLoadToDbMutation();
+  const { data: projectList, isLoading: isProjectLoading } =
+    useGetProjectListQuery();
+  const currentProjectId = projectList?.[0]?._id;
+
   const [formData, setFormData] = useState({
     room: "",
     area: "",
@@ -28,80 +48,164 @@ const HeatLoad = () => {
     latentHeatUnit: "KW",
     relativeHumidity: "",
     outsideDryBulb: "",
+    // New fields for backend
+    walls: [{ ...defaultWall }],
+    windows: [{ ...defaultWindow }],
+    roof: { ...defaultRoof },
+    people: [{ ...defaultPerson }],
+    equipment: [{ ...defaultEquipment }],
+    lighting: { ...defaultLighting },
+    infiltration: { ...defaultInfiltration },
+    safetyFactor: 1.15,
   });
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
   const [roomDetailsOpen, setRoomDetailsOpen] = useState(true);
   const [internalOpen, setInternalOpen] = useState(true);
   const [summerConditionsOpen, setSummerConditionsOpen] = useState(false);
   const [monsoonConditionsOpen, setMonsoonConditionsOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const { data: autofillData } = useGetHeatLoadAutofillQuery(
+    { project_id: currentProjectId, room: formData.room },
+    { skip: !currentProjectId || !formData.room }
+  );
 
   const rooms = useSelector((state) => state.rooms);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    // If user selects a room
     if (name === "room") {
       const selectedRoom = rooms.find(
         (room) => room.name === value || room.id === value
       );
-
       if (selectedRoom) {
         setFormData((prev) => ({
           ...prev,
           room: value,
           area: selectedRoom.area || "",
-          height: selectedRoom.height || "",
+          height: selectedRoom.roomHeight || "",
         }));
-        return; // Exit early since we already set the state
+        return;
       }
     }
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
+  // Handlers for dynamic arrays
+  const handleArrayChange = (type, idx, field, value) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [type]: prev[type].map((item, i) =>
+        i === idx ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
+  const handleAddArrayItem = (type, defaultObj) => {
+    setFormData((prev) => ({
+      ...prev,
+      [type]: [...prev[type], { ...defaultObj }],
+    }));
+  };
+  const handleRemoveArrayItem = (type, idx) => {
+    setFormData((prev) => ({
+      ...prev,
+      [type]: prev[type].filter((_, i) => i !== idx),
+    }));
+  };
+  const handleObjectChange = (type, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [type]: { ...prev[type], [field]: value },
     }));
   };
 
   const handleCalculate = async () => {
-    try {
-      // Find the selected room in the Redux store
-      const selectedRoom = rooms.find(
-        (room) => room.name === formData.room || room.id === formData.room
-      );
+    setError(null);
+    setResult(null);
 
-      // Use the area/height from the room if available
-      const payload = {
-        ...formData,
-        area: selectedRoom?.area ?? (formData.area ? Number(formData.area) : 0),
-        height:
-          selectedRoom?.height ??
-          (formData.height ? Number(formData.height) : 0),
-        occupancy: formData.occupancy ? Number(formData.occupancy) : 0,
-        lightLoad: formData.lightLoad ? Number(formData.lightLoad) : 0,
-        heatDissipation: formData.heatDissipation
-          ? Number(formData.heatDissipation)
-          : 0,
-        cfmSqft: formData.cfmSqft ? Number(formData.cfmSqft) : 0,
-        cfmPerson: formData.cfmPerson ? Number(formData.cfmPerson) : 0,
-        sensibleHeat: formData.sensibleHeat ? Number(formData.sensibleHeat) : 0,
-        latentHeat: formData.latentHeat ? Number(formData.latentHeat) : 0,
-        relativeHumidity: formData.relativeHumidity
-          ? Number(formData.relativeHumidity)
-          : 0,
-        outsideDryBulb: formData.outsideDryBulb
-          ? Number(formData.outsideDryBulb)
-          : 0,
+    try {
+      // Define summer and monsoon condition objects
+      const summer = {
+        outside_db: 110,
+        room_db: 75,
+        outside_rh: 20,
+        room_rh: 50,
+        outside_gr_lb: 74.8,
+        room_gr_lb: 65,
       };
 
-      const result = await addHeatLoad(payload).unwrap();
-      console.log("API Response:", result);
-      // success handling
+      const monsoon = {
+        outside_db: 110,
+        room_db: 75,
+        outside_rh: 20,
+        room_rh: 50,
+        outside_gr_lb: 74.8,
+        room_gr_lb: 65,
+      };
+
+      // Compose backend payload from frontend fields
+      const payload = {
+        summer,
+        monsoon,
+        area: Number(formData.area) || 0,
+        height: Number(formData.height) || 0,
+        people: Number(formData.occupancy) || 0,
+        light: Number(formData.lightLoad) || 0,
+        equipment: Number(formData.heatDissipation) || 0,
+        cfm_sqft: Number(formData.cfmSqft) || 0,
+        cfm_person: Number(formData.cfmPerson) || 0,
+        sensible_heat_people: Number(formData.sensibleHeat) || 0,
+        latent_heat_people: Number(formData.latentHeat) || 0,
+      };
+
+      console.log("Sending payload to backend:", payload);
+
+      // Call backend API
+      const response = await addHeatLoad(payload).unwrap();
+
+      if (response && response.success && response.data) {
+        const resultData = response.data;
+        setResult(resultData);
+
+        if (formData.room) {
+          dispatch(
+            setRoomHeatLoad({
+              roomName: formData.room,
+              result: resultData,
+            })
+          );
+        }
+
+        // Save formData + resultData to DB
+        await addHeatLoadToDb({
+          project_id: currentProjectId,
+          input_data: formData,
+          result_data: resultData,
+        });
+      } else {
+        throw new Error(response?.message || "Unknown error occurred");
+      }
     } catch (error) {
-      console.error("API Error:", error);
-      // error handling
+      console.error("Heat load calculation error:", error);
+      setError(
+        error?.data?.message ||
+          error?.message ||
+          "Failed to calculate heat load"
+      );
     }
   };
+
+  useEffect(() => {
+    if (autofillData?.input_data) {
+      setFormData((prev) => ({
+        ...prev,
+        ...autofillData.input_data,
+      }));
+      setResult(autofillData.result_data);
+    }
+  }, [autofillData]);
 
   return (
     <div className="flex h-screen">
@@ -116,7 +220,7 @@ const HeatLoad = () => {
           </div>
           <button
             className="w-[24px] h-[24px] bg-[#0083EE] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC] transition"
-            onClick={() => console.log("Reload clicked")}
+            onClick={() => window.location.reload()}
           >
             <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
           </button>
@@ -163,7 +267,7 @@ const HeatLoad = () => {
                           {formData.area}
                         </div>
                       ) : (
-                        <div
+                        <input
                           type="number"
                           name="area"
                           value={formData.area}
@@ -188,20 +292,14 @@ const HeatLoad = () => {
                   <div className="space-y-[6px]">
                     <label className="text-[#444] block">Height</label>
                     <div className="flex gap-2">
-                      {formData.room ? (
-                        <div className="w-2/3 p-2 rounded-[8px] text-[13px] bg-gray-200">
-                          {formData.height}
-                        </div>
-                      ) : (
-                        <div
-                          type="number"
-                          name="height"
-                          value={formData.height}
-                          onChange={handleChange}
-                          placeholder="Height"
-                          className="w-2/3 p-2 rounded-[8px] text-[13px] bg-gray-200"
-                        />
-                      )}
+                      <input
+                        type="number"
+                        name="height"
+                        value={formData.height}
+                        onChange={handleChange}
+                        placeholder="Height"
+                        className="w-2/3 p-2 rounded-[8px] text-[13px] bg-gray-200"
+                      />
                       <select
                         name="heightUnit"
                         value={formData.heightUnit}
@@ -583,6 +681,8 @@ const HeatLoad = () => {
               )}
             </div>
           </div>
+
+          {/* Advanced/Backend Fields Accordion */}
         </div>
 
         {/* Calculate Button */}
@@ -606,6 +706,55 @@ const HeatLoad = () => {
             )}
           </button>
         </div>
+        {/* Result Display */}
+        {result && (
+          <div className="mt-6 p-4 border rounded bg-blue-50 text-blue-900 text-sm max-h-[300px] overflow-auto">
+            <h3 className="font-semibold mb-2">
+              Heat Load Result (From Backend)
+            </h3>
+
+            <div>
+              <b>Temperature Difference:</b>
+              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
+                {JSON.stringify(result.temperature_difference, null, 2)}
+              </pre>
+            </div>
+
+            <div className="mt-2">
+              <b>Sensible Heat:</b>
+              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
+                {JSON.stringify(result.sensible_heat, null, 2)}
+              </pre>
+            </div>
+
+            <div className="mt-2">
+              <b>Latent Heat:</b>
+              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
+                {JSON.stringify(result.latent_heat, null, 2)}
+              </pre>
+            </div>
+
+            <div className="mt-2">
+              <b>Total Heat:</b>
+              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
+                {JSON.stringify(result.total_heat, null, 2)}
+              </pre>
+            </div>
+
+            <div className="mt-2">
+              <b>Grand Total:</b>
+              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
+                {JSON.stringify(result.grand_total, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 p-2 bg-red-100 text-red-700 rounded text-xs">
+            {error}
+          </div>
+        )}
       </div>
       {/* Right: Floor Preview */}
       <div className="flex-1 h-full">

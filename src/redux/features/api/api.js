@@ -95,6 +95,22 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["Ventilation"],
     }),
+    calculateDuctSize: builder.mutation({
+      query: (body) => ({
+        url: `api/duct/size`, // Full path relative to your `/api` baseUrl
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Duct Size"],
+    }),
+    calculateGrilleSize: builder.mutation({
+      query: (body) => ({
+        url: `api/hvac/size`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Grille Size"],
+    }),
     // New mutation for AHU calculations
     calculateAHU: builder.mutation({
       query: (body) => ({
@@ -104,6 +120,29 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["AHU"], // You might want to define a new tag for AHU
     }),
+    calculateFittingLosses: builder.mutation({
+      query: (body) => ({
+        url: `api/hvac/fitting-losses`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["AHU"],
+    }),
+    calculateTotalAHUPressureDrop: builder.mutation({
+      query: (body) => ({
+        url: `api/hvac/total-pressure-drop`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["AHU"],
+    }),
+    getStandardFittings: builder.query({
+      query: () => ({
+        url: `api/hvac/standard-fittings`,
+        method: "GET",
+      }),
+      providesTags: ["AHU"],
+    }),
     // New Chiller calculation mutation
     calculateChiller: builder.mutation({
       query: (body) => ({
@@ -112,6 +151,29 @@ export const apiSlice = createApi({
         body,
       }),
       invalidatesTags: ["Chiller"], // Add a new tag for Chiller
+    }),
+    // Chiller Pressure Drop calculations
+    calculateChillerPressureDrop: builder.mutation({
+      query: (body) => ({
+        url: `api/hvac/chiller-pressure-drop`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Chiller"],
+    }),
+    getFluidProperties: builder.query({
+      query: ({ fluidType, temperatureC }) => ({
+        url: `api/hvac/fluid-properties?fluidType=${fluidType}&temperatureC=${temperatureC}`,
+        method: "GET",
+      }),
+      providesTags: ["Chiller"],
+    }),
+    getFluidTypes: builder.query({
+      query: () => ({
+        url: `api/hvac/fluid-types`,
+        method: "GET",
+      }),
+      providesTags: ["Chiller"],
     }),
     calculateCondenser: builder.mutation({
       // New: Condenser Mutation
@@ -125,12 +187,20 @@ export const apiSlice = createApi({
 
     addWaterDemand: builder.mutation({
       query: (body) => ({
-        url: `api/waterdemand`,
+        url: `api/water-demand/calculate`,
         method: "POST",
         body,
       }),
       invalidatesTags: ["WaterDemand"],
     }),
+    getBuildingType: builder.mutation({
+      query: () => ({
+        url: "/api/water-demand/building-types",
+        method: "GET",
+      }),
+      invalidatesTags: ["WaterDemand"],
+    }),
+
     addWaterSupplyPipes: builder.mutation({
       query: (body) => ({
         url: `api/watersupplypipes`,
@@ -147,6 +217,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["DrainagePipes"],
     }),
+    addPlumbingHL: builder.mutation({
+      query: (body) => ({
+        url: `api/plumbingheadloss`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["PlumbingHeadLoss"],
+    }),
     addPlumbingPump: builder.mutation({
       query: (body) => ({
         url: `api/plumbingpump`,
@@ -157,7 +235,7 @@ export const apiSlice = createApi({
     }),
     addRwhSizing: builder.mutation({
       query: (body) => ({
-        url: `api/rwhsizing`,
+        url: `api/rwh/calculate`,
         method: "POST",
         body,
       }),
@@ -212,6 +290,19 @@ export const apiSlice = createApi({
         { type: "Project", id: projectId },
       ], // Invalidate QE and Project tags
     }),
+    addHeatLoadToDb: builder.mutation({
+      query: (payload) => ({
+        url: "/api/heatload/store",
+        method: "POST",
+        body: payload,
+      }),
+    }),
+    getHeatLoadAutofill: builder.query({
+      query: ({ project_id, room }) =>
+        `/heatload/autofill?project_id=${project_id}&room=${encodeURIComponent(
+          room
+        )}`,
+    }),
   }),
 });
 
@@ -226,12 +317,22 @@ export const {
   useAddFirePumpMutation,
   useAddHeatLoadMutation,
   useAddVentilationMutation,
+  useCalculateDuctSizeMutation,
+  useCalculateGrilleSizeMutation,
   useCalculateAHUMutation, // Exported for AHU
+  useCalculateFittingLossesMutation,
+  useCalculateTotalAHUPressureDropMutation,
+  useGetStandardFittingsQuery,
   useCalculateChillerMutation, // Exported for Chiller
+  useCalculateChillerPressureDropMutation,
+  useGetFluidPropertiesQuery,
+  useGetFluidTypesQuery,
   useCalculateCondenserMutation, // Exported for Condenser
   useAddWaterDemandMutation,
+  useGetBuildingTypeMutation,
   useAddWaterSupplyPipesMutation,
   useAddDrainagePipesMutation,
+  useAddPlumbingHLMutation,
   useAddPlumbingPumpMutation,
   useAddRwhSizingMutation,
   useAddRainwaterDropSizingMutation,
@@ -240,4 +341,6 @@ export const {
   useDeleteQEMutation,
   useGetQEListByIdQuery,
   useUpdateQEMutation,
+  useAddHeatLoadToDbMutation,
+  useGetHeatLoadAutofillQuery,
 } = apiSlice;

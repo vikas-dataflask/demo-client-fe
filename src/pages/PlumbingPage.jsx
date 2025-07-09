@@ -77,7 +77,7 @@ export default function PlumbingPage() {
           }}
         />
         <div className="flex ">{renderContent()}</div>
-        {data && (
+        {/* {data && (
           <RightModal>
             {activeSection === "water-demand" && (
               <WaterDemandModal data={data} />
@@ -99,7 +99,7 @@ export default function PlumbingPage() {
             )}
             {activeSection === "RWH" && <RwhModal data={data} />}
           </RightModal>
-        )}
+        )} */}
       </div>
     </div>
   );
