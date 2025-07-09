@@ -1,237 +1,568 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { ReloadIcon } from "../../icons/ReloadIcon";
-import { useAddDrainagePipesMutation } from "../../redux/features/api/api"; // Adjust the path as needed
+import { useAddDrainagePipesMutation } from "../../redux/features/api/api";
 import FloorPreview from "../shared/FloorPreview";
-import DrainagePipesModal from "./DrainagePipesModal"; // Import the modal (now acting as the report view)
 
-// Reusable Components
-const InputRow = ({ label, unit, value, onChange }) => (
-  <div className="mb-[14px]">
-    <label className="block text-[11px] text-[#6B7280] mb-[6px]">{label}</label>
-    <div className="flex gap-[8px]">
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        className={`${
-          unit ? "w-1/2" : "w-full"
-        } h-[36px] px-3 text-[13px] rounded-[6px] text-[#374151] border border-gray-200 focus:outline-none focus:border-[#0083EE] bg-gray-200 focus:ring-0 hover:border-gray-400`}
-      />
-    </div>
-  </div>
-);
+// Drainage fixture unit configuration (NBC standards)
+const drainageFixtureUnitConfig = {
+  // Waste fixtures
+  washBasin: { fixtureUnits: 1.0, type: "waste" },
+  healthFaucet: { fixtureUnits: 2.0, type: "waste" },
+  floorDrain: { fixtureUnits: 2.0, type: "waste" },
+  serviceSink: { fixtureUnits: 3.0, type: "waste" },
+  kitchenSink: { fixtureUnits: 2.0, type: "waste" },
+  shower: { fixtureUnits: 2.0, type: "waste" },
 
-const SelectRow = ({ label, value, onChange, options }) => (
-  <div className="mb-[14px]">
-    <label className="block text-[11px] text-gray-600 mb-[6px]">{label}</label>
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full h-[36px] text-[13px] px-3 rounded-[6px] text-[#374151] border border-gray-200 bg-gray-200 focus:outline-none focus:border-[#0083EE] focus:ring-0 hover:border-gray-400"
-    >
-      {options.map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+  // Soil fixtures
+  waterCloset: { fixtureUnits: 6.0, type: "soil" },
+  urinal: { fixtureUnits: 3.0, type: "soil" },
+  urinalTrap: { fixtureUnits: 3.0, type: "soil" },
+};
 
-const DrainagePipesForm = ({
-  projectName = "Default Project",
-  activity = "Drainage Pipes",
-}) => {
-  const [addDrainagePipes] = useAddDrainagePipesMutation();
+const DrainagePipesForm = ({ setData }) => {
+  const [addDrainagePipes, { isLoading, error }] =
+    useAddDrainagePipesMutation();
 
-  // State for form inputs
-  const [wb, setWb] = useState(10);
-  const [healthFaucet, setHealthFaucet] = useState(10);
-  const [floorDrain, setFloorDrain] = useState(10);
-  const [serviceSink, setServiceSink] = useState(10);
-  const [kitchenSink, setKitchenSink] = useState(10);
-  const [shower, setShower] = useState(10);
-  const [wc, setWc] = useState(10);
-  const [urinal, setUrinal] = useState(10);
-  const [urinalTrap, setUrinalTrap] = useState(10);
-  const [fixtureUnit, setFixtureUnit] = useState(646);
-  const [SoilWastePipeSize, setSoilWastePipeSize] = useState(50);
-  const [pipeSlope, setPipeSlope] = useState(1.5);
-  const [velocity, setVelocity] = useState(1.5);
-  const [pipeSize, setPipeSize] = useState("");
+  // Form state with proper structure matching water supply
+  const [formData, setFormData] = useState({
+    numWb: 0,
+    numHealthFaucet: 0,
+    numFloorDrain: 0,
+    numServiceSink: 0,
+    numKitchenSink: 0,
+    numShower: 0,
+    numWc: 0,
+    numUrinal: 0,
+    numUrinalTrap: 0,
+  });
 
-  // State for calculation result
-  const [calculationResult, setCalculationResult] = useState(null);
+  const [result, setResult] = useState(null);
 
-  // Collect all form data into a single object for passing to the report/PDF
-  const formData = {
-    wb,
-    healthFaucet,
-    floorDrain,
-    serviceSink,
-    kitchenSink,
-    shower,
-    wc,
-    urinal,
-    urinalTrap,
-    fixtureUnit,
-    SoilWastePipeSize,
-    pipeSlope,
-    velocity,
-    pipeSize,
+  // Calculate fixture units and flow rate in real-time
+  const previewCalculations = useMemo(() => {
+    const fixtures = {
+      washBasin: formData.numWb,
+      healthFaucet: formData.numHealthFaucet,
+      floorDrain: formData.numFloorDrain,
+      serviceSink: formData.numServiceSink,
+      kitchenSink: formData.numKitchenSink,
+      shower: formData.numShower,
+      waterCloset: formData.numWc,
+      urinal: formData.numUrinal,
+      urinalTrap: formData.numUrinalTrap,
+    };
+
+    let totalWasteFU = 0;
+    let totalSoilFU = 0;
+    const wasteFixtureBreakdown = {};
+    const soilFixtureBreakdown = {};
+
+    // Calculate fixture units for each fixture type
+    for (const [fixtureType, count] of Object.entries(fixtures)) {
+      if (count > 0 && drainageFixtureUnitConfig[fixtureType]) {
+        const fixtureUnits =
+          drainageFixtureUnitConfig[fixtureType].fixtureUnits * count;
+        const type = drainageFixtureUnitConfig[fixtureType].type;
+
+        if (type === "waste") {
+          totalWasteFU += fixtureUnits;
+          wasteFixtureBreakdown[fixtureType] = {
+            count: count,
+            fixtureUnits: fixtureUnits,
+          };
+        } else if (type === "soil") {
+          totalSoilFU += fixtureUnits;
+          soilFixtureBreakdown[fixtureType] = {
+            count: count,
+            fixtureUnits: fixtureUnits,
+          };
+        }
+      }
+    }
+
+    const totalFixtureUnits = totalWasteFU + totalSoilFU;
+
+    // Flow rate estimation (simplified for drainage)
+    const estimatedWasteFlowRate = Math.round(totalWasteFU * 0.5); // LPM approximation
+    const estimatedSoilFlowRate = Math.round(totalSoilFU * 0.8); // LPM approximation
+
+    return {
+      totalWasteFU: Math.round(totalWasteFU * 100) / 100,
+      totalSoilFU: Math.round(totalSoilFU * 100) / 100,
+      totalFixtureUnits: Math.round(totalFixtureUnits * 100) / 100,
+      estimatedWasteFlowRate,
+      estimatedSoilFlowRate,
+      wasteFixtureBreakdown,
+      soilFixtureBreakdown,
+    };
+  }, [formData]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: parseInt(value) || 0,
+    }));
   };
 
-  const handleCalculate = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const payload = {
+      plumbing: [
+        {
+          num_wb: formData.numWb,
+          num_health_faucet: formData.numHealthFaucet,
+          num_floor_drain: formData.numFloorDrain,
+          num_service_sink: formData.numServiceSink,
+          num_kitchen_sink: formData.numKitchenSink,
+          num_shower: formData.numShower,
+          num_wc: formData.numWc,
+          num_urinal: formData.numUrinal,
+          num_urinal_trap: formData.numUrinalTrap,
+        },
+      ],
+    };
     try {
-      const res = await addDrainagePipes({
-        plumbing: [
-          {
-            num_wb: wb,
-            num_health_faucet: healthFaucet,
-            num_floor_drain: floorDrain,
-            num_service_sink: serviceSink,
-            num_kitchen_sink: kitchenSink,
-            num_shower: shower,
-            num_wc: wc,
-            num_urinal: urinal,
-            num_urinal_trap: urinalTrap,
-          },
-        ],
-      }).unwrap();
-
-      setCalculationResult(res.data); // Store the calculation result
-      console.log(res?.data?.[0]?.total_raw_water); // This might be a typo, check API response for correct key
-    } catch (error) {
-      console.error("API Error:", error);
-      // Optionally handle error display to the user
+      const response = await addDrainagePipes(payload).unwrap();
+      setResult(response.data);
+      if (setData) setData(response.data);
+    } catch (err) {
+      setResult(null);
     }
   };
 
-  const handleReload = () => {
-    // Reset all form fields to their initial state or empty
-    setWb(10);
-    setHealthFaucet(10);
-    setFloorDrain(10);
-    setServiceSink(10);
-    setKitchenSink(10);
-    setShower(10);
-    setWc(10);
-    setUrinal(10);
-    setUrinalTrap(10);
-    setFixtureUnit(646);
-    setSoilWastePipeSize(50);
-    setPipeSlope(1.5);
-    setVelocity(1.5);
-    setPipeSize("");
-    setCalculationResult(null); // Clear previous results to show FloorPreview again
-    console.log("Form reloaded");
-  };
-
-  // Function to close the report and show FloorPreview
-  const handleCloseReport = () => {
-    setCalculationResult(null);
+  const handleReset = () => {
+    setFormData({
+      numWb: 0,
+      numHealthFaucet: 0,
+      numFloorDrain: 0,
+      numServiceSink: 0,
+      numKitchenSink: 0,
+      numShower: 0,
+      numWc: 0,
+      numUrinal: 0,
+      numUrinalTrap: 0,
+    });
+    setResult(null);
   };
 
   return (
-    <div className="flex ">
-      <div className="w-[340px] h-[90vh] flex flex-col bg-white border-r border-gray-200 overflow-hidden relative">
+    <div className="flex h-screen">
+      {/* Left: Form */}
+      <div className="flex-1 bg-white border-r border-gray-300 text-sm font-medium flex flex-col h-full">
         {/* Header */}
-        <div className="flex justify-between items-start px-4 pt-3 pb-2 border-b border-gray-200">
-          <div>
-            <h2 className="text-[14px] font-semibold text-gray-900 leading-none">
-              Drainage Pipes
-            </h2>
-            <p className="text-[11px] text-gray-400 mt-[4px]">No update yet</p>
+        <div className="p-4 pb-0 border-b border-gray-200">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-green-600 rounded-md flex items-center justify-center">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-[15px] font-semibold text-gray-800">
+                  Drainage Pipes
+                </h2>
+                <p className="text-xs text-gray-400">Updated: Just now</p>
+              </div>
+            </div>
+            <button
+              className="w-[24px] h-[24px] bg-[#0083EE] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC] transition"
+              onClick={handleReset}
+            >
+              <svg
+                className="w-[16px] h-[16px] stroke-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
           </div>
-          <button
-            className="w-[24px] h-[24px] bg-[#0083EE] text-white hover:bg-sky-600 rounded-md flex items-center justify-center transition"
-            onClick={handleReload}
-          >
-            <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
-          </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 pb-[80px] bg-white">
-          <InputRow label="Number of WB" value={wb} onChange={setWb} />
-          <InputRow
-            label="Number of Health Faucet"
-            value={healthFaucet}
-            onChange={setHealthFaucet}
-          />
-          <InputRow
-            label="Number of Floor Drain"
-            value={floorDrain}
-            onChange={setFloorDrain}
-          />
-          <InputRow
-            label="Number of Service Sink"
-            value={serviceSink}
-            onChange={setServiceSink}
-          />
-          <InputRow
-            label="Number of Kitchen Sink"
-            value={kitchenSink}
-            onChange={setKitchenSink}
-          />
-          <InputRow
-            label="Number of Shower"
-            value={shower}
-            onChange={setShower}
-          />
-          <InputRow label="Number of WC" value={wc} onChange={setWc} />
-          <InputRow
-            label="Number of Urinal"
-            value={urinal}
-            onChange={setUrinal}
-          />
-          <InputRow
-            label="Number of Urinal Tap"
-            value={urinalTrap}
-            onChange={setUrinalTrap}
-          />
-          <InputRow
-            label="Total Fixture Unit"
-            value={fixtureUnit}
-            onChange={setFixtureUnit}
-          />
-          <InputRow
-            label="Soil & Waste Pipe Size as per NBC"
-            value={SoilWastePipeSize}
-            onChange={setSoilWastePipeSize}
-          />
-          <InputRow
-            label="Pipe Slope"
-            value={pipeSlope}
-            onChange={setPipeSlope}
-          />
-          <InputRow label="Velocity" value={velocity} onChange={setVelocity} />
-          <InputRow label="Pipe Size" value={pipeSize} onChange={setPipeSize} />
-        </div>
+        {/* Scrollable form */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold text-gray-800">
+                Drainage Pipes Calculator
+              </h1>
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                Reset
+              </button>
+            </div>
 
-        {/* Bottom Button */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4">
-          <button
-            className="w-full h-[40px] bg-[#2E90FA] hover:bg-[#1C78DC] text-white text-[14px] font-semibold rounded-md transition"
-            onClick={handleCalculate}
-          >
-            Calculate
-          </button>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Fixture Counts Section */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  Fixture Counts
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Wash Basins
+                    </label>
+                    <input
+                      type="number"
+                      name="numWb"
+                      value={formData.numWb}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Health Faucets
+                    </label>
+                    <input
+                      type="number"
+                      name="numHealthFaucet"
+                      value={formData.numHealthFaucet}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Floor Drains
+                    </label>
+                    <input
+                      type="number"
+                      name="numFloorDrain"
+                      value={formData.numFloorDrain}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Service Sinks
+                    </label>
+                    <input
+                      type="number"
+                      name="numServiceSink"
+                      value={formData.numServiceSink}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Kitchen Sinks
+                    </label>
+                    <input
+                      type="number"
+                      name="numKitchenSink"
+                      value={formData.numKitchenSink}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Showers
+                    </label>
+                    <input
+                      type="number"
+                      name="numShower"
+                      value={formData.numShower}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Water Closets
+                    </label>
+                    <input
+                      type="number"
+                      name="numWc"
+                      value={formData.numWc}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Urinals
+                    </label>
+                    <input
+                      type="number"
+                      name="numUrinal"
+                      value={formData.numUrinal}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Urinal Traps
+                    </label>
+                    <input
+                      type="number"
+                      name="numUrinalTrap"
+                      value={formData.numUrinalTrap}
+                      onChange={handleChange}
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Real-time Preview Section */}
+              <div className="bg-green-50 border-l-4 border-green-400 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-green-800 mb-4">
+                  📊 Real-time Preview: Total Fixture Unit & Flow Rate
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Fixture Units Summary */}
+                  <div className="bg-white rounded-lg p-4 border border-green-200">
+                    <h3 className="font-semibold text-green-700 mb-3">
+                      Fixture Units (FU)
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">
+                          Waste System FU:
+                        </span>
+                        <span className="font-semibold text-green-800">
+                          {previewCalculations.totalWasteFU} FU
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">
+                          Soil System FU:
+                        </span>
+                        <span className="font-semibold text-green-800">
+                          {previewCalculations.totalSoilFU} FU
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-sm font-medium text-gray-700">
+                          Total System FU:
+                        </span>
+                        <span className="font-bold text-lg text-green-900">
+                          {previewCalculations.totalFixtureUnits} FU
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Flow Rate Summary */}
+                  <div className="bg-white rounded-lg p-4 border border-green-200">
+                    <h3 className="font-semibold text-green-700 mb-3">
+                      Flow Rate Estimation
+                    </h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">
+                          Waste Flow Rate:
+                        </span>
+                        <span className="font-semibold text-green-800">
+                          {previewCalculations.estimatedWasteFlowRate} LPM
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">
+                          Soil Flow Rate:
+                        </span>
+                        <span className="font-semibold text-green-800">
+                          {previewCalculations.estimatedSoilFlowRate} LPM
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-sm font-medium text-gray-700">
+                          Status:
+                        </span>
+                        <span
+                          className={`font-medium ${
+                            previewCalculations.totalFixtureUnits > 0
+                              ? "text-green-600"
+                              : "text-gray-500"
+                          }`}
+                        >
+                          {previewCalculations.totalFixtureUnits > 0
+                            ? "✅ Ready for calculation"
+                            : "⏳ Enter fixture counts"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fixture Breakdown */}
+                {previewCalculations.totalFixtureUnits > 0 && (
+                  <div className="mt-4 pt-4 border-t border-green-200">
+                    <h4 className="font-semibold text-green-700 mb-3">
+                      Fixture Breakdown
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Waste Fixtures */}
+                      <div>
+                        <h5 className="font-medium text-green-600 mb-2">
+                          Waste System:
+                        </h5>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          {Object.entries(
+                            previewCalculations.wasteFixtureBreakdown
+                          ).map(([fixture, data]) => (
+                            <div
+                              key={fixture}
+                              className="bg-white p-2 rounded border border-green-100"
+                            >
+                              <div className="font-medium text-gray-700 capitalize">
+                                {fixture.replace(/([A-Z])/g, " $1").trim()}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Count: {data.count} | FU: {data.fixtureUnits}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Soil Fixtures */}
+                      <div>
+                        <h5 className="font-medium text-green-600 mb-2">
+                          Soil System:
+                        </h5>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          {Object.entries(
+                            previewCalculations.soilFixtureBreakdown
+                          ).map(([fixture, data]) => (
+                            <div
+                              key={fixture}
+                              className="bg-white p-2 rounded border border-green-100"
+                            >
+                              <div className="font-medium text-gray-700 capitalize">
+                                {fixture.replace(/([A-Z])/g, " $1").trim()}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Count: {data.count} | FU: {data.fixtureUnits}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Calculate Button */}
+              <button
+                type="submit"
+                className="w-full px-6 py-3 text-lg font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                disabled={
+                  isLoading || previewCalculations.totalFixtureUnits === 0
+                }
+              >
+                {isLoading
+                  ? "Calculating..."
+                  : previewCalculations.totalFixtureUnits === 0
+                  ? "Enter fixture counts to calculate"
+                  : "Calculate Drainage Pipes"}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
-      {/* Right: Report Display or Floor Preview */}
-      <div className="flex-1 h-[90vh] overflow-y-auto">
-        {calculationResult ? (
-          <DrainagePipesModal
-            data={calculationResult}
-            formData={formData} // Pass collected form data
-            projectName={projectName} // Pass projectName
-            activity={activity} // Pass activity
-            onClose={handleCloseReport}
-          />
-        ) : (
-          <FloorPreview />
-        )}
+
+      {/* Right: Results */}
+      <div className="w-96 bg-gray-50 p-6 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">
+            Drainage Results
+          </h2>
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+              <div className="text-red-800 font-semibold">Error</div>
+              <div className="text-red-700">
+                {error.data?.message || error.error || "An error occurred"}
+              </div>
+            </div>
+          )}
+          {result && (
+            <div className="space-y-6">
+              {/* Main Result */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Calculation Summary
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.entries(result[0]).map(([key, value]) =>
+                    typeof value === "number" || typeof value === "string" ? (
+                      <div key={key} className="bg-green-50 p-4 rounded-md">
+                        <div className="text-sm text-green-600 font-medium">
+                          {key.replace(/_/g, " ")}
+                        </div>
+                        <div className="text-lg font-bold text-green-800">
+                          {value}
+                        </div>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          {!result && !isLoading && (
+            <div className="text-center text-gray-500 mt-20">
+              <div className="text-6xl mb-4">🚰</div>
+              <div className="text-xl font-medium">
+                No calculation performed yet
+              </div>
+              <div className="text-sm">
+                Fill in the form and click "Calculate Drainage Pipes" to see
+                results
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

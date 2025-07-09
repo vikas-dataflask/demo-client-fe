@@ -1,355 +1,633 @@
-// AHU.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { ReloadIcon } from "../../icons/ReloadIcon";
-import { useCalculateAHUMutation } from "../../redux/features/api/api";
-import { generateAHUReportPdf } from "./AhuPdfMaker";
-// Import the new PDF generation utility
-// import { generateAHUReportPdf } f"; // Adjust path as needed based on where you save pdfGenerator.js
+import {
+  useCalculateFittingLossesMutation,
+  useCalculateTotalAHUPressureDropMutation,
+  useGetStandardFittingsQuery,
+} from "../../redux/features/api/api";
+import { data } from "react-router-dom";
 
-// Receive projectName and activity as props
 const AHU = ({ projectName, activity }) => {
   const [formData, setFormData] = useState({
-    equipment: "Duct",
-    flowrate: "",
-    width: "",
-    height: "",
-    length: "",
+    // Basic AHU parameters
+    airflow: "",
+    velocity: "",
+    ductDiameter: "",
+    ductWidth: "",
+    ductHeight: "",
+
+    // Coil and filter parameters
+    coilPressureDrop: "",
+    filterPressureDrop: "",
+    additionalLosses: "",
+
+    // Fitting parameters
+    selectedFittings: [],
+    selectedFittingsQuantities: {},
+    fittingVelocity: "",
+    airDensity: "",
   });
 
-  useEffect(() => {
-    // This effect ensures that if projectName or activity were ever needed in formData for other
-    // purposes (e.g., sending to backend with form fields), they would be updated.
-    // However, since they are used directly from props for the report/API payload,
-    // this specific `setFormData` might be redundant for projectName/activity,
-    // but useful if `formData` had a different structure or `handleCalculate` used `formData.projectName`.
-    // For clarity, we'll keep them used directly from props in handleCalculate/handleDownload.
-  }, [projectName, activity]);
+  const [fittingLosses, setFittingLosses] = useState(null);
+  const [totalPressureDrop, setTotalPressureDrop] = useState(null);
+  const [showFittingSelector, setShowFittingSelector] = useState(false);
+  const [showBreakdownModal, setShowBreakdownModal] = useState(false);
 
-  const [
-    calculateAHU,
-    { data: calculationResult, isLoading, isSuccess, isError, error },
-  ] = useCalculateAHUMutation();
+  // API hooks
+  const [calculateFittingLosses, { isLoading: fittingLoading }] =
+    useCalculateFittingLossesMutation();
+  const [calculateTotalPressureDrop, { isLoading: totalLoading }] =
+    useCalculateTotalAHUPressureDropMutation();
+  const {
+    data: standardFittings,
+    isLoading: fittingsLoading,
+    error: fittingsError,
+  } = useGetStandardFittingsQuery();
+
+  // Debug logging
+  useEffect(() => {
+    console.log("Standard Fittings Response:", standardFittings);
+    console.log("Fittings Loading:", fittingsLoading);
+    console.log("Fittings Error:", fittingsError);
+  }, [standardFittings, fittingsLoading, fittingsError]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleCalculate = async () => {
-    console.log("Calculate button clicked!");
-    console.log("Current form data:", formData);
+  const handleFittingChange = (e) => {
+    const { value, checked } = e.target;
+    if (checked) {
+      setFormData((prev) => ({
+        ...prev,
+        selectedFittings: [...prev.selectedFittings, value],
+        selectedFittingsQuantities: {
+          ...prev.selectedFittingsQuantities,
+          [value]: prev.selectedFittingsQuantities[value] || 1,
+        },
+      }));
+    } else {
+      const { [value]: _, ...restQuantities } =
+        formData.selectedFittingsQuantities;
+      setFormData((prev) => ({
+        ...prev,
+        selectedFittings: prev.selectedFittings.filter((f) => f !== value),
+        selectedFittingsQuantities: restQuantities,
+      }));
+    }
+  };
+
+  const handleFittingQuantityChange = (fittingName, quantity) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedFittingsQuantities: {
+        ...prev.selectedFittingsQuantities,
+        [fittingName]: Math.max(1, Number(quantity)),
+      },
+    }));
+  };
+
+  const handleCalculateFittingLosses = async () => {
+    if (!formData.selectedFittings.length || !formData.fittingVelocity) {
+      alert("Please select fittings and enter velocity");
+      return;
+    }
+    try {
+      // Build the array of fitting objects with type, quantity, and kValue
+      const fittingsArray = formData.selectedFittings.map((fittingName) => {
+        const fitting = Object.values(groupedFittings)
+          .flat()
+          .find((f) => f.name === fittingName);
+        return {
+          type: fittingName,
+          quantity: formData.selectedFittingsQuantities[fittingName] || 1,
+          kValue: fitting?.kValue || 0,
+        };
+      });
+      const dataToSend = {
+        fittingsArray,
+        airVelocity: parseFloat(formData.fittingVelocity),
+      };
+      if (formData.airDensity) {
+        dataToSend.airDensity = parseFloat(formData.airDensity);
+      }
+      const response = await calculateFittingLosses(dataToSend).unwrap();
+      setFittingLosses(response.data);
+      console.log("Fitting losses calculated:", response);
+    } catch (err) {
+      console.error("Failed to calculate fitting losses:", err);
+      alert("Failed to calculate fitting losses");
+    }
+  };
+
+  const handleCalculateTotalPressureDrop = async () => {
+    if (
+      !formData.airflow ||
+      !formData.coilPressureDrop ||
+      !formData.filterPressureDrop
+    ) {
+      alert("Please fill in all required fields");
+      return;
+    }
 
     try {
       const dataToSend = {
-        projectName: projectName,
-        activity: activity,
-        equipment: formData.equipment,
-        flowrate: parseFloat(formData.flowrate),
-        width: parseFloat(formData.width),
-        height: parseFloat(formData.height),
-        length: parseFloat(formData.length),
+        airflow: parseFloat(formData.airflow),
+        velocity: parseFloat(formData.velocity) || 0,
+        ductDiameter: parseFloat(formData.ductDiameter) || 0,
+        ductWidth: parseFloat(formData.ductWidth) || 0,
+        ductHeight: parseFloat(formData.ductHeight) || 0,
+        coilPressureDrop: parseFloat(formData.coilPressureDrop),
+        filterPressureDrop: parseFloat(formData.filterPressureDrop),
+        additionalLosses: parseFloat(formData.additionalLosses) || 0,
+        fittingLosses: fittingLosses?.totalFittingLoss || 0,
       };
 
-      const response = await calculateAHU(dataToSend).unwrap();
-      console.log("Calculation successful:", response);
+      const response = await calculateTotalPressureDrop(dataToSend).unwrap();
+      setTotalPressureDrop(response);
+      setShowBreakdownModal(true); // Show modal here
+      console.log("Total pressure drop calculated:", response);
     } catch (err) {
-      console.error("Failed to perform calculation:", err);
+      console.error("Failed to calculate total pressure drop:", err);
+      alert("Failed to calculate total pressure drop");
     }
   };
 
   const handleReload = () => {
     setFormData({
-      equipment: "Duct",
-      flowrate: "",
-      width: "",
-      height: "",
-      length: "",
+      airflow: "",
+      velocity: "",
+      ductDiameter: "",
+      ductWidth: "",
+      ductHeight: "",
+      coilPressureDrop: "",
+      filterPressureDrop: "",
+      additionalLosses: "",
+      selectedFittings: [],
+      selectedFittingsQuantities: {},
+      fittingVelocity: "",
+      airDensity: "",
     });
+    setFittingLosses(null);
+    setTotalPressureDrop(null);
   };
 
-  // PDF download function - now calls the external utility
-  const handleDownload = () => {
-    // Pass all necessary data to the external PDF generation function
-    generateAHUReportPdf(calculationResult, formData, projectName, activity);
+  // Helper function to categorize fittings
+  const getFittingCategory = (fittingKey) => {
+    if (fittingKey.includes("elbow")) return "Elbows";
+    if (
+      fittingKey.includes("transition") ||
+      fittingKey.includes("expansion") ||
+      fittingKey.includes("contraction")
+    )
+      return "Transitions";
+    if (fittingKey.includes("tee")) return "Tees";
+    if (fittingKey.includes("entry") || fittingKey.includes("exit"))
+      return "Entries/Exits";
+    if (fittingKey.includes("damper")) return "Dampers";
+    return "Others";
   };
 
-  // Input fields for the left sidebar (user editable)
-  const inputFields = [
-    ["Flowrate", "flowrate", "m³/s"],
-    ["Width", "width", "m"],
-    ["Height", "height", "m"],
-    ["Length", "length", "m"],
-  ];
+  const groupedFittings = useMemo(() => {
+    try {
+      console.log("Calculating groupedFittings with:", standardFittings);
+      const fittingsData = standardFittings?.data?.standardFittings;
+      console.log("Fittings data:", fittingsData);
 
-  // Calculated fields for display in both left sidebar and right report
-  const calculatedFields = [
-    ["Area", "area_m2", "m²"],
-    ["Mean Velocity (U)", "u", "m/s"],
-    ["Hydraulic Diameter (Dh)", "dh", "m"],
-    ["Equivalent Diameter (De)", "de", "m"],
-    ["Equivalent Length (Le)", "le", "m"],
-    ["Reynolds Number (Re)", "re", "-"],
-    ["Velocity Pressure (Pv)", "pv", "Pa"],
-    ["Roughness (ε)", "fixed_epsilon", "m"],
-    ["Friction Factor (λ)", "lambda", "-"],
-    ["Local Velocity (U₀)", "fixed_u0", "m/s"],
-    ["Loss Coefficient (C₀)", "fixed_c0", "-"],
-    ["Frictional Pressure Drop (ΔPf)", "calculated_deltaPf", "Pa"],
-    ["Local Pressure Drop (ΔPl)", "calculated_deltaPl", "Pa"],
-    ["Total Pressure Drop (ΔPt)", "calculated_deltaPt", "Pa"],
-  ];
+      if (!fittingsData || typeof fittingsData !== "object") {
+        console.log("No valid fittings data, returning empty object");
+        return {};
+      }
+
+      // Convert the object to an array and group by category
+      const fittingsArray = Object.entries(fittingsData).map(
+        ([key, fitting]) => {
+          console.log("Processing fitting:", key, fitting);
+          return {
+            name: key,
+            kValue: fitting.kValue || 0,
+            description: fitting.description || key,
+            category: getFittingCategory(key),
+          };
+        }
+      );
+
+      console.log("Fittings array:", fittingsArray);
+
+      const result = fittingsArray.reduce((acc, fitting) => {
+        if (!acc[fitting.category]) {
+          acc[fitting.category] = [];
+        }
+        acc[fitting.category].push(fitting);
+        return acc;
+      }, {});
+
+      console.log("Final groupedFittings result:", result);
+      return result;
+    } catch (err) {
+      console.error("Error in groupedFittings calculation:", err);
+      return {};
+    }
+  }, [standardFittings]);
+
+  const breakdownTotal =
+    parseFloat(formData.coilPressureDrop || 0) +
+    parseFloat(formData.filterPressureDrop || 0) +
+    parseFloat(fittingLosses?.totalFittingLoss || 0) +
+    parseFloat(formData.additionalLosses || 0);
 
   return (
-    <div className="flex h-screen">
-      {/* Left Sidebar (Input Form) */}
-      <div className="w-[340px] bg-white border-r border-gray-300 text-sm font-medium flex flex-col h-full">
-        {/* Header */}
-        <div className="p-4 pb-0 border-b border-gray-200">
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="text-[15px] font-semibold text-gray-800">AHU</h2>
-              <p className="text-xs text-gray-400">Updated: Just now</p>
-            </div>
+    <div className="flex h-[90vh] bg-white">
+      {/* Left Panel - Input Form */}
+      <div className="flex-1 p-6 overflow-y-auto">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-gray-800">
+              AHU Pressure Drop Calculator
+            </h1>
             <button
-              className="w-[24px] h-[24px] bg-[#0083EE] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC] transition"
               onClick={handleReload}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
-              <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
+              <ReloadIcon />
+              Reset
             </button>
           </div>
-        </div>
 
-        {/* Scrollable form */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Equipment Dropdown */}
-          <div className="space-y-1">
-            <label className="text-gray-800 block">EQUIPMENT</label>
-            <select
-              name="equipment"
-              value={formData.equipment}
-              onChange={handleChange}
-              className="w-full bg-gray-200 p-2 rounded-md text-gray-500"
-            >
-              {[
-                "Duct",
-                "Damper",
-                "Duct connection",
-                "Filter",
-                "Coil",
-                "Plenum",
-                "Bend 90 Degree Vanes",
-                "Attenuator",
-                "Tee",
-                "Contraction",
-                "Branch",
-                "Expansion",
-                "1st Grille",
-                "2nd Grille",
-                "3rd Grille",
-                "4th Grille",
-                "5th Grille",
-                "6th Grille",
-                "7th Grille",
-              ].map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* User Input Fields (Flowrate, Width, Height, Length) */}
-          {inputFields.map(([label, name, unit]) => (
-            <div key={name} className="space-y-1">
-              <label className="text-gray-800 block">{label}</label>
-              <div className="flex space-x-2 items-center">
+          {/* Basic Parameters Section */}
+          <div className="bg-gray-50 rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">
+              Basic Parameters
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Airflow (CFM)
+                </label>
                 <input
                   type="number"
-                  name={name}
-                  value={formData[name]}
+                  name="airflow"
+                  value={formData.airflow}
                   onChange={handleChange}
-                  className="w-3/4 p-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0083EE] bg-gray-50"
-                  step="any"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter airflow"
                 />
-                <span className="w-1/4 text-center bg-gray-200 p-2 rounded-md text-gray-500">
-                  {unit}
-                </span>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Velocity (m/s)
+                </label>
+                <input
+                  type="number"
+                  name="velocity"
+                  value={formData.velocity}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter velocity"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Duct Diameter (m)
+                </label>
+                <input
+                  type="number"
+                  name="ductDiameter"
+                  value={formData.ductDiameter}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="For round ducts"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Duct Width (m)
+                </label>
+                <input
+                  type="number"
+                  name="ductWidth"
+                  value={formData.ductWidth}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="For rectangular ducts"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Duct Height (m)
+                </label>
+                <input
+                  type="number"
+                  name="ductHeight"
+                  value={formData.ductHeight}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="For rectangular ducts"
+                />
               </div>
             </div>
-          ))}
+          </div>
 
-          {/* Existing Calculated Output Fields (on the left sidebar - for quick reference) */}
-          {isSuccess && calculationResult && calculationResult.data && (
-            <>
-              <h3 className="text-[15px] font-semibold text-gray-800 mt-4 border-t pt-4">
-                Calculated Outputs (Quick View)
-              </h3>
-              {calculatedFields.map(([label, key, unit]) => (
-                <div key={key} className="space-y-1">
-                  <label className="text-gray-800 block">{label}</label>
-                  <div className="flex space-x-2 items-center">
-                    <input
-                      type="text"
-                      value={
-                        calculationResult.data[key] !== undefined
-                          ? calculationResult.data[key].toFixed(4)
-                          : "N/A"
-                      }
-                      readOnly
-                      className="w-3/4 p-2 rounded-md border border-gray-300 bg-gray-100 text-gray-700"
-                    />
-                    <span className="w-1/4 text-center bg-gray-200 p-2 rounded-md text-gray-500">
-                      {unit}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* Fixed Bottom Button */}
-        <div className="pb-20 border-t border-gray-200 p-4">
-          <button
-            onClick={handleCalculate}
-            className="w-full bg-[#0083EE] text-white p-3 rounded-md font-semibold hover:bg-[#1C69D4] transition-colors"
-            disabled={isLoading}
-          >
-            {isLoading ? "Calculating..." : "Calculate"}
-          </button>
-          {isError && error && (
-            <div className="mt-4 p-3 bg-red-100 text-red-800 rounded-md">
-              <h3 className="font-semibold">Error:</h3>
-              <p>
-                {error.data?.message ||
-                  error.message ||
-                  "An unknown error occurred"}
-              </p>
+          {/* Coil and Filter Section */}
+          <div className="bg-gray-50 rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">
+              Coil & Filter Parameters
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Coil Pressure Drop (Pa)
+                </label>
+                <input
+                  type="number"
+                  name="coilPressureDrop"
+                  value={formData.coilPressureDrop}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter coil pressure drop"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Filter Pressure Drop (Pa)
+                </label>
+                <input
+                  type="number"
+                  name="filterPressureDrop"
+                  value={formData.filterPressureDrop}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter filter pressure drop"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Additional Losses (Pa)
+                </label>
+                <input
+                  type="number"
+                  name="additionalLosses"
+                  value={formData.additionalLosses}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter additional losses"
+                />
+              </div>
             </div>
-          )}
+          </div>
+
+          {/* Fitting Selection Section */}
+          <div className="bg-gray-50 rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">
+                Fitting Losses
+              </h2>
+              <button
+                onClick={() => setShowFittingSelector(!showFittingSelector)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+              >
+                {showFittingSelector ? "Hide" : "Select Fittings"}
+              </button>
+            </div>
+
+            {showFittingSelector && (
+              <div className="mb-4">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fitting Velocity (m/s)
+                  </label>
+                  <input
+                    type="number"
+                    name="fittingVelocity"
+                    value={formData.fittingVelocity}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter velocity for fittings"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Air Density (kg/m³){" "}
+                    <span className="text-gray-400">(optional)</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="airDensity"
+                    value={formData.airDensity}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Default: 1.2"
+                    step="any"
+                    min="0"
+                  />
+                </div>
+
+                {fittingsLoading ? (
+                  <div className="text-center py-4">Loading fittings...</div>
+                ) : fittingsError ? (
+                  <div className="text-center py-4 text-red-600">
+                    Error loading fittings:{" "}
+                    {fittingsError.message || "Unknown error"}
+                  </div>
+                ) : Object.keys(groupedFittings).length === 0 ? (
+                  <div className="text-center py-4 text-gray-500">
+                    No fittings available. Please check the API connection.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {Object.entries(groupedFittings).map(
+                      ([category, fittings]) => (
+                        <div
+                          key={category}
+                          className="border border-gray-200 rounded-lg p-4"
+                        >
+                          <h3 className="font-medium text-gray-800 mb-3">
+                            {category}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {fittings.map((fitting) => (
+                              <div
+                                key={fitting.name}
+                                className="flex items-center space-x-2"
+                              >
+                                <input
+                                  type="checkbox"
+                                  value={fitting.name}
+                                  checked={formData.selectedFittings.includes(
+                                    fitting.name
+                                  )}
+                                  onChange={handleFittingChange}
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="text-sm text-gray-700">
+                                  {fitting.description} (K={fitting.kValue})
+                                </span>
+                                {formData.selectedFittings.includes(
+                                  fitting.name
+                                ) && (
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={
+                                      formData.selectedFittingsQuantities[
+                                        fitting.name
+                                      ] || 1
+                                    }
+                                    onChange={(e) =>
+                                      handleFittingQuantityChange(
+                                        fitting.name,
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-16 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ml-2"
+                                    style={{ marginLeft: 8 }}
+                                    title="Quantity"
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleCalculateFittingLosses}
+                  disabled={
+                    fittingLoading ||
+                    !formData.selectedFittings.length ||
+                    !formData.fittingVelocity
+                  }
+                  className="mt-4 w-full px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  {fittingLoading
+                    ? "Calculating..."
+                    : "Calculate Fitting Losses"}
+                </button>
+              </div>
+            )}
+
+            {fittingLosses && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 className="font-medium text-green-800 mb-2">
+                  Fitting Losses Results
+                </h3>
+                <div className="space-y-1 text-sm text-green-700">
+                  <p>
+                    Total Fitting Loss:{" "}
+                    {fittingLosses?.totalFittingLoss?.toFixed(2)} Pa
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Calculate Total Pressure Drop Button */}
+          <button
+            onClick={handleCalculateTotalPressureDrop}
+            disabled={totalLoading}
+            className="w-full px-6 py-3 text-lg font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            {totalLoading ? "Calculating..." : "Calculate Total Pressure Drop"}
+          </button>
         </div>
       </div>
 
-      {/* Right Pane (Report Display - Mimicking Sample Result Sheet) */}
-      <div className="flex-grow p-6  bg-gray-50 overflow-y-auto">
-        {isSuccess && calculationResult && calculationResult.data ? (
-          <div className="bg-white p-12 rounded-lg shadow-md">
-            {/* Report Header - Mimicking Screenshot */}
-            <div className="bg-[#3F51B5] text-white p-4 rounded-t-lg mb-4 text-center">
-              <h2 className="text-2xl font-bold">AHU Calculation Report</h2>
-            </div>
+      {/* Right Panel - Results */}
+      <div className="w-96 bg-gray-50 border-l border-gray-200 p-6 overflow-y-auto">
+        <h2 className="text-xl font-bold text-gray-800 mb-6">Results</h2>
 
-            <div className="space-y-6 py-4">
-              {/* Project Information */}
-              <div className="border-b border-gray-300 pb-2 mb-4">
-                <h3 className="text-lg font-bold text-gray-800">
-                  PROJECT INFORMATION:
-                </h3>
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                <div className="flex flex-col">
-                  <div className="font-semibold text-gray-600">PROJECT:</div>
-                  <div className="p-2 border border-gray-300 rounded bg-gray-50">
-                    {projectName || "N/A"}
-                  </div>
+        {totalPressureDrop && (
+          <div className="space-y-6">
+            {/* Total Pressure Drop Summary */}
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Total Pressure Drop
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Pressure Drop:</span>
+                  <span className="font-semibold text-blue-600">
+                    {breakdownTotal.toFixed(2)} Pa
+                  </span>
                 </div>
-                <div className="flex flex-col">
-                  <div className="font-semibold text-gray-600">DATE:</div>
-                  <div className="p-2 border border-gray-300 rounded bg-gray-50">
-                    {new Date().toLocaleDateString("en-GB")}
-                  </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total Pressure Drop:</span>
+                  <span className="font-semibold text-blue-600">
+                    {(breakdownTotal * 0.00001).toFixed(2)} Bar
+                  </span>
                 </div>
-                <div className="flex flex-col">
-                  <div className="font-semibold text-gray-600">
-                    CALCULATION:
-                  </div>
-                  <div className="p-2 border border-gray-300 rounded bg-gray-50">{`HVAC - ${activity.toUpperCase()}`}</div>
-                </div>
-              </div>
-
-              {/* Calculation Input Data */}
-              <div className="border-b border-gray-300 pb-2 mb-4 pt-6">
-                <h3 className="text-lg font-bold text-gray-800">
-                  CALCULATION INPUT DATA:
-                </h3>
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                <div className="flex flex-col">
-                  <div className="font-semibold text-gray-600">EQUIPMENT:</div>
-                  <div className="p-2 border border-gray-300 rounded bg-gray-50">
-                    {formData.equipment || "N/A"}
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <div className="font-semibold text-gray-600">
-                    FLOWRATE (m³/s):
-                  </div>
-                  <div className="p-2 border border-gray-300 rounded bg-gray-50">
-                    {formData.flowrate !== ""
-                      ? parseFloat(formData.flowrate).toFixed(4)
-                      : "N/A"}
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <div className="font-semibold text-gray-600">WIDTH (m):</div>
-                  <div className="p-2 border border-gray-300 rounded bg-gray-50">
-                    {formData.width !== ""
-                      ? parseFloat(formData.width).toFixed(4)
-                      : "N/A"}
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <div className="font-semibold text-gray-600">HEIGHT (m):</div>
-                  <div className="p-2 border border-gray-300 rounded bg-gray-50">
-                    {formData.height !== ""
-                      ? parseFloat(formData.height).toFixed(4)
-                      : "N/A"}
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <div className="font-semibold text-gray-600">LENGTH (m):</div>
-                  <div className="p-2 border border-gray-300 rounded bg-gray-50">
-                    {formData.length !== ""
-                      ? parseFloat(formData.length).toFixed(4)
-                      : "N/A"}
-                  </div>
-                </div>
-              </div>
-
-              {/* Calculation Result */}
-              <div className="border-b border-gray-300 pb-2 mb-4 pt-6">
-                <h3 className="text-lg font-bold text-gray-800">
-                  CALCULATION RESULT:
-                </h3>
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                {calculatedFields.map(([label, key]) => (
-                  <div key={key} className="flex flex-col">
-                    <div className="font-semibold text-gray-600">
-                      {label.toUpperCase()}:
-                    </div>
-                    <div className="p-2 border border-gray-300 rounded bg-gray-50">
-                      {calculationResult.data[key] !== undefined
-                        ? calculationResult.data[key].toFixed(4)
-                        : "N/A"}
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
 
-            {/* Download Button */}
-            <div
-              onClick={handleDownload} // This now calls the wrapper function
-              className="flex justify-center items-center bg-blue-500 h-12 rounded-lg cursor-pointer hover:bg-blue-600 transition mt-6"
-            >
-              <div className="text-white font-semibold text-lg">
-                Download Report
+            {/* Breakdown */}
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Breakdown
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Coil Pressure Drop:</span>
+                  <span className="font-medium text-gray-800">
+                    {formData.coilPressureDrop} Pa
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Filter Pressure Drop:</span>
+                  <span className="font-medium text-gray-800">
+                    {formData.filterPressureDrop} Pa
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Fitting Losses:</span>
+                  <span className="font-medium text-gray-800">
+                    {fittingLosses?.totalFittingLoss?.toFixed(2)} Pa
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Additional Losses:</span>
+                  <span className="font-medium text-gray-800">
+                    {formData.additionalLosses || 0} Pa
+                  </span>
+                </div>
+                <hr className="my-2" />
+                <div className="flex justify-between font-semibold">
+                  <span className="text-gray-800">Total:</span>
+                  <span className="text-blue-600">
+                    {breakdownTotal.toFixed(2)} Pa
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Input Parameters */}
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Input Parameters
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Airflow:</span>
+                  <span>{formData.airflow} CFM</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Velocity:</span>
+                  <span>{formData.velocity} m/s</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Selected Fittings:</span>
+                  <span>{formData.selectedFittings.length} fittings</span>
+                </div>
               </div>
             </div>
           </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-500 text-lg">
-            Perform a calculation to see the report here.
+        )}
+
+        {!totalPressureDrop && (
+          <div className="text-center text-gray-500 py-8">
+            <p>Calculate pressure drop to see results here</p>
           </div>
         )}
       </div>
