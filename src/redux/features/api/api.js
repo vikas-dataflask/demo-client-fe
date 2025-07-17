@@ -95,6 +95,146 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["Ventilation"],
     }),
+    // New ventilation data management endpoints
+    saveVentilationData: builder.mutation({
+      query: (body) => ({
+        url: `api/ventilation/save`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Ventilation"],
+    }),
+    getVentilationData: builder.query({
+      query: ({ project_id, room }) => ({
+        url: `api/ventilation/${project_id}/${room}`,
+        method: "GET",
+      }),
+      providesTags: (result, error, { project_id, room }) => [
+        { type: "Ventilation", id: `${project_id}-${room}` },
+      ],
+    }),
+    updateVentilationData: builder.mutation({
+      query: ({ project_id, room, input_data }) => ({
+        url: `api/ventilation/${project_id}/${room}`,
+        method: "PUT",
+        body: { input_data },
+      }),
+      invalidatesTags: (result, error, { project_id, room }) => [
+        { type: "Ventilation", id: `${project_id}-${room}` },
+      ],
+    }),
+    // New duct sizing data management endpoints
+    saveDuctSizingData: builder.mutation({
+      query: (body) => ({
+        url: `api/duct-sizing/save`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["DuctSizing"],
+    }),
+    getDuctSizingData: builder.query({
+      query: ({ project_id, room }) => ({
+        url: `api/duct-sizing/${project_id}/${room}`,
+        method: "GET",
+      }),
+      providesTags: (result, error, { project_id, room }) => [
+        { type: "DuctSizing", id: `${project_id}-${room}` },
+      ],
+    }),
+    updateDuctSizingData: builder.mutation({
+      query: ({ project_id, room, input_data }) => ({
+        url: `api/duct-sizing/${project_id}/${room}`,
+        method: "PUT",
+        body: { input_data },
+      }),
+      invalidatesTags: (result, error, { project_id, room }) => [
+        { type: "DuctSizing", id: `${project_id}-${room}` },
+      ],
+    }),
+    // New AHU pressure drop data management endpoints
+    saveAhuPressureDropData: builder.mutation({
+      query: (body) => ({
+        url: `api/ahu-pressure-drop/save`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["AhuPressureDrop"],
+    }),
+    getAhuPressureDropData: builder.query({
+      query: ({ project_id, room }) => ({
+        url: `api/ahu-pressure-drop/${project_id}/${room}`,
+        method: "GET",
+      }),
+      providesTags: (result, error, { project_id, room }) => [
+        { type: "AhuPressureDrop", id: `${project_id}-${room}` },
+      ],
+    }),
+    updateAhuPressureDropData: builder.mutation({
+      query: ({ project_id, room, input_data }) => ({
+        url: `api/ahu-pressure-drop/${project_id}/${room}`,
+        method: "PUT",
+        body: { input_data },
+      }),
+      invalidatesTags: (result, error, { project_id, room }) => [
+        { type: "AhuPressureDrop", id: `${project_id}-${room}` },
+      ],
+    }),
+    // New Chiller pressure drop data management endpoints
+    saveChillerPressureDropData: builder.mutation({
+      query: (body) => ({
+        url: `api/chiller-pressure-drop/save`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["ChillerPressureDrop"],
+    }),
+    getChillerPressureDropData: builder.query({
+      query: ({ project_id, room }) => ({
+        url: `api/chiller-pressure-drop/${project_id}/${room}`,
+        method: "GET",
+      }),
+      providesTags: (result, error, { project_id, room }) => [
+        { type: "ChillerPressureDrop", id: `${project_id}-${room}` },
+      ],
+    }),
+    updateChillerPressureDropData: builder.mutation({
+      query: ({ project_id, room, input_data, result_data }) => ({
+        url: `api/chiller-pressure-drop/${project_id}/${room}`,
+        method: "PUT",
+        body: { input_data, result_data },
+      }),
+      invalidatesTags: (result, error, { project_id, room }) => [
+        { type: "ChillerPressureDrop", id: `${project_id}-${room}` },
+      ],
+    }),
+    // New Condenser data management endpoints
+    saveCondenserData: builder.mutation({
+      query: (body) => ({
+        url: `api/condenser/save`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Condenser"],
+    }),
+    getCondenserData: builder.query({
+      query: ({ project_id }) => ({
+        url: `api/condenser/${project_id}`,
+        method: "GET",
+      }),
+      providesTags: (result, error, { project_id }) => [
+        { type: "Condenser", id: project_id },
+      ],
+    }),
+    updateCondenserData: builder.mutation({
+      query: ({ project_id, input_data, result_data }) => ({
+        url: `api/condenser/${project_id}`,
+        method: "PUT",
+        body: { input_data, result_data },
+      }),
+      invalidatesTags: (result, error, { project_id }) => [
+        { type: "Condenser", id: project_id },
+      ],
+    }),
     calculateDuctSize: builder.mutation({
       query: (body) => ({
         url: `api/duct/size`, // Full path relative to your `/api` baseUrl
@@ -297,9 +437,18 @@ export const apiSlice = createApi({
         body: payload,
       }),
     }),
+    updateHeatLoadInDb: builder.mutation({
+      query: ({ project_id, room, input_data, result_data }) => ({
+        url: `api/heatload/update?project_id=${project_id}&room=${encodeURIComponent(
+          room
+        )}`,
+        method: "PUT",
+        body: { input_data, result_data },
+      }),
+    }),
     getHeatLoadAutofill: builder.query({
       query: ({ project_id, room }) =>
-        `/heatload/autofill?project_id=${project_id}&room=${encodeURIComponent(
+        `api/heatload/autofill?project_id=${project_id}&room=${encodeURIComponent(
           room
         )}`,
     }),
@@ -317,6 +466,21 @@ export const {
   useAddFirePumpMutation,
   useAddHeatLoadMutation,
   useAddVentilationMutation,
+  useSaveVentilationDataMutation,
+  useGetVentilationDataQuery,
+  useUpdateVentilationDataMutation,
+  useSaveDuctSizingDataMutation,
+  useGetDuctSizingDataQuery,
+  useUpdateDuctSizingDataMutation,
+  useSaveAhuPressureDropDataMutation,
+  useGetAhuPressureDropDataQuery,
+  useUpdateAhuPressureDropDataMutation,
+  useSaveChillerPressureDropDataMutation,
+  useGetChillerPressureDropDataQuery,
+  useUpdateChillerPressureDropDataMutation,
+  useSaveCondenserDataMutation,
+  useGetCondenserDataQuery,
+  useUpdateCondenserDataMutation,
   useCalculateDuctSizeMutation,
   useCalculateGrilleSizeMutation,
   useCalculateAHUMutation, // Exported for AHU
@@ -342,5 +506,6 @@ export const {
   useGetQEListByIdQuery,
   useUpdateQEMutation,
   useAddHeatLoadToDbMutation,
+  useUpdateHeatLoadInDbMutation,
   useGetHeatLoadAutofillQuery,
 } = apiSlice;

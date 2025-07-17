@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useParams } from "react-router-dom";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import {
   useAddHeatLoadMutation,
   useAddHeatLoadToDbMutation,
+  useUpdateHeatLoadInDbMutation,
   useGetProjectListQuery,
   useGetHeatLoadAutofillQuery,
 } from "../../redux/features/api/api";
@@ -20,11 +22,13 @@ const defaultInfiltration = { ach: "", volume: "", deltaT: "", latent: "" };
 
 const HeatLoad = () => {
   const dispatch = useDispatch();
+  const { projectId } = useParams(); // Get projectId from URL parameters
   const [addHeatLoad, { isLoading }] = useAddHeatLoadMutation();
   const [addHeatLoadToDb] = useAddHeatLoadToDbMutation();
+  const [updateHeatLoadInDb] = useUpdateHeatLoadInDbMutation();
   const { data: projectList, isLoading: isProjectLoading } =
     useGetProjectListQuery();
-  const currentProjectId = projectList?.[0]?._id;
+  const currentProjectId = projectId; // Use the projectId from URL
 
   const [formData, setFormData] = useState({
     room: "",
@@ -46,8 +50,28 @@ const HeatLoad = () => {
     sensibleHeatUnit: "KW",
     latentHeat: "",
     latentHeatUnit: "KW",
+    internalHeat: "",
+    internalHeatUnit: "KW",
     relativeHumidity: "",
     outsideDryBulb: "",
+    // Summer conditions - now editable
+    summerOutsideDb: "110",
+    summerOutsideWb: "75",
+    summerOutsideRh: "20",
+    summerOutsideGrLb: "74.8",
+    summerRoomDb: "75",
+    summerRoomWb: "",
+    summerRoomRh: "50",
+    summerRoomGrLb: "65",
+    // Monsoon conditions - now editable
+    monsoonOutsideDb: "110",
+    monsoonOutsideWb: "75",
+    monsoonOutsideRh: "20",
+    monsoonOutsideGrLb: "74.8",
+    monsoonRoomDb: "75",
+    monsoonRoomWb: "",
+    monsoonRoomRh: "50",
+    monsoonRoomGrLb: "65",
     // New fields for backend
     walls: [{ ...defaultWall }],
     windows: [{ ...defaultWindow }],
@@ -126,23 +150,23 @@ const HeatLoad = () => {
     setResult(null);
 
     try {
-      // Define summer and monsoon condition objects
+      // Define summer and monsoon condition objects using form data
       const summer = {
-        outside_db: 110,
-        room_db: 75,
-        outside_rh: 20,
-        room_rh: 50,
-        outside_gr_lb: 74.8,
-        room_gr_lb: 65,
+        outside_db: Number(formData.summerOutsideDb) || 110,
+        room_db: Number(formData.summerRoomDb) || 75,
+        outside_rh: Number(formData.summerOutsideRh) || 20,
+        room_rh: Number(formData.summerRoomRh) || 50,
+        outside_gr_lb: Number(formData.summerOutsideGrLb) || 74.8,
+        room_gr_lb: Number(formData.summerRoomGrLb) || 65,
       };
 
       const monsoon = {
-        outside_db: 110,
-        room_db: 75,
-        outside_rh: 20,
-        room_rh: 50,
-        outside_gr_lb: 74.8,
-        room_gr_lb: 65,
+        outside_db: Number(formData.monsoonOutsideDb) || 110,
+        room_db: Number(formData.monsoonRoomDb) || 75,
+        outside_rh: Number(formData.monsoonOutsideRh) || 20,
+        room_rh: Number(formData.monsoonRoomRh) || 50,
+        outside_gr_lb: Number(formData.monsoonOutsideGrLb) || 74.8,
+        room_gr_lb: Number(formData.monsoonRoomGrLb) || 65,
       };
 
       // Compose backend payload from frontend fields
@@ -158,6 +182,7 @@ const HeatLoad = () => {
         cfm_person: Number(formData.cfmPerson) || 0,
         sensible_heat_people: Number(formData.sensibleHeat) || 0,
         latent_heat_people: Number(formData.latentHeat) || 0,
+        internal_heat: Number(formData.internalHeat) || 0,
       };
 
       console.log("Sending payload to backend:", payload);
@@ -169,6 +194,16 @@ const HeatLoad = () => {
         const resultData = response.data;
         setResult(resultData);
 
+        // Auto-fill the calculated values back to the form
+        if (resultData.summer) {
+          setFormData((prev) => ({
+            ...prev,
+            sensibleHeat: resultData.summer.sensible_heat.toString(),
+            latentHeat: resultData.summer.latent_heat.toString(),
+            internalHeat: resultData.summer.internal_heat.toString(),
+          }));
+        }
+
         if (formData.room) {
           dispatch(
             setRoomHeatLoad({
@@ -178,12 +213,8 @@ const HeatLoad = () => {
           );
         }
 
-        // Save formData + resultData to DB
-        await addHeatLoadToDb({
-          project_id: currentProjectId,
-          input_data: formData,
-          result_data: resultData,
-        });
+        // Save or update data in database
+        await saveOrUpdateHeatLoadData(resultData);
       } else {
         throw new Error(response?.message || "Unknown error occurred");
       }
@@ -197,19 +228,85 @@ const HeatLoad = () => {
     }
   };
 
+  // Helper function to save or update heatload data
+  const saveOrUpdateHeatLoadData = async (resultData) => {
+    try {
+      // Check if data already exists for this room
+      const hasExistingData = autofillData?.data?.input_data;
+
+      if (hasExistingData) {
+        console.log("Updating existing heatload data for room:", formData.room);
+        // Update existing data
+        await updateHeatLoadInDb({
+          project_id: currentProjectId,
+          room: formData.room,
+          input_data: formData,
+          result_data: resultData,
+        });
+        console.log("Heatload data updated successfully");
+      } else {
+        console.log("Saving new heatload data for room:", formData.room);
+        // Save new data
+        await addHeatLoadToDb({
+          project_id: currentProjectId,
+          input_data: formData,
+          result_data: resultData,
+        });
+        console.log("Heatload data saved successfully");
+      }
+    } catch (error) {
+      console.error("Error saving/updating heatload data:", error);
+      // Don't throw error here to avoid breaking the calculation flow
+      // Just log the error for debugging
+    }
+  };
+
+  // Function to manually update existing data without recalculating
+  const handleManualUpdate = async () => {
+    if (!formData.room) {
+      setError("Please select a room first");
+      return;
+    }
+
+    if (!result) {
+      setError("Please calculate heat load first");
+      return;
+    }
+
+    try {
+      console.log("Manually updating heatload data for room:", formData.room);
+      await updateHeatLoadInDb({
+        project_id: currentProjectId,
+        room: formData.room,
+        input_data: formData,
+        result_data: result,
+      });
+      console.log("Heatload data manually updated successfully");
+      setError(null);
+    } catch (error) {
+      console.error("Error manually updating heatload data:", error);
+      setError("Failed to update heatload data");
+    }
+  };
+
   useEffect(() => {
-    if (autofillData?.input_data) {
+    console.log("Autofill data received:", autofillData);
+    if (autofillData?.data?.input_data) {
+      console.log(
+        "Setting form data with autofill:",
+        autofillData.data.input_data
+      );
       setFormData((prev) => ({
         ...prev,
-        ...autofillData.input_data,
+        ...autofillData.data.input_data,
       }));
-      setResult(autofillData.result_data);
+      setResult(autofillData.data.result_data);
     }
   }, [autofillData]);
 
   return (
     <div className="flex h-screen">
-      <div className="bg-white px-4 pt-4 pb-6 border-r border-gray-200 w-[340px] font-sans text-[13px] overflow-hidden relative h-[92vh] overflow-y-auto flex flex-col">
+      <div className="bg-white px-4 pt-4 pb-6 border-r border-gray-200 w-[500px] font-sans text-[13px] overflow-hidden relative h-[92vh] overflow-y-auto flex flex-col">
         {/* Header */}
         <div className="flex justify-between items-start mb-3 sticky top-0 bg-white z-10 pb-3">
           <div>
@@ -497,6 +594,29 @@ const HeatLoad = () => {
                       </select>
                     </div>
                   </div>
+
+                  {/* Internal Heat */}
+                  <div className="space-y-[6px]">
+                    <label className="text-[#444] block">Internal Heat</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        name="internalHeat"
+                        value={formData.internalHeat || ""}
+                        onChange={handleChange}
+                        placeholder="Internal Heat"
+                        className="w-2/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
+                      />
+                      <select
+                        name="internalHeatUnit"
+                        value={formData.internalHeatUnit || "KW"}
+                        onChange={handleChange}
+                        className="w-1/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
+                      >
+                        <option>KW</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -535,18 +655,34 @@ const HeatLoad = () => {
                     Outside (OA)
                   </div>
                   <div className="grid grid-cols-4 gap-2 mt-1">
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      110
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      75
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      20
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      74.8
-                    </div>
+                    <input
+                      type="number"
+                      name="summerOutsideDb"
+                      value={formData.summerOutsideDb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="summerOutsideWb"
+                      value={formData.summerOutsideWb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="summerOutsideRh"
+                      value={formData.summerOutsideRh}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="summerOutsideGrLb"
+                      value={formData.summerOutsideGrLb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
                   </div>
 
                   {/* Room (RM) */}
@@ -554,18 +690,35 @@ const HeatLoad = () => {
                     Room (RM)
                   </div>
                   <div className="grid grid-cols-4 gap-2 mt-1">
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      75
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      --
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      50
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      65
-                    </div>
+                    <input
+                      type="number"
+                      name="summerRoomDb"
+                      value={formData.summerRoomDb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="summerRoomWb"
+                      value={formData.summerRoomWb}
+                      onChange={handleChange}
+                      placeholder="--"
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="summerRoomRh"
+                      value={formData.summerRoomRh}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="summerRoomGrLb"
+                      value={formData.summerRoomGrLb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
                   </div>
 
                   {/* Divider Line */}
@@ -575,16 +728,21 @@ const HeatLoad = () => {
                   <div className="text-[13px] text-black">Difference</div>
                   <div className="grid grid-cols-4 gap-2 mt-1">
                     <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      35
+                      {Number(formData.summerOutsideDb) -
+                        Number(formData.summerRoomDb)}
                     </div>
                     <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
                       --
                     </div>
                     <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      -30
+                      {Number(formData.summerOutsideRh) -
+                        Number(formData.summerRoomRh)}
                     </div>
                     <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      9.8
+                      {(
+                        Number(formData.summerOutsideGrLb) -
+                        Number(formData.summerRoomGrLb)
+                      ).toFixed(1)}
                     </div>
                   </div>
                 </div>
@@ -625,18 +783,34 @@ const HeatLoad = () => {
                     Outside (OA)
                   </div>
                   <div className="grid grid-cols-4 gap-2 mt-1">
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      110
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      75
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      20
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      74.8
-                    </div>
+                    <input
+                      type="number"
+                      name="monsoonOutsideDb"
+                      value={formData.monsoonOutsideDb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="monsoonOutsideWb"
+                      value={formData.monsoonOutsideWb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="monsoonOutsideRh"
+                      value={formData.monsoonOutsideRh}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="monsoonOutsideGrLb"
+                      value={formData.monsoonOutsideGrLb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
                   </div>
 
                   {/* Room (RM) */}
@@ -644,18 +818,35 @@ const HeatLoad = () => {
                     Room (RM)
                   </div>
                   <div className="grid grid-cols-4 gap-2 mt-1">
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      75
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      --
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      50
-                    </div>
-                    <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      65
-                    </div>
+                    <input
+                      type="number"
+                      name="monsoonRoomDb"
+                      value={formData.monsoonRoomDb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="monsoonRoomWb"
+                      value={formData.monsoonRoomWb}
+                      onChange={handleChange}
+                      placeholder="--"
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="monsoonRoomRh"
+                      value={formData.monsoonRoomRh}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <input
+                      type="number"
+                      name="monsoonRoomGrLb"
+                      value={formData.monsoonRoomGrLb}
+                      onChange={handleChange}
+                      className="bg-[#F2F2F2] text-center py-[6px] text-[14px] border-none focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
                   </div>
 
                   {/* Divider Line */}
@@ -665,16 +856,116 @@ const HeatLoad = () => {
                   <div className="text-[13px] text-black">Difference</div>
                   <div className="grid grid-cols-4 gap-2 mt-1">
                     <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      35
+                      {Number(formData.monsoonOutsideDb) -
+                        Number(formData.monsoonRoomDb)}
                     </div>
                     <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
                       --
                     </div>
                     <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      -30
+                      {Number(formData.monsoonOutsideRh) -
+                        Number(formData.monsoonRoomRh)}
                     </div>
                     <div className="bg-[#F2F2F2] text-center py-[6px] text-[14px]">
-                      9.8
+                      {(
+                        Number(formData.monsoonOutsideGrLb) -
+                        Number(formData.monsoonRoomGrLb)
+                      ).toFixed(1)}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Result Display */}
+              {result && (
+                <div className="mt-6 p-4 border rounded bg-blue-50 text-blue-900 text-sm max-h-[400px] overflow-auto">
+                  <h3 className="font-semibold mb-3">Heat Load Results</h3>
+
+                  {/* Summer Results */}
+                  <div className="mb-4">
+                    <h4 className="font-medium text-blue-800 mb-2">
+                      Summer Conditions
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Sensible Heat:</span>{" "}
+                        {result.summer?.sensible_heat} kW
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Latent Heat:</span>{" "}
+                        {result.summer?.latent_heat} kW
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Internal Heat:</span>{" "}
+                        {result.summer?.internal_heat} kW
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Total Heat Load:</span>{" "}
+                        {result.summer?.heatload_total} kW
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded col-span-2">
+                        <span className="font-medium">
+                          Heat Load with Safety Factor:
+                        </span>{" "}
+                        {result.summer?.heatload_with_safety_factor} kW
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Monsoon Results */}
+                  <div className="mb-4">
+                    <h4 className="font-medium text-blue-800 mb-2">
+                      Monsoon Conditions
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Sensible Heat:</span>{" "}
+                        {result.monsoon?.sensible_heat} kW
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Latent Heat:</span>{" "}
+                        {result.monsoon?.latent_heat} kW
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Internal Heat:</span>{" "}
+                        {result.monsoon?.internal_heat} kW
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Total Heat Load:</span>{" "}
+                        {result.monsoon?.heatload_total} kW
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded col-span-2">
+                        <span className="font-medium">
+                          Heat Load with Safety Factor:
+                        </span>{" "}
+                        {result.monsoon?.heatload_with_safety_factor} kW
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Constants */}
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <h4 className="font-medium text-blue-800 mb-2">
+                      Constants Used
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">
+                          Specific Heat of Air:
+                        </span>{" "}
+                        {result.constants?.specific_heat_of_air} kJ/kg·K
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Density of Air:</span>{" "}
+                        {result.constants?.density_of_air} kg/m³
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Latent Heat Factor:</span>{" "}
+                        {result.constants?.latent_heat_factor}
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Safety Factor:</span>{" "}
+                        {result.constants?.safety_factor}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -685,8 +976,8 @@ const HeatLoad = () => {
           {/* Advanced/Backend Fields Accordion */}
         </div>
 
-        {/* Calculate Button */}
-        <div className="mt-auto pt-4 border-t border-gray-200">
+        {/* Calculate and Update Buttons */}
+        <div className="mt-auto pt-4 border-t border-gray-200 space-y-2">
           <button
             onClick={handleCalculate}
             disabled={isLoading}
@@ -705,50 +996,17 @@ const HeatLoad = () => {
               "Calculate"
             )}
           </button>
+
+          {/* Update Button - Only show if data exists and has been calculated */}
+          {/* {autofillData?.data?.input_data && result && (
+            <button
+              onClick={handleManualUpdate}
+              className="w-full py-2 rounded-[10px] font-medium text-[13px] bg-[#10B981] text-white hover:bg-[#059669] transition flex items-center justify-center"
+            >
+              Update Existing Data
+            </button>
+          )} */}
         </div>
-        {/* Result Display */}
-        {result && (
-          <div className="mt-6 p-4 border rounded bg-blue-50 text-blue-900 text-sm max-h-[300px] overflow-auto">
-            <h3 className="font-semibold mb-2">
-              Heat Load Result (From Backend)
-            </h3>
-
-            <div>
-              <b>Temperature Difference:</b>
-              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
-                {JSON.stringify(result.temperature_difference, null, 2)}
-              </pre>
-            </div>
-
-            <div className="mt-2">
-              <b>Sensible Heat:</b>
-              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
-                {JSON.stringify(result.sensible_heat, null, 2)}
-              </pre>
-            </div>
-
-            <div className="mt-2">
-              <b>Latent Heat:</b>
-              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
-                {JSON.stringify(result.latent_heat, null, 2)}
-              </pre>
-            </div>
-
-            <div className="mt-2">
-              <b>Total Heat:</b>
-              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
-                {JSON.stringify(result.total_heat, null, 2)}
-              </pre>
-            </div>
-
-            <div className="mt-2">
-              <b>Grand Total:</b>
-              <pre className="bg-blue-100 rounded p-2 mt-1 text-xs overflow-auto">
-                {JSON.stringify(result.grand_total, null, 2)}
-              </pre>
-            </div>
-          </div>
-        )}
 
         {error && (
           <div className="mt-4 p-2 bg-red-100 text-red-700 rounded text-xs">

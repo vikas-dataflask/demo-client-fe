@@ -22,6 +22,8 @@ const FireHeadLossForm = ({ setData }) => {
     flowrateLpm: "",
     staticLossMeter: 0,
     staticGainMeter: 0,
+    velocity: "", // ✅ New field
+    heightOfFitting: "", // ✅ New field
   });
 
   const [result, setResult] = useState(null);
@@ -59,6 +61,8 @@ const FireHeadLossForm = ({ setData }) => {
       flowrateLpm: parseFloat(formData.flowrateLpm),
       staticLossMeter: parseFloat(formData.staticLossMeter),
       staticGainMeter: parseFloat(formData.staticGainMeter),
+      velocity: parseFloat(formData.velocity), // ✅ Added
+      heightOfFitting: parseFloat(formData.heightOfFitting), // ✅ Added
     };
 
     try {
@@ -90,6 +94,8 @@ const FireHeadLossForm = ({ setData }) => {
       flowrateLpm: "",
       staticLossMeter: 0,
       staticGainMeter: 0,
+      velocity: "", // ✅ Reset
+      heightOfFitting: "", // ✅ Reset
     });
     setResult(null);
   };
@@ -290,6 +296,39 @@ const FireHeadLossForm = ({ setData }) => {
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
                   Fittings & Valves
                 </h2>
+                {/* ✅ New Inputs */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Velocity (m/s)
+                    </label>
+                    <input
+                      type="number"
+                      name="velocity"
+                      value={formData.velocity}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter velocity"
+                      step="0.1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Height of Fitting (m)
+                    </label>
+                    <input
+                      type="number"
+                      name="heightOfFitting"
+                      value={formData.heightOfFitting}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter height"
+                      step="0.1"
+                      required
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -632,6 +671,18 @@ const FireHeadLossForm = ({ setData }) => {
                     </span>
                     <span className="text-gray-800">
                       {result.frictionalLossCoefficient}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">Velocity:</span>
+                    <span className="text-gray-800">{result.velocity} m/s</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Height of Fitting:
+                    </span>
+                    <span className="text-gray-800">
+                      {result.heightOfFitting} m
                     </span>
                   </div>
                 </div>

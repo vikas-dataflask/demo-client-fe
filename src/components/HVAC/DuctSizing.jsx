@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import { useParams } from "react-router-dom";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import {
   selectRoomHeatLoadCapacity,
@@ -8,15 +9,17 @@ import {
 import {
   useCalculateDuctSizeMutation,
   useCalculateGrilleSizeMutation,
+  useSaveDuctSizingDataMutation,
+  useGetDuctSizingDataQuery,
+  useUpdateDuctSizingDataMutation,
 } from "../../redux/features/api/api";
 
 import FloorPreview from "../shared/FloorPreview";
 
 const DuctSizing = () => {
+  const { projectId } = useParams();
   const rooms = useSelector((state) => state.rooms);
   const heatLoadByRoom = useSelector(selectRoomHeatLoadCapacity);
-  const [calculateDuctSize] = useCalculateDuctSizeMutation();
-  const [calculateGrilleSize] = useCalculateGrilleSizeMutation();
 
   const [formData, setFormData] = useState({
     airflowCFM: "",
@@ -26,6 +29,23 @@ const DuctSizing = () => {
     room: "",
     heatLoadCapacity: "",
   });
+
+  // API hooks
+  const [calculateDuctSize, { isLoading: isCalculating }] =
+    useCalculateDuctSizeMutation();
+  const [calculateGrilleSize, { isLoading: isGrilleCalculating }] =
+    useCalculateGrilleSizeMutation();
+  const [saveDuctSizingData, { isLoading: isSaving }] =
+    useSaveDuctSizingDataMutation();
+  const [updateDuctSizingData, { isLoading: isUpdating }] =
+    useUpdateDuctSizingDataMutation();
+
+  // Get autofill data when room is selected
+  const { data: autofillData, isLoading: isLoadingAutofill } =
+    useGetDuctSizingDataQuery(
+      { project_id: projectId, room: formData.room },
+      { skip: !projectId || !formData.room }
+    );
 
   const [grilleData, setGrilleData] = useState({
     faceVelocity: "500",
@@ -37,6 +57,69 @@ const DuctSizing = () => {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGrilleLoading, setIsGrilleLoading] = useState(false);
+
+  // Autofill form data when data is retrieved
+  useEffect(() => {
+    console.log("Duct sizing autofill data received:", autofillData);
+    if (autofillData?.data?.inputSummary) {
+      console.log(
+        "Setting form data with autofill:",
+        autofillData.data.inputSummary
+      );
+
+      const inputSummary = autofillData.data.inputSummary;
+
+      setFormData((prev) => ({
+        ...prev,
+        airflowCFM: inputSummary.airflowCFM?.toString() || "",
+        maxVelocity: inputSummary.velocity?.toString() || "",
+        shape: inputSummary.shape || "round",
+        aspectRatio: inputSummary.aspectRatio?.toString() || "2",
+        room: inputSummary.room || "",
+        heatLoadCapacity: inputSummary.heatLoadCapacity?.toString() || "",
+      }));
+
+      // Set result if available
+      if (autofillData.data) {
+        setResult(autofillData.data);
+      }
+    }
+  }, [autofillData]);
+
+  // Helper function to determine if we should save or update
+  const shouldUpdate = () => {
+    return autofillData?.data?.inputSummary;
+  };
+
+  // Helper function to handle save/update logic
+  const handleSaveOrUpdate = async (inputData, resultData) => {
+    const payload = {
+      project_id: projectId,
+      room: formData.room,
+      input_data: inputData,
+    };
+
+    try {
+      if (shouldUpdate()) {
+        // Update existing data
+        const response = await updateDuctSizingData({
+          project_id: projectId,
+          room: formData.room,
+          input_data: inputData,
+        }).unwrap();
+        console.log("Duct sizing data updated:", response);
+        return response;
+      } else {
+        // Save new data
+        const response = await saveDuctSizingData(payload).unwrap();
+        console.log("Duct sizing data saved:", response);
+        return response;
+      }
+    } catch (error) {
+      console.error("Error saving/updating duct sizing data:", error);
+      throw error;
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -133,10 +216,17 @@ const DuctSizing = () => {
       return;
     }
 
+    // Check if project ID and room are available
+    if (!projectId || !formData.room) {
+      setError("Project ID and room are required for saving data.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const payload = {
+      // First calculate the duct sizing
+      const calculationPayload = {
         airflowCFM: parseFloat(formData.airflowCFM),
         maxVelocity: parseFloat(formData.maxVelocity),
         shape: formData.shape,
@@ -148,15 +238,75 @@ const DuctSizing = () => {
         heatLoadCapacity: parseFloat(formData.heatLoadCapacity),
       };
 
-      const res = await calculateDuctSize(payload).unwrap(); // unwrap() throws error on failure
+      const calculationResponse = await calculateDuctSize(
+        calculationPayload
+      ).unwrap();
+      setResult(calculationResponse.data);
 
-      setResult(res.data);
+      // Prepare input data for saving
+      const inputData = {
+        airflowCFM: parseFloat(formData.airflowCFM),
+        maxVelocity: parseFloat(formData.maxVelocity),
+        shape: formData.shape,
+        aspectRatio:
+          formData.shape === "rectangular"
+            ? parseFloat(formData.aspectRatio)
+            : undefined,
+        room: formData.room,
+        heatLoadCapacity: parseFloat(formData.heatLoadCapacity),
+      };
+
+      // Save or update the data
+      await handleSaveOrUpdate(inputData, calculationResponse.data);
+
+      setError(""); // Clear any previous errors
     } catch (err) {
+      console.error("Error in handleSubmit:", err);
       setError(
-        err?.data?.message || err?.error || "Failed to calculate duct size"
+        err?.data?.message ||
+          err?.error ||
+          "Failed to calculate and save duct sizing data. Please try again."
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Manual update function
+  const handleManualUpdate = async () => {
+    if (!projectId || !formData.room) {
+      setError("Project ID and room are required for updating data.");
+      return;
+    }
+
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    try {
+      const inputData = {
+        airflowCFM: parseFloat(formData.airflowCFM),
+        maxVelocity: parseFloat(formData.maxVelocity),
+        shape: formData.shape,
+        aspectRatio:
+          formData.shape === "rectangular"
+            ? parseFloat(formData.aspectRatio)
+            : undefined,
+        room: formData.room,
+        heatLoadCapacity: parseFloat(formData.heatLoadCapacity),
+      };
+
+      await handleSaveOrUpdate(inputData, result);
+      setError(""); // Clear any previous errors
+    } catch (err) {
+      console.error("Error in handleManualUpdate:", err);
+      setError(
+        err?.data?.message ||
+          err?.error ||
+          "Failed to update duct sizing data. Please try again."
+      );
     }
   };
 
@@ -354,10 +504,16 @@ const DuctSizing = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isCalculating || isSaving || isUpdating}
               className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 rounded-md disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Calculating..." : "Calculate Duct Size"}
+              {isCalculating
+                ? "Calculating..."
+                : isSaving
+                ? "Saving..."
+                : isUpdating
+                ? "Updating..."
+                : "Calculate & Save"}
             </button>
           </form>
 
