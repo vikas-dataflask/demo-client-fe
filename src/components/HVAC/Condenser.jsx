@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import {
   useCalculateCondenserMutation,
   useCalculateChillerPressureDropMutation,
@@ -6,20 +7,29 @@ import {
   useGetFluidTypesQuery,
   useCalculateFittingLossesMutation,
   useGetStandardFittingsQuery,
+  useSaveCondenserDataMutation,
+  useGetCondenserDataQuery,
+  useUpdateCondenserDataMutation,
 } from "../../redux/features/api/api";
 
 const Condenser = () => {
   // Add console.log to confirm component is loading
   console.log("🔥 Condenser component loaded - NEW VERSION!");
 
+  const { projectId } = useParams();
+  const room = "main"; // Default room name for chiller calculations
+
   const [formData, setFormData] = useState({
     chillerTonnage: 100,
     flowRateLps: 18.9,
     pipeInnerDiameterMm: 100,
-    mode: "data",
+    mode: "data", // or "theoretical"
     fluidType: "water",
     temperatureC: 25,
     systemType: "condenser-pump-outlet-riser",
+    systemLosses: 0, // ✅ NEW (just like Chiller)
+    pipeFrictionLoss: 0, // ✅ NEW (just like Chiller)
+    coolingTowerLoss: 0, // ✅ NEW FIELD
   });
 
   const [result, setResult] = useState(null);
@@ -50,6 +60,45 @@ const Condenser = () => {
     error: fittingsError,
   } = useGetStandardFittingsQuery();
 
+  // Data management API hooks
+  const [saveCondenserData, { isLoading: saveLoading }] =
+    useSaveCondenserDataMutation();
+  const [updateCondenserData, { isLoading: updateLoading }] =
+    useUpdateCondenserDataMutation();
+  const {
+    data: savedData,
+    isLoading: loadLoading,
+    error: loadError,
+  } = useGetCondenserDataQuery({ project_id: projectId }, { skip: !projectId });
+
+  // Autofill data when saved data is loaded
+  useEffect(() => {
+    if (savedData?.data) {
+      const data = savedData.data;
+      setFormData({
+        chillerTonnage: data.chillerTonnage || 100,
+        flowRateLps: data.flowRateLps || 18.9,
+        pipeInnerDiameterMm: data.pipeInnerDiameterMm || 100,
+        mode: data.mode || "data",
+        fluidType: data.fluidType || "water",
+        temperatureC: data.temperatureC || 25,
+        systemType: data.systemType || "condenser-pump-outlet-riser",
+        systemLosses: data.systemLosses || 0, // ✅ NEW
+        pipeFrictionLoss: data.pipeFrictionLoss || 0, // ✅ NEW
+        coolingTowerLoss: data.coolingTowerLoss || 0, // ✅ NEW
+      });
+
+      // Restore calculation results if available
+      if (data.totalEquivalentLength || data.headLoss || data.message) {
+        setResult({
+          totalEquivalentLength: data.totalEquivalentLength,
+          headLoss: data.headLoss,
+          message: data.message,
+        });
+      }
+    }
+  }, [savedData]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -58,11 +107,41 @@ const Condenser = () => {
     }));
   };
 
+  // Helper function to save or update data
+  const handleSaveOrUpdate = async (inputData, resultData) => {
+    try {
+      if (savedData?.data) {
+        // Update existing data
+        await updateCondenserData({
+          project_id: projectId,
+          input_data: inputData,
+          result_data: resultData,
+        }).unwrap();
+        console.log("Condenser data updated successfully");
+      } else {
+        // Save new data
+        await saveCondenserData({
+          project_id: projectId,
+          input_data: inputData,
+          result_data: resultData,
+        }).unwrap();
+        console.log("Condenser data saved successfully");
+      }
+    } catch (error) {
+      console.error("Error saving/updating condenser data:", error);
+      alert("Failed to save/update data");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const payload = {
       ...formData,
+      systemLoss: Number(formData.systemLosses) || 0,
+      pipeFrictionLoss: Number(formData.pipeFrictionLoss) || 0,
+      coolingTowerLoss: Number(formData.coolingTowerLoss) || 0, // ✅ NEW
+      fittingLossPa: Number(sumTotalFittingLoss) || 0,
       ...(formData.mode === "theoretical" &&
         fluidProps?.data && {
           fluidDensity: fluidProps.data.fluidDensity,
@@ -73,6 +152,21 @@ const Condenser = () => {
     try {
       const response = await calculateCondenser(payload).unwrap();
       setResult(response.data);
+
+      // Save/update data after successful calculation
+      await handleSaveOrUpdate(
+        {
+          ...formData,
+          systemLoss: payload.systemLoss,
+          pipeFrictionLoss: payload.pipeFrictionLoss,
+          coolingTowerLoss: payload.coolingTowerLoss, // ✅ NEW
+          fittingLossPa: Number(sumTotalFittingLoss) || 0,
+          fittings: fittingLosses, // ✅ store per system type
+          fittingVelocity: parseFloat(fittingVelocity) || 0,
+          airDensity: parseFloat(airDensity) || 0,
+        },
+        response.data
+      );
     } catch (err) {
       console.error("Condenser calculation error:", err);
     }
@@ -217,6 +311,12 @@ const Condenser = () => {
       return {};
     }
   }, [standardFittings]);
+
+  const total_pressure_drop =
+    (formData.systemLosses || 0) +
+    (formData.pipeFrictionLoss || 0) +
+    (formData.coolingTowerLoss || 0) +
+    (sumTotalFittingLoss || 0);
 
   return (
     <div className="flex h-[92vh]">
@@ -378,10 +478,21 @@ const Condenser = () => {
                       calculation
                     </p>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      System Losses (Pa)
+                    </label>
+                    <input
+                      type="number"
+                      name="systemLosses"
+                      value={formData.systemLosses || ""}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter system losses"
+                      step="0.1"
+                    />
+                  </div>
                   <div className="bg-blue-50 p-4 rounded-md">
-                    <h3 className="text-sm font-medium text-blue-800 mb-2">
-                      System Description
-                    </h3>
                     <div className="text-xs text-blue-700">
                       {formData.systemType ===
                         "condenser-pump-outlet-riser" && (
@@ -507,6 +618,20 @@ const Condenser = () => {
                         step="0.1"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Cooling Tower Loss (Pa)
+                      </label>
+                      <input
+                        type="number"
+                        name="coolingTowerLoss"
+                        value={formData.coolingTowerLoss || ""}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter cooling tower loss"
+                        step="0.1"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
@@ -573,6 +698,34 @@ const Condenser = () => {
                         min="0"
                         max="100"
                         step="1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pipe Friction Loss (Pa)
+                      </label>
+                      <input
+                        type="number"
+                        name="pipeFrictionLoss"
+                        value={formData.pipeFrictionLoss || ""}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter pipe friction loss"
+                        step="0.1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Cooling Tower Loss (Pa)
+                      </label>
+                      <input
+                        type="number"
+                        name="coolingTowerLoss"
+                        value={formData.coolingTowerLoss || ""}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter cooling tower loss"
+                        step="0.1"
                       />
                     </div>
                   </div>
@@ -804,6 +957,17 @@ const Condenser = () => {
               >
                 {isLoading ? "Calculating..." : "Calculate Pressure Drop"}
               </button>
+
+              {/* Manual Update Button */}
+              {savedData?.data && (
+                <button
+                  onClick={() => handleSaveOrUpdate(formData, result)}
+                  disabled={saveLoading || updateLoading}
+                  className="mt-3 w-full px-6 py-3 text-lg font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  {saveLoading || updateLoading ? "Saving..." : "Update Data"}
+                </button>
+              )}
             </form>
           </div>
         </div>
@@ -826,6 +990,35 @@ const Condenser = () => {
 
           {result && (
             <div className="space-y-6">
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-700">System Loss:</span>
+                <span>{formData.systemLosses || 0} Pa</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-700">
+                  Pipe Friction Loss:
+                </span>
+                <span>{formData.pipeFrictionLoss || 0} Pa</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-700">Fitting Loss:</span>
+                <span>{formData.pipeFrictionLoss || 0} Pa</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium text-gray-700">
+                  Cooling Tower Loss:
+                </span>
+                <span>{formData.coolingTowerLoss || 0} Pa</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 mt-2">
+                <span className="font-bold text-gray-900">
+                  Total Pressure Drop:
+                </span>
+                <span className="font-bold text-blue-700 text-lg">
+                  {total_pressure_drop?.toFixed(2) || 0} Pa
+                </span>
+              </div>
+
               {/* Main Result */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">

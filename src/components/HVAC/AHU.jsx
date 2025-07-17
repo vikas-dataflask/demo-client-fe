@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import {
   useCalculateFittingLossesMutation,
   useCalculateTotalAHUPressureDropMutation,
   useGetStandardFittingsQuery,
+  useSaveAhuPressureDropDataMutation,
+  useGetAhuPressureDropDataQuery,
+  useUpdateAhuPressureDropDataMutation,
 } from "../../redux/features/api/api";
-import { data } from "react-router-dom";
 
 const AHU = ({ projectName, activity }) => {
+  const { projectId } = useParams();
+  const room = "main"; // Default room name for AHU calculations
+
   const [formData, setFormData] = useState({
     // Basic AHU parameters
     airflow: "",
@@ -44,12 +50,65 @@ const AHU = ({ projectName, activity }) => {
     error: fittingsError,
   } = useGetStandardFittingsQuery();
 
+  // Data management API hooks
+  const [saveAhuPressureDropData, { isLoading: saveLoading }] =
+    useSaveAhuPressureDropDataMutation();
+  const [updateAhuPressureDropData, { isLoading: updateLoading }] =
+    useUpdateAhuPressureDropDataMutation();
+  const {
+    data: savedData,
+    isLoading: loadLoading,
+    error: loadError,
+  } = useGetAhuPressureDropDataQuery(
+    { project_id: projectId, room },
+    { skip: !projectId }
+  );
+
   // Debug logging
   useEffect(() => {
     console.log("Standard Fittings Response:", standardFittings);
     console.log("Fittings Loading:", fittingsLoading);
     console.log("Fittings Error:", fittingsError);
   }, [standardFittings, fittingsLoading, fittingsError]);
+
+  // Autofill data when saved data is loaded
+  useEffect(() => {
+    if (savedData?.data) {
+      const data = savedData.data;
+
+      setFormData({
+        airflow: data.airflow || "",
+        velocity: data.velocity || "",
+        ductDiameter: data.ductDiameter || "",
+        ductWidth: data.ductWidth || "",
+        ductHeight: data.ductHeight || "",
+        coilPressureDrop: data.coilPressureDrop || "",
+        filterPressureDrop: data.filterPressureDrop || "",
+        additionalLosses: data.additionalLosses || "",
+        selectedFittings: data.selectedFittings || [],
+        selectedFittingsQuantities: data.selectedFittingsQuantities || {},
+        fittingVelocity: data.fittingVelocity || "",
+        airDensity: data.airDensity || "",
+      });
+
+      // ✅ Restore calculation results if available
+      if (data.fittingLosses) {
+        setFittingLosses({
+          totalFittingLoss: data.fittingLosses, // ✅ Wrap in same format used by UI
+        });
+      }
+      if (data.totalPressureDrop) {
+        setTotalPressureDrop({
+          data: {
+            totalPressureDrop: data.totalPressureDrop,
+            breakdown: data.breakdown,
+            fittingBreakdown: data.fittingBreakdown,
+            calculationSummary: data.calculationSummary,
+          },
+        });
+      }
+    }
+  }, [savedData]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -145,11 +204,52 @@ const AHU = ({ projectName, activity }) => {
 
       const response = await calculateTotalPressureDrop(dataToSend).unwrap();
       setTotalPressureDrop(response);
-      setShowBreakdownModal(true); // Show modal here
-      console.log("Total pressure drop calculated:", response);
+
+      // ✅ Make sure fittingLosses is not cleared
+      if (!fittingLosses && dataToSend.fittingLosses) {
+        setFittingLosses({ totalFittingLoss: dataToSend.fittingLosses });
+      }
+
+      // ✅ Save to DB
+      const inputData = {
+        ...formData,
+        fittingLosses:
+          fittingLosses?.totalFittingLoss || dataToSend.fittingLosses,
+        totalPressureDrop: response.data?.totalPressureDrop,
+        breakdown: response.data?.breakdown,
+        fittingBreakdown: response.data?.fittingBreakdown,
+        calculationSummary: response.data?.calculationSummary,
+      };
+      await handleSaveOrUpdate(inputData);
     } catch (err) {
       console.error("Failed to calculate total pressure drop:", err);
       alert("Failed to calculate total pressure drop");
+    }
+  };
+
+  // Helper function to save or update data
+  const handleSaveOrUpdate = async (inputData) => {
+    try {
+      if (savedData?.data) {
+        // Update existing data
+        await updateAhuPressureDropData({
+          project_id: projectId,
+          room,
+          input_data: inputData,
+        }).unwrap();
+        console.log("AHU pressure drop data updated successfully");
+      } else {
+        // Save new data
+        await saveAhuPressureDropData({
+          project_id: projectId,
+          room,
+          input_data: inputData,
+        }).unwrap();
+        console.log("AHU pressure drop data saved successfully");
+      }
+    } catch (error) {
+      console.error("Error saving/updating AHU pressure drop data:", error);
+      alert("Failed to save/update data");
     }
   };
 
@@ -583,9 +683,10 @@ const AHU = ({ projectName, activity }) => {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Fitting Losses:</span>
                   <span className="font-medium text-gray-800">
-                    {fittingLosses?.totalFittingLoss?.toFixed(2)} Pa
+                    {(fittingLosses?.totalFittingLoss || 0).toFixed(2)} Pa
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-gray-600">Additional Losses:</span>
                   <span className="font-medium text-gray-800">

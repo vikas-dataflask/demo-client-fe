@@ -1,21 +1,30 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import {
   useCalculateChillerPressureDropMutation,
   useGetFluidPropertiesQuery,
   useGetFluidTypesQuery,
   useCalculateFittingLossesMutation,
   useGetStandardFittingsQuery,
+  useSaveChillerPressureDropDataMutation,
+  useGetChillerPressureDropDataQuery,
+  useUpdateChillerPressureDropDataMutation,
 } from "../../redux/features/api/api";
 
 const Chiller = () => {
+  const { projectId } = useParams();
+  const room = "main"; // Default room name for chiller calculations
+
   const [formData, setFormData] = useState({
     chillerTonnage: 100,
     flowRateLps: 18.9,
     pipeInnerDiameterMm: 100,
-    mode: "data",
+    mode: "theoretical",
     fluidType: "water",
     temperatureC: 25,
     systemType: "primary-pump-outlet-riser",
+    pipeFrictionLoss: 0, // ✅ NEW FIELD
+    systemLosses: 0, // ✅ NEW FIELD
   });
 
   const [result, setResult] = useState(null);
@@ -46,6 +55,72 @@ const Chiller = () => {
     error: fittingsError,
   } = useGetStandardFittingsQuery();
 
+  // Data management API hooks
+  const [saveChillerPressureDropData, { isLoading: saveLoading }] =
+    useSaveChillerPressureDropDataMutation();
+  const [updateChillerPressureDropData, { isLoading: updateLoading }] =
+    useUpdateChillerPressureDropDataMutation();
+  const {
+    data: savedData,
+    isLoading: loadLoading,
+    error: loadError,
+  } = useGetChillerPressureDropDataQuery(
+    { project_id: projectId, room },
+    { skip: !projectId }
+  );
+
+  // Autofill data when saved data is loaded
+  useEffect(() => {
+    if (savedData?.data) {
+      const data = savedData.data;
+      if (data.input_data) {
+        setFormData({
+          chillerTonnage: data.input_data.chillerTonnage || 100,
+          flowRateLps: data.input_data.flowRateLps || 18.9,
+          pipeInnerDiameterMm: data.input_data.pipeInnerDiameterMm || 100,
+          mode: data.input_data.mode || "data",
+          fluidType: data.input_data.fluidType || "water",
+          temperatureC: data.input_data.temperatureC || 25,
+          systemType: data.input_data.systemType || "primary-pump-outlet-riser",
+          systemLosses: data.input_data.systemLoss || 0, // ✅ Make sure it exists
+          pipeFrictionLoss: data.input_data.pipeFrictionLoss || 0,
+        });
+      }
+      if (data.input_data?.fittings) {
+        setFittingLosses(data.input_data.fittings); // ✅ Individual losses restored
+        // Restore for the current system type
+        const currentFittingData =
+          data.input_data.fittings[data.input_data.systemType] || {};
+        setSelectedFittings(currentFittingData.selectedFittings || []);
+        setSelectedFittingsQuantities(
+          currentFittingData.selectedFittingsQuantities || {}
+        );
+      }
+      if (data.input_data?.fittingLossPa) {
+        setSumTotalFittingLoss(data.input_data.fittingLossPa); // ✅ Sum restored
+      }
+      if (data.input_data?.fittingVelocity) {
+        setFittingVelocity(data.input_data.fittingVelocity.toString());
+      }
+      if (data.input_data?.airDensity) {
+        setAirDensity(data.input_data.airDensity.toString());
+      }
+      // Restore calculation results if available
+      if (data.result_data) {
+        setResult(data.result_data);
+      }
+    }
+  }, [savedData]);
+
+  // When switching system types, restore selectedFittings and selectedFittingsQuantities
+  useEffect(() => {
+    const currentFittingData = fittingLosses[formData.systemType] || {};
+    setSelectedFittings(currentFittingData.selectedFittings || []);
+    setSelectedFittingsQuantities(
+      currentFittingData.selectedFittingsQuantities || {}
+    );
+  }, [formData.systemType, fittingLosses]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -57,11 +132,42 @@ const Chiller = () => {
     }));
   };
 
+  // Helper function to save or update data
+  const handleSaveOrUpdate = async (inputData, resultData) => {
+    try {
+      if (savedData?.data) {
+        // Update existing data
+        await updateChillerPressureDropData({
+          project_id: projectId,
+          room,
+          input_data: inputData,
+          result_data: resultData,
+        }).unwrap();
+        console.log("Chiller pressure drop data updated successfully");
+      } else {
+        // Save new data
+        await saveChillerPressureDropData({
+          project_id: projectId,
+          room,
+          input_data: inputData,
+          result_data: resultData,
+        }).unwrap();
+        console.log("Chiller pressure drop data saved successfully");
+      }
+    } catch (error) {
+      console.error("Error saving/updating chiller pressure drop data:", error);
+      alert("Failed to save/update data");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const payload = {
       ...formData,
+      systemLoss: Number(formData.systemLosses) || 0,
+      pipeFrictionLoss: Number(formData.pipeFrictionLoss) || 0,
+      fittingLossPa: Number(sumTotalFittingLoss) || 0,
       ...(formData.mode === "theoretical" &&
         fluidProps?.data && {
           fluidDensity: fluidProps.data.fluidDensity,
@@ -72,6 +178,27 @@ const Chiller = () => {
     try {
       const response = await calculateChillerPressureDrop(payload).unwrap();
       setResult(response.data);
+
+      const inputData = {
+        ...formData,
+        systemLoss: payload.systemLoss,
+        pipeFrictionLoss: payload.pipeFrictionLoss,
+        fittingLossPa: Number(sumTotalFittingLoss) || 0,
+        fittings: fittingLosses, // ✅ Save all system types with their selectedFittings and quantities
+        fittingVelocity: parseFloat(fittingVelocity) || 0,
+        airDensity: parseFloat(airDensity) || 0,
+        fluidProperties: fluidProps?.data
+          ? {
+              density: fluidProps.data.fluidDensity,
+              viscosity: fluidProps.data.fluidViscosity,
+            }
+          : undefined,
+      };
+
+      await handleSaveOrUpdate(inputData, response.data);
+
+      // ✅ Keep local state unchanged after save
+      setFittingLosses((prev) => ({ ...prev }));
     } catch (err) {
       console.error("Pressure drop calculation error:", err);
     }
@@ -82,10 +209,12 @@ const Chiller = () => {
       chillerTonnage: 100,
       flowRateLps: 18.9,
       pipeInnerDiameterMm: 100,
-      mode: "data",
+      mode: "theoretical", // ✅ NEW DEFAULT
       fluidType: "water",
       temperatureC: 25,
       systemType: "primary-pump-outlet-riser",
+      pipeFrictionLoss: 0, // ✅ NEW FIELD
+      systemLosses: 0, // ✅ NEW FIELD
     });
     setResult(null);
     setFittingLosses({});
@@ -149,10 +278,14 @@ const Chiller = () => {
 
       const response = await calculateFittingLosses(dataToSend).unwrap();
 
-      // Store fitting losses for the current system type
+      // Store fitting losses for the current system type, including selectedFittings and selectedFittingsQuantities
       setFittingLosses((prev) => ({
         ...prev,
-        [formData.systemType]: response.data,
+        [formData.systemType]: {
+          ...response.data,
+          selectedFittings: [...selectedFittings],
+          selectedFittingsQuantities: { ...selectedFittingsQuantities },
+        },
       }));
 
       console.log(
@@ -216,6 +349,14 @@ const Chiller = () => {
       return {};
     }
   }, [standardFittings]);
+
+  const total_pressure_drop =
+    formData?.systemLosses + formData?.pipeFrictionLoss + sumTotalFittingLoss;
+
+  const total_k_value = Object.values(fittingLosses).reduce(
+    (total, losses) => total + (losses?.totalKValue || 0),
+    0
+  );
 
   return (
     <div className="flex h-[90vh]">
@@ -357,6 +498,21 @@ const Chiller = () => {
                       calculation
                     </p>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      System Losses (Pa)
+                    </label>
+                    <input
+                      type="number"
+                      name="systemLosses"
+                      value={formData.systemLosses || ""}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter system losses"
+                      step="0.1"
+                    />
+                  </div>
+
                   <div className="bg-blue-50 p-4 rounded-md">
                     <h3 className="text-sm font-medium text-blue-800 mb-2">
                       System Description
@@ -494,6 +650,20 @@ const Chiller = () => {
                         min="0"
                         max="100"
                         step="1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pipe Friction Loss (Pa)
+                      </label>
+                      <input
+                        type="number"
+                        name="pipeFrictionLoss"
+                        value={formData.pipeFrictionLoss || ""}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter pipe friction loss"
+                        step="0.1"
                       />
                     </div>
                   </div>
@@ -669,10 +839,7 @@ const Chiller = () => {
                         >
                           <h3 className="font-medium text-green-800 mb-2">
                             Fitting Losses Results (
-                            {systemType
-                              .replace(/-/g, " ")
-                              .replace(/\b\w/g, (l) => l.toUpperCase())}
-                            )
+                            {systemType.replace(/-/g, " ")})
                           </h3>
                           <div className="space-y-1 text-sm text-green-700">
                             <p>
@@ -708,9 +875,10 @@ const Chiller = () => {
                         <h3 className="font-medium text-blue-800 mb-2">
                           Sum Total Fitting Loss
                         </h3>
-                        <div className="space-y-1 text-sm text-blue-700">
-                          <p>Total: {sumTotalFittingLoss.toFixed(2)} Pa</p>
-                        </div>
+                        <p className="text-sm text-blue-700">
+                          Total Fitting Loss: {sumTotalFittingLoss.toFixed(2)}{" "}
+                          Pa
+                        </p>
                       </div>
                     )}
                   </div>
@@ -725,6 +893,31 @@ const Chiller = () => {
               >
                 {isLoading ? "Calculating..." : "Calculate Pressure Drop"}
               </button>
+
+              {/* Manual Update Button */}
+              {savedData?.data && (
+                <button
+                  onClick={() => {
+                    const inputData = {
+                      ...formData,
+                      fittings: fittingLosses, // already includes selectedFittings and selectedFittingsQuantities
+                      fittingVelocity: parseFloat(fittingVelocity) || 0,
+                      airDensity: parseFloat(airDensity) || 0,
+                      fluidProperties: fluidProps?.data
+                        ? {
+                            density: fluidProps.data.fluidDensity,
+                            viscosity: fluidProps.data.fluidViscosity,
+                          }
+                        : undefined,
+                    };
+                    handleSaveOrUpdate(inputData, result);
+                  }}
+                  disabled={saveLoading || updateLoading}
+                  className="mt-3 w-full px-6 py-3 text-lg font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  {saveLoading || updateLoading ? "Saving..." : "Update Data"}
+                </button>
+              )}
             </form>
           </div>
         </div>
@@ -750,24 +943,44 @@ const Chiller = () => {
               {/* Main Result */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                  Calculation Summary
+                  Pressure Drop Breakdown
                 </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-md">
-                    <div className="text-sm text-blue-600 font-medium">
-                      Estimated Pressure Drop
-                    </div>
-                    <div className="text-2xl font-bold text-blue-800">
-                      {result.estimatedDropKpa} kPa
-                    </div>
+                <div className="grid grid-cols-1 gap-2 text-base">
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-700">
+                      System Loss:
+                    </span>
+                    <span>{formData?.systemLosses || 0} Pa</span>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-md">
-                    <div className="text-sm text-green-600 font-medium">
-                      Calculation Mode
-                    </div>
-                    <div className="text-lg font-semibold text-green-800 capitalize">
-                      {result.mode}
-                    </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-700">
+                      Pipe Friction Loss:
+                    </span>
+                    <span>{formData?.pipeFrictionLoss || 0} Pa</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-700">
+                      Fitting Loss:
+                    </span>
+                    <span>
+                      {sumTotalFittingLoss
+                        ? `${sumTotalFittingLoss.toFixed(2)} Pa (Sum)`
+                        : `${Object.values(fittingLosses)
+                            .reduce(
+                              (total, l) => total + (l.totalFittingLoss || 0),
+                              0
+                            )
+                            .toFixed(2)} Pa`}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between border-t pt-2 mt-2">
+                    <span className="font-bold text-gray-900">
+                      Total Pressure Drop:
+                    </span>
+                    <span className="font-bold text-blue-700 text-lg">
+                      {total_pressure_drop?.toFixed(2) || 0} Pa
+                    </span>
                   </div>
                 </div>
               </div>
@@ -837,71 +1050,6 @@ const Chiller = () => {
                 </div>
               </div>
 
-              {/* Assumptions */}
-              {result.assumptionsUsed && (
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                    Assumptions Used
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-600">Method:</span>
-                      <span className="ml-2 text-gray-800">
-                        {result.assumptionsUsed?.method || "Not available"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-600">
-                        Formula:
-                      </span>
-                      <span className="ml-2 text-gray-800">
-                        {result.assumptionsUsed?.formula || "Not available"}
-                      </span>
-                    </div>
-                    {result.assumptionsUsed?.typicalRange && (
-                      <div>
-                        <span className="font-medium text-gray-600">
-                          Typical Range:
-                        </span>
-                        <span className="ml-2 text-gray-800">
-                          {result.assumptionsUsed.typicalRange}
-                        </span>
-                      </div>
-                    )}
-                    {result.assumptionsUsed?.chillerLength && (
-                      <div>
-                        <span className="font-medium text-gray-600">
-                          Chiller Length:
-                        </span>
-                        <span className="ml-2 text-gray-800">
-                          {result.assumptionsUsed.chillerLength}
-                        </span>
-                      </div>
-                    )}
-                    {result.assumptionsUsed?.frictionFactor && (
-                      <div>
-                        <span className="font-medium text-gray-600">
-                          Friction Factor:
-                        </span>
-                        <span className="ml-2 text-gray-800">
-                          {result.assumptionsUsed.frictionFactor}
-                        </span>
-                      </div>
-                    )}
-                    {result.assumptionsUsed?.flowRegime && (
-                      <div>
-                        <span className="font-medium text-gray-600">
-                          Flow Regime:
-                        </span>
-                        <span className="ml-2 text-gray-800">
-                          {result.assumptionsUsed.flowRegime}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Fitting Losses Results */}
               {fittingLosses && (
                 <div className="bg-white rounded-lg shadow-md p-6">
@@ -914,17 +1062,17 @@ const Chiller = () => {
                         Total Pressure Drop
                       </div>
                       <div className="text-xl font-bold text-green-800">
-                        {fittingLosses.totalPressureDrop?.toFixed(2)} Pa
+                        {total_pressure_drop?.toFixed(2) || 0} Pa
                       </div>
                     </div>
-                    <div className="bg-blue-50 p-4 rounded-md">
+                    {/* <div className="bg-blue-50 p-4 rounded-md">
                       <div className="text-sm text-blue-600 font-medium">
                         Total K Value
                       </div>
                       <div className="text-xl font-bold text-blue-800">
                         {fittingLosses.totalKValue?.toFixed(2)}
                       </div>
-                    </div>
+                    </div> */}
                   </div>
                   <div className="mt-4 p-3 bg-gray-50 rounded-md">
                     <div className="text-sm text-gray-600">
