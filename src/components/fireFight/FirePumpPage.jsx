@@ -1,25 +1,50 @@
-import React, { useState } from "react";
-import { useAddFirePumpMutation } from "../../redux/features/api/api";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import { 
+  useAddFirePumpMutation,
+  useGetFirePumpByProjectQuery
+} from "../../redux/features/api/api";
 import FirePumpIcon from "../../icons/FirePumpIcon";
 
 const FirePumpPage = ({ setData }) => {
+  const { projectId } = useParams();
+  
   const [formData, setFormData] = useState({
-    stationArea: 3000,
-    totalPdArea: 250,
-    stationHeight: 15,
-    flowrateMeter: 0.038,
+    flowrateLpm: 2000, // User input (L/min)
     pipeMaterial: "GI",
     frictionalLossCoefficient: 120,
     pipeDiameter: 150,
-    residualHead: 50,
-    totalPressureLoss: 70,
-    totalHead: 70,
-    efficiency: 70,
-    pumpCapacity: 70,
+    totalHead: 70, // New: Total Head Loss input
+    efficiency: 70, // Pump efficiency in %
   });
 
   const [result, setResult] = useState(null);
   const [addFirePump, { isLoading, error }] = useAddFirePumpMutation();
+
+  // ✅ Add query for autofill functionality
+  const { data: savedData, isLoading: autoFillLoading } = useGetFirePumpByProjectQuery(
+    projectId,
+    { skip: !projectId }
+  );
+
+  // ✅ Autofill data when saved data is loaded
+  useEffect(() => {
+    if (savedData?.data?.pumps && savedData.data.pumps.length > 0) {
+      const pumpData = savedData.data.pumps[0]; // Get first pump data
+      
+      setFormData({
+        flowrateLpm: pumpData.flowrate_lpm || 2000,
+        pipeMaterial: pumpData.pipe_material || "GI",
+        frictionalLossCoefficient: pumpData.friction_loss_coefficient || 120,
+        pipeDiameter: pumpData.pipe_dia || 150,
+        totalHead: pumpData.total_head || 70,
+        efficiency: pumpData.efficiency || 70,
+      });
+
+      // ✅ Restore calculation results if available
+      setResult(savedData.data.pumps);
+    }
+  }, [savedData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,21 +56,23 @@ const FirePumpPage = ({ setData }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
+    if (!projectId) {
+      alert("Please select a project before calculating!");
+      return;
+    }
+    
     try {
       const response = await addFirePump({
-        stations: [
+        project_id: projectId,
+        pumps: [
           {
-            station_area: formData.stationArea,
-            total_pd_area: formData.totalPdArea,
-            station_height: formData.stationHeight,
-            flowrate_lpm: formData.flowrateMeter * 1000,
+            flowrate_lpm: formData.flowrateLpm,
+            total_head: formData.totalHead,
             pipe_material: formData.pipeMaterial,
             friction_loss_coefficient: formData.frictionalLossCoefficient,
             pipe_dia: formData.pipeDiameter,
-            residual_head: formData.residualHead,
-            total_pressure_loss: formData.totalPressureLoss,
-            efficiency: formData.efficiency.toString(),
+            efficiency: formData.efficiency,
           },
         ],
       }).unwrap();
@@ -59,42 +86,20 @@ const FirePumpPage = ({ setData }) => {
 
   const resetForm = () => {
     setFormData({
-      stationArea: 3000,
-      totalPdArea: 250,
-      stationHeight: 15,
-      flowrateMeter: 0.038,
+      flowrateLpm: 2000,
       pipeMaterial: "GI",
       frictionalLossCoefficient: 120,
       pipeDiameter: 150,
-      residualHead: 50,
-      totalPressureLoss: 70,
       totalHead: 70,
       efficiency: 70,
-      pumpCapacity: 70,
     });
     setResult(null);
   };
 
-  const getFlowRateLpm = () => {
-    return (formData.flowrateMeter * 1000).toFixed(2);
-  };
-
-  const getPumpPower = () => {
-    const flowRateLps = formData.flowrateMeter;
-    const totalHeadM = formData.totalHead;
-    const efficiency = formData.efficiency / 100;
-    const density = 1000;
-    const gravity = 9.81;
-
-    return (
-      (flowRateLps * density * gravity * totalHeadM) /
-      (efficiency * 1000)
-    ).toFixed(2);
-  };
-
   return (
     <div className="flex h-[92vh]">
-      <div className="flex-1 bg-white border-r border-gray-300 text-sm font-medium flex flex-col ">
+      {/* Left Form Section */}
+      <div className="flex-1 bg-white border-r border-gray-300 text-sm font-medium flex flex-col">
         <div className="p-4 pb-0 border-b border-gray-200">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
@@ -110,104 +115,15 @@ const FirePumpPage = ({ setData }) => {
               className="w-[24px] h-[24px] bg-[#0083EE] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC] transition"
               onClick={resetForm}
             >
-              <svg
-                className="w-[16px] h-[16px] stroke-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
+              🔄
             </button>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-gray-800">
-                Fire Pump Sizing Calculator
-              </h1>
-              <button
-                onClick={resetForm}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-                Reset
-              </button>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                  Station Configuration
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Station Area (m²)
-                    </label>
-                    <input
-                      type="number"
-                      name="stationArea"
-                      value={formData.stationArea}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter station area"
-                      step="0.1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Total PD Area (m²)
-                    </label>
-                    <input
-                      type="number"
-                      name="totalPdArea"
-                      value={formData.totalPdArea}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter total PD area"
-                      step="0.1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Station Height (m)
-                    </label>
-                    <input
-                      type="number"
-                      name="stationHeight"
-                      value={formData.stationHeight}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter station height"
-                      step="0.1"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
+              {/* Flow Configuration */}
               <div className="bg-gray-50 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
                   Flow Configuration
@@ -215,21 +131,17 @@ const FirePumpPage = ({ setData }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Flow Rate (m³/s)
+                      Flow Rate (L/min)
                     </label>
                     <input
                       type="number"
-                      name="flowrateMeter"
-                      value={formData.flowrateMeter}
+                      name="flowrateLpm"
+                      value={formData.flowrateLpm}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter flow rate"
-                      step="0.001"
+                      step="0.1"
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Equivalent: {getFlowRateLpm()} L/min
-                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -251,6 +163,7 @@ const FirePumpPage = ({ setData }) => {
                 </div>
               </div>
 
+              {/* Pipe Configuration */}
               <div className="bg-gray-50 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
                   Pipe Configuration
@@ -266,7 +179,6 @@ const FirePumpPage = ({ setData }) => {
                       value={formData.pipeDiameter}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter pipe diameter"
                       step="1"
                       required
                     />
@@ -281,7 +193,6 @@ const FirePumpPage = ({ setData }) => {
                       value={formData.frictionalLossCoefficient}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter coefficient"
                       step="1"
                       required
                     />
@@ -289,59 +200,23 @@ const FirePumpPage = ({ setData }) => {
                 </div>
               </div>
 
+              {/* Total Head Loss */}
               <div className="bg-gray-50 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                  Head & Pressure Requirements
+                  Total Head Loss
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Residual Head (m)
-                    </label>
-                    <input
-                      type="number"
-                      name="residualHead"
-                      value={formData.residualHead}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter residual head"
-                      step="0.1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Total Pressure Loss (m)
-                    </label>
-                    <input
-                      type="number"
-                      name="totalPressureLoss"
-                      value={formData.totalPressureLoss}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter pressure loss"
-                      step="0.1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Total Head (m)
-                    </label>
-                    <input
-                      type="number"
-                      name="totalHead"
-                      value={formData.totalHead}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter total head"
-                      step="0.1"
-                      required
-                    />
-                  </div>
-                </div>
+                <input
+                  type="number"
+                  name="totalHead"
+                  value={formData.totalHead}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  step="0.1"
+                  required
+                />
               </div>
 
+              {/* Pump Performance */}
               <div className="bg-gray-50 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
                   Pump Performance
@@ -357,51 +232,9 @@ const FirePumpPage = ({ setData }) => {
                       value={formData.efficiency}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter efficiency"
-                      min="0"
-                      max="100"
                       step="0.1"
                       required
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Pump Capacity (L/min)
-                    </label>
-                    <input
-                      type="number"
-                      name="pumpCapacity"
-                      value={formData.pumpCapacity}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter pump capacity"
-                      step="0.1"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-4 p-4 bg-blue-50 rounded-md">
-                  <h3 className="font-semibold text-blue-800 mb-2">
-                    Pump Power Estimation
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-700">
-                    <div>
-                      <span className="font-medium">Flow Rate:</span>{" "}
-                      {getFlowRateLpm()} L/min
-                    </div>
-                    <div>
-                      <span className="font-medium">Total Head:</span>{" "}
-                      {formData.totalHead} m
-                    </div>
-                    <div>
-                      <span className="font-medium">Efficiency:</span>{" "}
-                      {formData.efficiency}%
-                    </div>
-                    <div>
-                      <span className="font-medium">Estimated Power:</span>{" "}
-                      {getPumpPower()} kW
-                    </div>
                   </div>
                 </div>
               </div>
@@ -418,6 +251,7 @@ const FirePumpPage = ({ setData }) => {
         </div>
       </div>
 
+      {/* Right Results Section */}
       <div className="w-96 bg-gray-50 p-6 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">
@@ -435,6 +269,7 @@ const FirePumpPage = ({ setData }) => {
 
           {result && (
             <div className="space-y-6">
+              {/* Pump Sizing Summary */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Pump Sizing Summary
@@ -442,10 +277,10 @@ const FirePumpPage = ({ setData }) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-blue-50 p-4 rounded-md">
                     <div className="text-sm text-blue-600 font-medium">
-                      Required Flow Rate
+                      Flow Rate
                     </div>
                     <div className="text-2xl font-bold text-blue-800">
-                      {getFlowRateLpm()} L/min
+                      {result[0].flowrate_lpm} L/min
                     </div>
                   </div>
                   <div className="bg-green-50 p-4 rounded-md">
@@ -453,12 +288,13 @@ const FirePumpPage = ({ setData }) => {
                       Total Head
                     </div>
                     <div className="text-lg font-semibold text-green-800">
-                      {formData.totalHead} m
+                      {result[0].total_head} m
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* Pump Specifications */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Pump Specifications
@@ -466,85 +302,23 @@ const FirePumpPage = ({ setData }) => {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
-                      Flow Rate:
+                      Efficiency:
                     </span>
                     <span className="text-gray-800">
-                      {getFlowRateLpm()} L/min
+                      {result[0].efficiency}%
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Total Head:
-                    </span>
+                    <span className="font-medium text-gray-600">Power:</span>
                     <span className="text-gray-800">
-                      {formData.totalHead} m
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Pump Efficiency:
-                    </span>
-                    <span className="text-gray-800">
-                      {formData.efficiency}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Pump Capacity:
-                    </span>
-                    <span className="text-gray-800">
-                      {formData.pumpCapacity} L/min
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Estimated Power:
-                    </span>
-                    <span className="text-gray-800">{getPumpPower()} kW</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                  Station Parameters
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Station Area:
-                    </span>
-                    <span className="text-gray-800">
-                      {formData.stationArea} m²
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Total PD Area:
-                    </span>
-                    <span className="text-gray-800">
-                      {formData.totalPdArea} m²
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Station Height:
-                    </span>
-                    <span className="text-gray-800">
-                      {formData.stationHeight} m
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Residual Head:
-                    </span>
-                    <span className="text-gray-800">
-                      {formData.residualHead} m
+                      {result[0].pump_capacity_kw} kW (
+                      {result[0].pump_capacity_hp} HP)
                     </span>
                   </div>
                 </div>
               </div>
 
+              {/* Pipe Configuration */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Pipe Configuration
@@ -555,7 +329,7 @@ const FirePumpPage = ({ setData }) => {
                       Pipe Material:
                     </span>
                     <span className="text-gray-800">
-                      {formData.pipeMaterial}
+                      {result[0].pipe_material}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -563,7 +337,7 @@ const FirePumpPage = ({ setData }) => {
                       Pipe Diameter:
                     </span>
                     <span className="text-gray-800">
-                      {formData.pipeDiameter} mm
+                      {result[0].pipe_dia} mm
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -571,20 +345,13 @@ const FirePumpPage = ({ setData }) => {
                       Friction Coefficient:
                     </span>
                     <span className="text-gray-800">
-                      {formData.frictionalLossCoefficient}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Total Pressure Loss:
-                    </span>
-                    <span className="text-gray-800">
-                      {formData.totalPressureLoss} m
+                      {result[0].friction_loss_coefficient}
                     </span>
                   </div>
                 </div>
               </div>
 
+              {/* Performance Metrics */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Performance Metrics
@@ -595,7 +362,7 @@ const FirePumpPage = ({ setData }) => {
                       Flow Rate
                     </div>
                     <div className="text-xl font-bold text-green-800">
-                      {getFlowRateLpm()} L/min
+                      {result[0].flowrate_lpm} L/min
                     </div>
                   </div>
                   <div className="bg-blue-50 p-4 rounded-md">
@@ -603,29 +370,7 @@ const FirePumpPage = ({ setData }) => {
                       Power Required
                     </div>
                     <div className="text-xl font-bold text-blue-800">
-                      {getPumpPower()} kW
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-4 p-3 bg-gray-50 rounded-md">
-                  <div className="text-sm text-gray-600">
-                    <div className="flex justify-between">
-                      <span>Efficiency:</span>
-                      <span className="font-medium">
-                        {formData.efficiency}%
-                      </span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span>Total Head:</span>
-                      <span className="font-medium">
-                        {formData.totalHead} m
-                      </span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span>Pump Capacity:</span>
-                      <span className="font-medium">
-                        {formData.pumpCapacity} L/min
-                      </span>
+                      {result[0].pump_capacity_kw} kW
                     </div>
                   </div>
                 </div>

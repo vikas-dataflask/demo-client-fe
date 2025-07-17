@@ -65,20 +65,24 @@ export const apiSlice = createApi({
     }),
     addFireHL: builder.mutation({
       query: (body) => ({
-        url: `api/fireheadloss`,
+        url: `api/fire-head-loss`,
         method: "POST",
         body,
       }),
       invalidatesTags: ["FireHeadLoss"],
     }),
-    addFirePump: builder.mutation({
-      query: (body) => ({
-        url: `api/firepump`,
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: ["Firepump"],
+    getFireHLByProject: builder.query({
+      query: (project_id) => `api/fire-head-loss/${project_id}`,
+      providesTags: ["FireHeadLoss"],
     }),
+    // addFirePump: builder.mutation({
+    //   query: (body) => ({
+    //     url: `api/firepump`,
+    //     method: "POST",
+    //     body,
+    //   }),
+    //   invalidatesTags: ["Firepump"],
+    // }),
     addHeatLoad: builder.mutation({
       query: (body) => ({
         url: `api/heatload`,
@@ -452,6 +456,18 @@ export const apiSlice = createApi({
           room
         )}`,
     }),
+    addFirePump: builder.mutation({
+      query: (data) => ({
+        url: "api/calculate",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["FirePump"],
+    }),
+    getFirePumpByProject: builder.query({
+      query: (project_id) => `api/${project_id}`,
+      providesTags: ["FirePump"],
+    }),
   }),
 });
 
@@ -463,6 +479,7 @@ export const {
   useGetProjectListByIdQuery,
   useDeleteProjectMutation,
   useAddFireHLMutation,
+  useGetFireHLByProjectQuery,
   useAddFirePumpMutation,
   useAddHeatLoadMutation,
   useAddVentilationMutation,
@@ -508,4 +525,6 @@ export const {
   useAddHeatLoadToDbMutation,
   useUpdateHeatLoadInDbMutation,
   useGetHeatLoadAutofillQuery,
+  // useAddFirePumpMutation,
+  useGetFirePumpByProjectQuery,
 } = apiSlice;

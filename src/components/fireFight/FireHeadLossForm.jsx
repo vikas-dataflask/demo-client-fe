@@ -1,8 +1,14 @@
-import React, { useState } from "react";
-import { useAddFireHLMutation } from "../../redux/features/api/api";
-// import FireHeadLossIcon from "../../icons/FireHeadLossIcon";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { useParams } from "react-router-dom"; // ✅ Add useParams import like AHU
+import {
+  useAddFireHLMutation,
+  useGetFireHLByProjectQuery,
+} from "../../redux/features/api/api";
 
 const FireHeadLossForm = ({ setData }) => {
+  const { projectId } = useParams(); // ✅ Get projectId from URL like AHU
+
   const [formData, setFormData] = useState({
     pipeDiameter: "150",
     pipeMaterial: "Steel",
@@ -22,12 +28,17 @@ const FireHeadLossForm = ({ setData }) => {
     flowrateLpm: "",
     staticLossMeter: 0,
     staticGainMeter: 0,
-    velocity: "", // ✅ New field
-    heightOfFitting: "", // ✅ New field
+    velocity: "",
+    heightOfFitting: "",
   });
 
   const [result, setResult] = useState(null);
   const [addFireHL, { isLoading, error }] = useAddFireHLMutation();
+
+  const { data, isLoading: autoFillLoading } = useGetFireHLByProjectQuery(
+    projectId,
+    { skip: !projectId }
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -51,7 +62,13 @@ const FireHeadLossForm = ({ setData }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!projectId) {
+      alert("Please select a project before calculating!");
+      return;
+    }
+
     const requestData = {
+      project_id: projectId, // ✅ Same as AHU
       pipeDia: parseInt(formData.pipeDiameter),
       pipeMaterial: formData.pipeMaterial,
       pipeLengthHorizontal: parseFloat(formData.pipeLengthHorizontal),
@@ -61,14 +78,14 @@ const FireHeadLossForm = ({ setData }) => {
       flowrateLpm: parseFloat(formData.flowrateLpm),
       staticLossMeter: parseFloat(formData.staticLossMeter),
       staticGainMeter: parseFloat(formData.staticGainMeter),
-      velocity: parseFloat(formData.velocity), // ✅ Added
-      heightOfFitting: parseFloat(formData.heightOfFitting), // ✅ Added
+      velocity: parseFloat(formData.velocity),
+      heightOfFitting: parseFloat(formData.heightOfFitting),
     };
 
     try {
       const response = await addFireHL(requestData).unwrap();
-      setResult(response.data);
-      setData(response.data);
+      setResult(response.data.result_data);
+      setData(response.data.result_data);
     } catch (err) {
       console.error("Fire head loss calculation error:", err);
     }
@@ -94,8 +111,8 @@ const FireHeadLossForm = ({ setData }) => {
       flowrateLpm: "",
       staticLossMeter: 0,
       staticGainMeter: 0,
-      velocity: "", // ✅ Reset
-      heightOfFitting: "", // ✅ Reset
+      velocity: "",
+      heightOfFitting: "",
     });
     setResult(null);
   };
@@ -128,6 +145,57 @@ const FireHeadLossForm = ({ setData }) => {
 
     return totalEquivalent;
   };
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    const fetchData = async () => {
+      try {
+        const res = await axios.get(`/api/fire-head-loss/${projectId}`);
+        if (res.data.success) {
+          const { input_data, result_data } = res.data.data;
+          setFormData({
+            pipeDiameter: input_data.pipeDia.toString(),
+            pipeMaterial: input_data.pipeMaterial,
+            pipeLengthHorizontal: input_data.pipeLengthHorizontal,
+            pipeLengthVertical: input_data.pipeLengthVertical,
+            fittings: input_data.fittings,
+            frictionalLossCoefficient: input_data.frictionalLossCoefficient,
+            flowrateLpm: input_data.flowrateLpm,
+            staticLossMeter: input_data.staticLossMeter,
+            staticGainMeter: input_data.staticGainMeter,
+            velocity: input_data.velocity,
+            heightOfFitting: input_data.heightOfFitting,
+          });
+          setResult(result_data);
+        }
+      } catch (err) {
+        console.error("Autofill error:", err);
+      }
+    };
+
+    fetchData();
+  }, [projectId]);
+
+  useEffect(() => {
+    if (data?.success) {
+      const { input_data, result_data } = data.data;
+      setFormData({
+        pipeDiameter: input_data.pipeDia.toString(),
+        pipeMaterial: input_data.pipeMaterial,
+        pipeLengthHorizontal: input_data.pipeLengthHorizontal,
+        pipeLengthVertical: input_data.pipeLengthVertical,
+        fittings: input_data.fittings,
+        frictionalLossCoefficient: input_data.frictionalLossCoefficient,
+        flowrateLpm: input_data.flowrateLpm,
+        staticLossMeter: input_data.staticLossMeter,
+        staticGainMeter: input_data.staticGainMeter,
+        velocity: input_data.velocity,
+        heightOfFitting: input_data.heightOfFitting,
+      });
+      setResult(result_data);
+    }
+  }, [data]);
 
   return (
     <div className="flex h-[92vh]">
@@ -575,6 +643,7 @@ const FireHeadLossForm = ({ setData }) => {
               </div>
 
               {/* Detailed Results */}
+              {/* Detailed Results */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Detailed Results
@@ -582,43 +651,51 @@ const FireHeadLossForm = ({ setData }) => {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
-                      Friction Loss:
+                      Friction Loss (H_friction):
+                    </span>
+                    <span className="text-gray-800">{result.H_friction} m</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Fitting Loss (H_fitting):
+                    </span>
+                    <span className="text-gray-800">{result.H_fitting} m</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Elevation Loss (H_elevation):
                     </span>
                     <span className="text-gray-800">
-                      {result.pressureLossTotalBar} bar
+                      {result.H_elevation} m
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
-                      Static Loss:
+                      Static Head (H_static):
                     </span>
-                    <span className="text-gray-800">
-                      {result.staticLossMeter} m
+                    <span className="text-gray-800">{result.H_static} m</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Total Head Loss (H_total):
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {result.H_total} m
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
-                      Static Gain:
-                    </span>
-                    <span className="text-gray-800">
-                      {result.staticGainMeter} m
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Total Head:
+                      Total Pressure Loss:
                     </span>
                     <span className="text-gray-800">
                       {result.totalPressureLossBar} bar
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between pt-2 border-t border-gray-200">
                     <span className="font-medium text-gray-600">
-                      Pressure Loss/m:
+                      Total K Value (ΣK):
                     </span>
-                    <span className="text-gray-800">
-                      {result.pressureLossPerMeterBar} bar/m
-                    </span>
+                    <span className="text-gray-800">{result.K_total}</span>
                   </div>
                 </div>
               </div>
@@ -633,20 +710,24 @@ const FireHeadLossForm = ({ setData }) => {
                     <span className="font-medium text-gray-600">
                       Pipe Diameter:
                     </span>
-                    <span className="text-gray-800">{result.pipeDia} mm</span>
+                    <span className="text-gray-800">
+                      {formData?.pipeDiameter} mm
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
                       Pipe Material:
                     </span>
-                    <span className="text-gray-800">{result.pipeMaterial}</span>
+                    <span className="text-gray-800">
+                      {formData?.pipeMaterial}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
                       Horizontal Length:
                     </span>
                     <span className="text-gray-800">
-                      {result.pipeLengthHorizontal} m
+                      {formData?.pipeLengthHorizontal} m
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -654,7 +735,7 @@ const FireHeadLossForm = ({ setData }) => {
                       Vertical Length:
                     </span>
                     <span className="text-gray-800">
-                      {result.pipeLengthVertical} m
+                      {formData?.pipeLengthVertical} m
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -662,62 +743,66 @@ const FireHeadLossForm = ({ setData }) => {
                       Flow Rate:
                     </span>
                     <span className="text-gray-800">
-                      {result.flowrateLpm} L/min
+                      {formData?.flowrateLpm} L/min
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  {/* <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
                       Friction Coefficient:
                     </span>
                     <span className="text-gray-800">
                       {result.frictionalLossCoefficient}
                     </span>
-                  </div>
+                  </div> */}
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">Velocity:</span>
-                    <span className="text-gray-800">{result.velocity} m/s</span>
+                    <span className="text-gray-800">
+                      {formData?.velocity} m/s
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
                       Height of Fitting:
                     </span>
                     <span className="text-gray-800">
-                      {result.heightOfFitting} m
+                      {formData.heightOfFitting} m
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Fittings Breakdown */}
-              <div className="bg-white rounded-lg shadow-md p-6">
+              {/* <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Fittings Breakdown
                 </h3>
                 <div className="space-y-2 text-sm">
-                  {Object.entries(result.fittings).map(
-                    ([fitting, count]) =>
-                      count > 0 && (
+                  {result?.fittings &&
+                    Object.entries(result.fittings).map(([fitting, count]) =>
+                      count > 0 ? (
                         <div key={fitting} className="flex justify-between">
                           <span className="font-medium text-gray-600">
                             {fitting}:
                           </span>
                           <span className="text-gray-800">{count}</span>
                         </div>
-                      )
-                  )}
+                      ) : null
+                    )}
                   <div className="pt-2 border-t border-gray-200">
                     <div className="flex justify-between font-medium">
                       <span className="text-gray-600">Total Fittings:</span>
                       <span className="text-gray-800">
-                        {Object.values(result.fittings).reduce(
-                          (sum, count) => sum + count,
-                          0
-                        )}
+                        {result?.fittings
+                          ? Object.values(result.fittings).reduce(
+                              (sum, count) => sum + count,
+                              0
+                            )
+                          : 0}
                       </span>
                     </div>
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
           )}
 
