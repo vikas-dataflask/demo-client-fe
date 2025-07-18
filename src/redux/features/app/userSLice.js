@@ -1,13 +1,15 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-const savedUser = JSON.parse(localStorage.getItem("user"));
+const storedUser = JSON.parse(localStorage.getItem("user"));
 
-// const initialState = savedUser || {
-//   email: "",
-//   token: "",
-// };
-const initialState = savedUser || {
-  identifier: "",
+const initialState = storedUser || {
+  _id: "",
+  email: "",
+  username: "",
+  firstName: "",
+  lastName: "",
+  contactNumber: "",
+  profilePicUrl: "",
   token: "",
 };
 
@@ -15,16 +17,24 @@ const userSlice = createSlice({
   name: "user",
   initialState,
   reducers: {
+    // This is the core reducer that updates the user state with data from the API
     setUser: (state, action) => {
-      // state.email = action.payload.email;
-      state.identifier = action.payload.identifier;
-      state.token = action.payload.token;
-      localStorage.setItem("user", JSON.stringify(action.payload));
+      // Use Object.assign to merge the existing state with all new data from the payload
+      Object.assign(state, action.payload);
+      localStorage.setItem("user", JSON.stringify(state));
     },
-    clearUser: () => {
+    clearUser: (state) => {
       localStorage.removeItem("user");
-      // return { email: "", token: "" };
-      return { identifier: "", token: "" };
+      return {
+        _id: "",
+        email: "",
+        username: "",
+        firstName: "",
+        lastName: "",
+        contactNumber: "",
+        profilePicUrl: "",
+        token: "",
+      };
     },
   },
 });
