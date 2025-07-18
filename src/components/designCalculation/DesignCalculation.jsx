@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom"; // NEW
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { resetRooms } from "../../redux/features/app/roomSlice";
 import {
@@ -8,16 +8,17 @@ import {
 } from "../../redux/features/app/FloorPlanSlice";
 import { clearRoomLights } from "../../redux/features/app/lightingSlice";
 
-import DraftSideBar from "./DraftSideBar";
 import AddProjectModal from "./AddProjectModal";
 import {
   useGetProjectListQuery,
   useDeleteProjectMutation,
 } from "../../redux/features/api/api";
 import { clearPower } from "../../redux/features/app/powerSlice";
+import DraftSideBar from "../shared/DraftSideBar";
+import UserAvatar from "../shared/UserAvatar";
 
-const DesignCalculation = () => {
-  const location = useLocation(); // NEW
+const DesignCalculation = ({ onOpenSettings }) => {
+  const location = useLocation();
   const [showModal, setShowModal] = useState(false);
   const navigate = useNavigate();
 
@@ -28,13 +29,13 @@ const DesignCalculation = () => {
     isError,
     refetch,
   } = useGetProjectListQuery(undefined, {
-    refetchOnFocus: true, // Automatically refetch when tab/window regains focus
+    refetchOnFocus: true,
   });
 
   const [deleteProject] = useDeleteProjectMutation();
 
   const dispatch = useDispatch();
-  dispatch(resetRooms()); // this will clear all room data
+  dispatch(resetRooms());
   dispatch(resetFloorPlan());
   dispatch(resetArea());
   dispatch(clearRoomLights());
@@ -50,15 +51,15 @@ const DesignCalculation = () => {
 
   useEffect(() => {
     if (projectAdded) {
-      refetch(); // manually trigger re-fetch
-      setProjectAdded(false); // reset flag
+      refetch();
+      setProjectAdded(false);
     }
   }, [projectAdded, refetch]);
 
   const handleDelete = async (id) => {
     try {
       await deleteProject(id).unwrap();
-      refetch(); // Refresh the list
+      refetch();
     } catch (error) {
       console.error("Failed to delete project:", error);
     }
@@ -73,14 +74,15 @@ const DesignCalculation = () => {
 
       {/* Right Main Content */}
       <div className="flex-1 bg-[#f7f7f7] relative overflow-y-auto">
-        {/* Add New Button */}
-        <div className="absolute top-6 right-6 z-10">
+        {/* TOP RIGHT ICONS & BUTTONS */}
+        <div className="absolute top-6 right-6 z-10 flex items-center gap-4">
           <button
             onClick={() => setShowModal(true)}
             className="bg-[#007bff] text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-blue-600 transition"
           >
             Add New
           </button>
+          <UserAvatar onOpenSettings={onOpenSettings} />
         </div>
 
         {/* Main Content */}
@@ -100,7 +102,6 @@ const DesignCalculation = () => {
                     <h3 className="text-lg font-medium text-gray-800">
                       {project.name}
                     </h3>
-                    {/* <p className="text-sm text-gray-500">{project.location}</p> */}
                   </div>
                   <div className="space-x-2">
                     <button

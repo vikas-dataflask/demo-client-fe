@@ -2,3 +2,25 @@
 ::-webkit-scrollbar {
   display: none;
 }
+/* In your CSS file (e.g., index.css or a global stylesheet) */
+.dropdown-enter {
+  opacity: 0;
+  transform: translateY(-5px) scale(0.95);
+}
+
+.dropdown-enter-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 200ms ease-out, transform 200ms ease-out;
+}
+
+.dropdown-exit {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.dropdown-exit-active {
+  opacity: 0;
+  transform: translateY(-5px) scale(0.95);
+  transition: opacity 150ms ease-in, transform 150ms ease-in;
+}

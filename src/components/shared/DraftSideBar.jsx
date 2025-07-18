@@ -3,9 +3,7 @@ import { NavLink } from "react-router-dom";
 import AiIcon from "../../icons/AiIcon";
 import DCIcon from "../../icons/DCIcon";
 import DialuxIcon from "../../icons/DialuxIcon";
-import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { setUser, clearUser } from "../../redux/features/app/userSLice"; // Adjust path if needed
+// REMOVED: useNavigate, useDispatch, setUser, clearUser, useSelector - no longer needed for profile/logout in sidebar
 
 import CadToRevitIcon from "../../icons/CadToRevitIcon";
 import ExtractIcon from "../../icons/ExtractIcon";
@@ -13,10 +11,9 @@ import PCIcon from "../../icons/PCIcon";
 import ShopIcon from "../../icons/ShopIcon";
 import SettingIcon from "../../icons/SettingIcon";
 import ResourceIcon from "../../icons/ResourceIcon";
-import ArrowDown from "../../icons/ArrowDown";
+// REMOVED: ArrowDown - no longer needed as profile section is gone
 import HeatIcon from "../../icons/HeatIcon";
 import HomeIcon from "../../icons/HomeIcon";
-import { useSelector } from "react-redux";
 
 // All menu items
 const aiTools = [
@@ -36,24 +33,27 @@ const advancedTools = [
 const bottomItems = [
   { label: "Settings", to: "/settings", icon: SettingIcon },
   { label: "Resources", to: "/resources", icon: ResourceIcon },
-  { label: "Logout", to: "/login", icon: ResourceIcon, logout: true }, // 👈 Added logout flag
+  // REMOVED: Logout from here, as it's now in UserAvatar dropdown
+  // { label: "Logout", to: "/login", icon: ResourceIcon, logout: true },
 ];
 
 export default function DraftSideBar() {
-  const user = useSelector((state) => state.user);
+  // REMOVED: user, storedUser, displayName - no longer needed in sidebar
+  // const user = useSelector((state) => state.user);
+  // const storedUser = JSON.parse(localStorage.getItem("user")) || {};
+  // const displayName =
+  //   user?.username || storedUser?.username || user?.email || storedUser?.email;
 
-  const storedUser = JSON.parse(localStorage.getItem("user")) || {};
-  const displayName =
-    user?.username || storedUser?.username || user?.email || storedUser?.email;
+  // REMOVED: navigate, dispatch - no longer needed in sidebar
+  // const navigate = useNavigate();
+  // const dispatch = useDispatch();
 
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    dispatch(clearUser());
-    navigate("/login");
-  };
+  // REMOVED: handleLogout function - now in UserAvatar
+  // const handleLogout = () => {
+  //   localStorage.removeItem("token");
+  //   dispatch(clearUser());
+  //   navigate("/login");
+  // };
 
   return (
     <div className="w-[280px] h-screen fixed top-0 left-0 flex flex-col justify-between bg-white border-r border-[#E5E7EB] font-sans text-[14px]">
@@ -64,7 +64,7 @@ export default function DraftSideBar() {
           style={{ backgroundImage: "url('/src/images/dd.svg')" }}
         ></div>
         <div className="text-[16px] font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Design Draft
+          Design Drafter
         </div>
       </div>
 
@@ -158,54 +158,34 @@ export default function DraftSideBar() {
         <div className="h-[1px] bg-[#E5E7EB] my-3" />
 
         {/* Bottom Items */}
-        {bottomItems.map(({ label, to, icon: Icon, logout }, idx) =>
-          logout ? (
-            <button
-              key={idx}
-              onClick={handleLogout}
-              className="flex items-center gap-2.5 w-full text-left px-2.5 py-[10px] rounded-md text-gray-800 hover:bg-gray-100"
-            >
-              <Icon className="w-4 h-4 text-gray-400" />
-              <span>{label}</span>
-            </button>
-          ) : (
-            <NavLink
-              key={idx}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-2.5 py-[10px] rounded-md no-underline ${
-                  isActive
-                    ? "bg-blue-600 text-white"
-                    : "text-gray-800 hover:bg-gray-100"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive ? "text-white" : "text-gray-400"
-                    }`}
-                  />
-                  <span>{label}</span>
-                </>
-              )}
-            </NavLink>
-          )
-        )}
+        {bottomItems.map(({ label, to, icon: Icon, logout }, idx) => (
+          // The logout button logic is now handled in UserAvatar, so we only render NavLinks here
+          <NavLink
+            key={idx}
+            to={to}
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 px-2.5 py-[10px] rounded-md no-underline ${
+                isActive
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-800 hover:bg-gray-100"
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Icon
+                  className={`w-4 h-4 ${
+                    isActive ? "text-white" : "text-gray-400"
+                  }`}
+                />
+                <span>{label}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
       </ul>
 
-      {/* Profile */}
-      <div className="flex items-center justify-between bg-gray-100 p-2.5 m-3 rounded-md">
-        <div className="flex items-center gap-2.5">
-          <img
-            src="/src/images/ProfileIcon.png"
-            alt="user"
-            className="w-8 h-8 rounded-full bg-gray-300"
-          />
-          <span className="text-sm text-gray-800">{displayName}</span>
-        </div>
-      </div>
+      {/* REMOVED: The Profile Section (NavLink) from here as it's moved to UserAvatar component */}
     </div>
   );
 }
