@@ -3,9 +3,8 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:8000/api",
+    baseUrl: "/api",
     prepareHeaders: (headers) => {
-      // --- START OF FIX ---
       const storedUser = localStorage.getItem("user");
       let token = null;
       if (storedUser) {
@@ -18,8 +17,6 @@ export const apiSlice = createApi({
           localStorage.removeItem("user");
         }
       }
-      // --- END OF FIX ---
-
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
@@ -27,33 +24,10 @@ export const apiSlice = createApi({
     },
   }),
 
-  tagTypes: [
-    "User",
-    "Project",
-    "QE",
-    "FireHeadLoss",
-    "Firepump",
-    "HeatLoad",
-    "Ventilation",
-    "Duct Size",
-    "Grille Size",
-    "AHU",
-    "Chiller",
-    "Condenser",
-    "WaterDemand",
-    "WaterSupplyPipes",
-    "DrainagePipes",
-    "PlumbingHeadLoss",
-    "PlumbingPump",
-    "RWHSizing",
-    "RainwaterDropSizing",
-  ],
-
   endpoints: (builder) => ({
-    // ... (All your existing endpoints) ...
     signup: builder.mutation({
       query: (newUser) => ({
-        url: "auth/signup",
+        url: "api/auth/signup",
         method: "POST",
         body: newUser,
       }),
@@ -62,7 +36,7 @@ export const apiSlice = createApi({
 
     login: builder.mutation({
       query: (User) => ({
-        url: `auth/login`,
+        url: `api/auth/login`,
         method: "POST",
         body: User,
       }),
@@ -71,7 +45,7 @@ export const apiSlice = createApi({
 
     addProject: builder.mutation({
       query: (formData) => ({
-        url: "project",
+        url: "api/project",
         method: "POST",
         body: formData,
       }),
@@ -80,7 +54,7 @@ export const apiSlice = createApi({
 
     getProjectList: builder.query({
       query: (id) => ({
-        url: "project",
+        url: "api/project",
         method: "GET",
       }),
       providesTags: ["Project", "QE"],
@@ -88,7 +62,7 @@ export const apiSlice = createApi({
 
     deleteProject: builder.mutation({
       query: (id) => ({
-        url: `project/${id}`,
+        url: `api/project/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Project"],
@@ -96,7 +70,7 @@ export const apiSlice = createApi({
 
     getProjectListById: builder.query({
       query: (id) => ({
-        url: `project/${id}`,
+        url: `api/project/${id}`,
         method: "GET",
       }),
     }),
@@ -122,7 +96,7 @@ export const apiSlice = createApi({
     // }),
     addHeatLoad: builder.mutation({
       query: (body) => ({
-        url: `heatload`,
+        url: `api/heatload`,
         method: "POST",
         body,
       }),
@@ -278,7 +252,7 @@ export const apiSlice = createApi({
     }),
     calculateDuctSize: builder.mutation({
       query: (body) => ({
-        url: `duct/size`,
+        url: `api/duct/size`, // Full path relative to your `/api` baseUrl
         method: "POST",
         body,
       }),
@@ -286,23 +260,24 @@ export const apiSlice = createApi({
     }),
     calculateGrilleSize: builder.mutation({
       query: (body) => ({
-        url: `hvac/size`,
+        url: `api/hvac/size`,
         method: "POST",
         body,
       }),
       invalidatesTags: ["Grille Size"],
     }),
+    // New mutation for AHU calculations
     calculateAHU: builder.mutation({
       query: (body) => ({
-        url: `ahu`,
+        url: `api/ahu`, // Full path relative to your `/api` baseUrl
         method: "POST",
         body,
       }),
-      invalidatesTags: ["AHU"],
+      invalidatesTags: ["AHU"], // You might want to define a new tag for AHU
     }),
     calculateFittingLosses: builder.mutation({
       query: (body) => ({
-        url: `hvac/fitting-losses`,
+        url: `api/hvac/fitting-losses`,
         method: "POST",
         body,
       }),
@@ -310,7 +285,7 @@ export const apiSlice = createApi({
     }),
     calculateTotalAHUPressureDrop: builder.mutation({
       query: (body) => ({
-        url: `hvac/total-pressure-drop`,
+        url: `api/hvac/total-pressure-drop`,
         method: "POST",
         body,
       }),
@@ -318,22 +293,24 @@ export const apiSlice = createApi({
     }),
     getStandardFittings: builder.query({
       query: () => ({
-        url: `hvac/standard-fittings`,
+        url: `api/hvac/standard-fittings`,
         method: "GET",
       }),
       providesTags: ["AHU"],
     }),
+    // New Chiller calculation mutation
     calculateChiller: builder.mutation({
       query: (body) => ({
-        url: `chiller`,
+        url: `api/chiller`, // New endpoint for Chiller
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Chiller"],
+      invalidatesTags: ["Chiller"], // Add a new tag for Chiller
     }),
+    // Chiller Pressure Drop calculations
     calculateChillerPressureDrop: builder.mutation({
       query: (body) => ({
-        url: `hvac/chiller-pressure-drop`,
+        url: `api/hvac/chiller-pressure-drop`,
         method: "POST",
         body,
       }),
@@ -341,30 +318,31 @@ export const apiSlice = createApi({
     }),
     getFluidProperties: builder.query({
       query: ({ fluidType, temperatureC }) => ({
-        url: `hvac/fluid-properties?fluidType=${fluidType}&temperatureC=${temperatureC}`,
+        url: `api/hvac/fluid-properties?fluidType=${fluidType}&temperatureC=${temperatureC}`,
         method: "GET",
       }),
       providesTags: ["Chiller"],
     }),
     getFluidTypes: builder.query({
       query: () => ({
-        url: `hvac/fluid-types`,
+        url: `api/hvac/fluid-types`,
         method: "GET",
       }),
       providesTags: ["Chiller"],
     }),
     calculateCondenser: builder.mutation({
+      // New: Condenser Mutation
       query: (body) => ({
-        url: `condenser`,
+        url: `api/condenser`,
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Condenser"],
+      invalidatesTags: ["Condenser"], // Add a new tag for Chiller
     }),
 
     addWaterDemand: builder.mutation({
       query: (body) => ({
-        url: `water-demand/calculate`,
+        url: `api/water-demand/calculate`,
         method: "POST",
         body,
       }),
@@ -372,7 +350,7 @@ export const apiSlice = createApi({
     }),
     getBuildingType: builder.mutation({
       query: () => ({
-        url: "water-demand/building-types",
+        url: "/api/water-demand/building-types",
         method: "GET",
       }),
       invalidatesTags: ["WaterDemand"],
@@ -380,7 +358,7 @@ export const apiSlice = createApi({
 
     addWaterSupplyPipes: builder.mutation({
       query: (body) => ({
-        url: `watersupplypipes`,
+        url: `api/watersupplypipes`,
         method: "POST",
         body,
       }),
@@ -388,7 +366,7 @@ export const apiSlice = createApi({
     }),
     addDrainagePipes: builder.mutation({
       query: (body) => ({
-        url: `drainagepipes`,
+        url: `api/drainagepipes`,
         method: "POST",
         body,
       }),
@@ -426,14 +404,6 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["RWHData"],
     }),
-    addPlumbingPump: builder.mutation({
-      query: (body) => ({
-        url: `plumbingpump`,
-        method: "POST",
-        body: payload,
-      }),
-      invalidatesTags: ["RWHData"],
-    }),
     getRwhDataByProject: builder.query({
       query: (projectId) => `api/rwh/${projectId}`,
       providesTags: ["RWHData"],
@@ -442,10 +412,12 @@ export const apiSlice = createApi({
       query: (projectId) => ({
         url: `api/rwh/${projectId}`,
         method: "DELETE",
-
+      }),
+      invalidatesTags: ["RWHData"],
+    }),
     addRainwaterDropSizing: builder.mutation({
       query: (body) => ({
-        url: `rainwaterdropsizing`,
+        url: `api/rainwaterdropsizing`,
         method: "POST",
         body,
       }),
@@ -453,7 +425,7 @@ export const apiSlice = createApi({
     }),
     addQE: builder.mutation({
       query: (data) => ({
-        url: "qe",
+        url: "api/qe",
         method: "POST",
         body: data,
       }),
@@ -461,39 +433,40 @@ export const apiSlice = createApi({
     }),
     getQEList: builder.query({
       query: (id) => ({
-        url: "qe",
+        url: "api/qe",
         method: "GET",
       }),
       providesTags: ["QE"],
     }),
     deleteQE: builder.mutation({
       query: (id) => ({
-        url: `qe/${id}`,
+        url: `api/qe/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["QE"],
     }),
     getQEListById: builder.query({
       query: (id) => ({
-        url: `qe/${id}`,
+        url: `api/qe/${id}`,
         method: "GET",
       }),
       providesTags: (result, error, id) => [{ type: "QE", id }],
     }),
+    // NEW: Mutation for updating Quantity Extraction data for a specific project
     updateQE: builder.mutation({
       query: ({ projectId, updatedData }) => ({
-        url: `qe/${projectId}`,
-        method: "PATCH",
+        url: `api/qe/${projectId}`, // Assuming you want to update QE for a specific project
+        method: "PATCH", // Use PUT for updating an existing resource
         body: updatedData,
       }),
       invalidatesTags: (result, error, { projectId }) => [
         { type: "QE", id: projectId },
         { type: "Project", id: projectId },
-      ],
+      ], // Invalidate QE and Project tags
     }),
     addHeatLoadToDb: builder.mutation({
       query: (payload) => ({
-        url: "heatload/store",
+        url: "/api/heatload/store",
         method: "POST",
         body: payload,
       }),
@@ -525,7 +498,6 @@ export const apiSlice = createApi({
       query: (project_id) => `api/fire/${project_id}`,
       providesTags: ["FirePump"],
     }),
-
     saveWaterSupplyPipe: builder.mutation({
       query: (payload) => ({
         url: "api/water-supply-pipes",
@@ -589,20 +561,19 @@ export const apiSlice = createApi({
     getRainwaterDropByProject: builder.query({
       query: (projectId) => `api/rainwater-drops/rainwater-drop/${projectId}`,
       providesTags: ["RainwaterDrop"],
+    }),
 
-
-    // --> ADD THESE NEW ENDPOINTS <--
     // Add this new endpoint
     deleteProfilePic: builder.mutation({
       query: () => ({
-        url: `user/delete-profile-pic`,
+        url: `api/user/delete-profile-pic`,
         method: "DELETE",
       }),
       invalidatesTags: ["User"],
     }),
     updateUserProfile: builder.mutation({
       query: (updatedProfileData) => ({
-        url: "user/profile",
+        url: "api/user/profile",
         method: "PUT",
         body: updatedProfileData,
       }),
@@ -611,20 +582,19 @@ export const apiSlice = createApi({
     // New endpoint for changing password
     changePassword: builder.mutation({
       query: (passwordData) => ({
-        url: `user/change-password`,
+        url: `api/user/change-password`,
         method: "PUT", // Or POST, depending on your backend preference for this action
         body: passwordData,
       }),
     }),
     uploadProfilePic: builder.mutation({
       query: (formData) => ({
-        url: "user/upload-profile-pic",
+        url: "api/user/upload-profile-pic",
         method: "POST",
         body: formData,
         // RTK Query will automatically set the headers for a FormData body
       }),
       invalidatesTags: ["User"],
-
     }),
   }),
 });
@@ -658,15 +628,15 @@ export const {
   useUpdateCondenserDataMutation,
   useCalculateDuctSizeMutation,
   useCalculateGrilleSizeMutation,
-  useCalculateAHUMutation,
+  useCalculateAHUMutation, // Exported for AHU
   useCalculateFittingLossesMutation,
   useCalculateTotalAHUPressureDropMutation,
   useGetStandardFittingsQuery,
-  useCalculateChillerMutation,
+  useCalculateChillerMutation, // Exported for Chiller
   useCalculateChillerPressureDropMutation,
   useGetFluidPropertiesQuery,
   useGetFluidTypesQuery,
-  useCalculateCondenserMutation,
+  useCalculateCondenserMutation, // Exported for Condenser
   useAddWaterDemandMutation,
   useGetBuildingTypeMutation,
   useAddWaterSupplyPipesMutation,
@@ -702,5 +672,4 @@ export const {
   useUploadProfilePicMutation,
   useDeleteProfilePicMutation,
   useChangePasswordMutation,
-
 } = apiSlice;
