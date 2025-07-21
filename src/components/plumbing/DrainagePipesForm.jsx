@@ -1,7 +1,11 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { ReloadIcon } from "../../icons/ReloadIcon";
-import { useAddDrainagePipesMutation } from "../../redux/features/api/api";
+import {
+  useSaveDrainagePipeMutation,
+  useGetDrainagePipeByProjectQuery,
+} from "../../redux/features/api/api";
 import FloorPreview from "../shared/FloorPreview";
+import { useParams } from "react-router-dom";
 
 // Drainage fixture unit configuration (NBC standards)
 const drainageFixtureUnitConfig = {
@@ -20,36 +24,35 @@ const drainageFixtureUnitConfig = {
 };
 
 const DrainagePipesForm = ({ setData }) => {
-  const [addDrainagePipes, { isLoading, error }] =
-    useAddDrainagePipesMutation();
-
-  // Form state with proper structure matching water supply
+  const { projectId } = useParams();
   const [formData, setFormData] = useState({
-    numWb: 0,
-    numHealthFaucet: 0,
-    numFloorDrain: 0,
-    numServiceSink: 0,
-    numKitchenSink: 0,
-    numShower: 0,
-    numWc: 0,
-    numUrinal: 0,
-    numUrinalTrap: 0,
+    num_wb: 0,
+    num_health_faucet: 0,
+    num_floor_drain: 0,
+    num_service_sink: 0,
+    num_kitchen_sink: 0,
+    num_shower: 0,
+    num_wc: 0,
+    num_urinal: 0,
+    num_urinal_trap: 0,
+    velocity: "",
   });
-
   const [result, setResult] = useState(null);
+  const [saveDrainagePipe, { isLoading, error }] = useSaveDrainagePipeMutation();
+  const { data: savedData, isLoading: autoFillLoading } = useGetDrainagePipeByProjectQuery(projectId, { skip: !projectId });
 
   // Calculate fixture units and flow rate in real-time
   const previewCalculations = useMemo(() => {
     const fixtures = {
-      washBasin: formData.numWb,
-      healthFaucet: formData.numHealthFaucet,
-      floorDrain: formData.numFloorDrain,
-      serviceSink: formData.numServiceSink,
-      kitchenSink: formData.numKitchenSink,
-      shower: formData.numShower,
-      waterCloset: formData.numWc,
-      urinal: formData.numUrinal,
-      urinalTrap: formData.numUrinalTrap,
+      washBasin: formData.num_wb,
+      healthFaucet: formData.num_health_faucet,
+      floorDrain: formData.num_floor_drain,
+      serviceSink: formData.num_service_sink,
+      kitchenSink: formData.num_kitchen_sink,
+      shower: formData.num_shower,
+      waterCloset: formData.num_wc,
+      urinal: formData.num_urinal,
+      urinalTrap: formData.num_urinal_trap,
     };
 
     let totalWasteFU = 0;
@@ -58,24 +61,26 @@ const DrainagePipesForm = ({ setData }) => {
     const soilFixtureBreakdown = {};
 
     // Calculate fixture units for each fixture type
-    for (const [fixtureType, count] of Object.entries(fixtures)) {
-      if (count > 0 && drainageFixtureUnitConfig[fixtureType]) {
-        const fixtureUnits =
-          drainageFixtureUnitConfig[fixtureType].fixtureUnits * count;
-        const type = drainageFixtureUnitConfig[fixtureType].type;
+    if (drainageFixtureUnitConfig) {
+      for (const [fixtureType, count] of Object.entries(fixtures)) {
+        if (count > 0 && drainageFixtureUnitConfig[fixtureType]) {
+          const fixtureUnits =
+            drainageFixtureUnitConfig[fixtureType].fixtureUnits * count;
+          const type = drainageFixtureUnitConfig[fixtureType].type;
 
-        if (type === "waste") {
-          totalWasteFU += fixtureUnits;
-          wasteFixtureBreakdown[fixtureType] = {
-            count: count,
-            fixtureUnits: fixtureUnits,
-          };
-        } else if (type === "soil") {
-          totalSoilFU += fixtureUnits;
-          soilFixtureBreakdown[fixtureType] = {
-            count: count,
-            fixtureUnits: fixtureUnits,
-          };
+          if (type === "waste") {
+            totalWasteFU += fixtureUnits;
+            wasteFixtureBreakdown[fixtureType] = {
+              count: count,
+              fixtureUnits: fixtureUnits,
+            };
+          } else if (type === "soil") {
+            totalSoilFU += fixtureUnits;
+            soilFixtureBreakdown[fixtureType] = {
+              count: count,
+              fixtureUnits: fixtureUnits,
+            };
+          }
         }
       }
     }
@@ -97,33 +102,49 @@ const DrainagePipesForm = ({ setData }) => {
     };
   }, [formData]);
 
+  // Autofill data when saved data is loaded
+  useEffect(() => {
+    if (savedData?.data?.input_data) {
+      const inputData = savedData.data.input_data;
+      setFormData({
+        num_wb: inputData.num_wb || 0,
+        num_health_faucet: inputData.num_health_faucet || 0,
+        num_floor_drain: inputData.num_floor_drain || 0,
+        num_service_sink: inputData.num_service_sink || 0,
+        num_kitchen_sink: inputData.num_kitchen_sink || 0,
+        num_shower: inputData.num_shower || 0,
+        num_wc: inputData.num_wc || 0,
+        num_urinal: inputData.num_urinal || 0,
+        num_urinal_trap: inputData.num_urinal_trap || 0,
+        velocity: inputData.velocity || "",
+      });
+      setResult(savedData.data);
+    }
+  }, [savedData]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: parseInt(value) || 0,
+      [name]: name === "velocity" ? parseFloat(value) || "" : parseInt(value) || 0,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = {
-      plumbing: [
-        {
-          num_wb: formData.numWb,
-          num_health_faucet: formData.numHealthFaucet,
-          num_floor_drain: formData.numFloorDrain,
-          num_service_sink: formData.numServiceSink,
-          num_kitchen_sink: formData.numKitchenSink,
-          num_shower: formData.numShower,
-          num_wc: formData.numWc,
-          num_urinal: formData.numUrinal,
-          num_urinal_trap: formData.numUrinalTrap,
-        },
-      ],
-    };
+    if (!projectId) {
+      alert("Please select a project before calculating!");
+      return;
+    }
+    if (!formData.velocity || formData.velocity <= 0) {
+      alert("Please enter a valid velocity before calculating!");
+      return;
+    }
     try {
-      const response = await addDrainagePipes(payload).unwrap();
+      const response = await saveDrainagePipe({
+        project_id: projectId,
+        ...formData,
+      }).unwrap();
       setResult(response.data);
       if (setData) setData(response.data);
     } catch (err) {
@@ -133,15 +154,16 @@ const DrainagePipesForm = ({ setData }) => {
 
   const handleReset = () => {
     setFormData({
-      numWb: 0,
-      numHealthFaucet: 0,
-      numFloorDrain: 0,
-      numServiceSink: 0,
-      numKitchenSink: 0,
-      numShower: 0,
-      numWc: 0,
-      numUrinal: 0,
-      numUrinalTrap: 0,
+      num_wb: 0,
+      num_health_faucet: 0,
+      num_floor_drain: 0,
+      num_service_sink: 0,
+      num_kitchen_sink: 0,
+      num_shower: 0,
+      num_wc: 0,
+      num_urinal: 0,
+      num_urinal_trap: 0,
+      velocity: "",
     });
     setResult(null);
   };
@@ -238,8 +260,8 @@ const DrainagePipesForm = ({ setData }) => {
                     </label>
                     <input
                       type="number"
-                      name="numWb"
-                      value={formData.numWb}
+                      name="num_wb"
+                      value={formData.num_wb}
                       onChange={handleChange}
                       min="0"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -251,8 +273,8 @@ const DrainagePipesForm = ({ setData }) => {
                     </label>
                     <input
                       type="number"
-                      name="numHealthFaucet"
-                      value={formData.numHealthFaucet}
+                      name="num_health_faucet"
+                      value={formData.num_health_faucet}
                       onChange={handleChange}
                       min="0"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -264,8 +286,8 @@ const DrainagePipesForm = ({ setData }) => {
                     </label>
                     <input
                       type="number"
-                      name="numFloorDrain"
-                      value={formData.numFloorDrain}
+                      name="num_floor_drain"
+                      value={formData.num_floor_drain}
                       onChange={handleChange}
                       min="0"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -277,8 +299,8 @@ const DrainagePipesForm = ({ setData }) => {
                     </label>
                     <input
                       type="number"
-                      name="numServiceSink"
-                      value={formData.numServiceSink}
+                      name="num_service_sink"
+                      value={formData.num_service_sink}
                       onChange={handleChange}
                       min="0"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -290,8 +312,8 @@ const DrainagePipesForm = ({ setData }) => {
                     </label>
                     <input
                       type="number"
-                      name="numKitchenSink"
-                      value={formData.numKitchenSink}
+                      name="num_kitchen_sink"
+                      value={formData.num_kitchen_sink}
                       onChange={handleChange}
                       min="0"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -303,8 +325,8 @@ const DrainagePipesForm = ({ setData }) => {
                     </label>
                     <input
                       type="number"
-                      name="numShower"
-                      value={formData.numShower}
+                      name="num_shower"
+                      value={formData.num_shower}
                       onChange={handleChange}
                       min="0"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -316,8 +338,8 @@ const DrainagePipesForm = ({ setData }) => {
                     </label>
                     <input
                       type="number"
-                      name="numWc"
-                      value={formData.numWc}
+                      name="num_wc"
+                      value={formData.num_wc}
                       onChange={handleChange}
                       min="0"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -329,8 +351,8 @@ const DrainagePipesForm = ({ setData }) => {
                     </label>
                     <input
                       type="number"
-                      name="numUrinal"
-                      value={formData.numUrinal}
+                      name="num_urinal"
+                      value={formData.num_urinal}
                       onChange={handleChange}
                       min="0"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -342,10 +364,34 @@ const DrainagePipesForm = ({ setData }) => {
                     </label>
                     <input
                       type="number"
-                      name="numUrinalTrap"
-                      value={formData.numUrinalTrap}
+                      name="num_urinal_trap"
+                      value={formData.num_urinal_trap}
                       onChange={handleChange}
                       min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Velocity Input Section */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                  Velocity Input
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Velocity (m/s)
+                    </label>
+                    <input
+                      type="number"
+                      name="velocity"
+                      value={formData.velocity}
+                      onChange={handleChange}
+                      min="0"
+                      step="0.1"
+                      placeholder="Enter velocity for pipe sizing"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
@@ -534,18 +580,123 @@ const DrainagePipesForm = ({ setData }) => {
                   Calculation Summary
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {Object.entries(result[0]).map(([key, value]) =>
-                    typeof value === "number" || typeof value === "string" ? (
-                      <div key={key} className="bg-green-50 p-4 rounded-md">
-                        <div className="text-sm text-green-600 font-medium">
-                          {key.replace(/_/g, " ")}
-                        </div>
-                        <div className="text-lg font-bold text-green-800">
-                          {value}
-                        </div>
-                      </div>
-                    ) : null
-                  )}
+                  <div className="bg-green-50 p-4 rounded-md">
+                    <div className="text-sm text-green-600 font-medium">
+                      Waste Fixture Units
+                    </div>
+                    <div className="text-lg font-bold text-green-800">
+                      {result.result_data?.total_fixture_unit_waste || 0}
+                    </div>
+                  </div>
+                  <div className="bg-blue-50 p-4 rounded-md">
+                    <div className="text-sm text-blue-600 font-medium">
+                      Soil Fixture Units
+                    </div>
+                    <div className="text-lg font-bold text-blue-800">
+                      {result.result_data?.total_fixture_unit_soil || 0}
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-md">
+                    <div className="text-sm text-purple-600 font-medium">
+                      Flow Rate
+                    </div>
+                    <div className="text-lg font-bold text-purple-800">
+                      {result.result_data?.estimated_flow_rate_lpm || 0} LPM
+                    </div>
+                  </div>
+                  <div className="bg-orange-50 p-4 rounded-md">
+                    <div className="text-sm text-orange-600 font-medium">
+                      Recommended Pipe Size
+                    </div>
+                    <div className="text-lg font-bold text-orange-800">
+                      {result.result_data?.recommended_pipe_size_mm || 0} mm
+                    </div>
+                  </div>
+                  <div className="bg-indigo-50 p-4 rounded-md">
+                    <div className="text-sm text-indigo-600 font-medium">
+                      Calculated Diameter
+                    </div>
+                    <div className="text-lg font-bold text-indigo-800">
+                      {result.result_data?.calculated_diameter_mm || 0} mm
+                    </div>
+                  </div>
+                  <div className="bg-teal-50 p-4 rounded-md">
+                    <div className="text-sm text-teal-600 font-medium">
+                      Velocity
+                    </div>
+                    <div className="text-lg font-bold text-teal-800">
+                      {result.result_data?.calculated_velocity_ms || 0} m/s
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Input Summary */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                  Input Summary
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Wash Basins:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.num_wb || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Health Faucets:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.num_health_faucet || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Floor Drains:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.num_floor_drain || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Service Sinks:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.num_service_sink || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Kitchen Sinks:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.num_kitchen_sink || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Showers:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.num_shower || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Water Closets:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.num_wc || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Urinals:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.num_urinal || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Urinal Traps:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.num_urinal_trap || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Velocity:</span>
+                    <span className="ml-2 font-medium">
+                      {result.input_data?.velocity || 0} m/s
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

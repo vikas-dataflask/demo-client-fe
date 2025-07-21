@@ -361,22 +361,22 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["DrainagePipes"],
     }),
-    addPlumbingHL: builder.mutation({
-      query: (body) => ({
-        url: `api/plumbingheadloss`,
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: ["PlumbingHeadLoss"],
-    }),
-    addPlumbingPump: builder.mutation({
-      query: (body) => ({
-        url: `api/plumbingpump`,
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: ["PlumbingPump"],
-    }),
+    // addPlumbingHL: builder.mutation({
+    //   query: (body) => ({
+    //     url: `api/plumbingheadloss`,
+    //     method: "POST",
+    //     body,
+    //   }),
+    //   invalidatesTags: ["PlumbingHeadLoss"],
+    // }),
+    // addPlumbingPump: builder.mutation({
+    //   query: (body) => ({
+    //     url: `api/plumbingpump`,
+    //     method: "POST",
+    //     body,
+    //   }),
+    //   invalidatesTags: ["PlumbingPump"],
+    // }),
     addRwhSizing: builder.mutation({
       query: (body) => ({
         url: `api/rwh/calculate`,
@@ -384,6 +384,25 @@ export const apiSlice = createApi({
         body,
       }),
       invalidatesTags: ["RWHSizing"],
+    }),
+    saveRwhData: builder.mutation({
+      query: (payload) => ({
+        url: "api/rwh",
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: ["RWHData"],
+    }),
+    getRwhDataByProject: builder.query({
+      query: (projectId) => `api/rwh/${projectId}`,
+      providesTags: ["RWHData"],
+    }),
+    deleteRwhData: builder.mutation({
+      query: (projectId) => ({
+        url: `api/rwh/${projectId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["RWHData"],
     }),
     addRainwaterDropSizing: builder.mutation({
       query: (body) => ({
@@ -458,15 +477,79 @@ export const apiSlice = createApi({
     }),
     addFirePump: builder.mutation({
       query: (data) => ({
-        url: "api/calculate",
+        url: "api/fire/calculate",
         method: "POST",
         body: data,
       }),
       invalidatesTags: ["FirePump"],
     }),
     getFirePumpByProject: builder.query({
-      query: (project_id) => `api/${project_id}`,
+      query: (project_id) => `api/fire/${project_id}`,
       providesTags: ["FirePump"],
+    }),
+    saveWaterSupplyPipe: builder.mutation({
+      query: (payload) => ({
+        url: "api/water-supply-pipes",
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: ["WaterSupplyPipe"],
+    }),
+    getWaterSupplyPipe: builder.query({
+      query: (project_id) => `api/water-supply-pipes/${project_id}`,
+      providesTags: ["WaterSupplyPipe"],
+    }),
+    addPlumbingHL: builder.mutation({
+      query: (body) => ({
+        url: `api/plumbing-head-loss`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["PlumbingHeadLoss"],
+    }),
+    getPlumbingHLByProject: builder.query({
+      query: (project_id) => `api/plumbing-head-loss/${project_id}`,
+      providesTags: ["PlumbingHeadLoss"],
+    }),
+    addPlumbingPump: builder.mutation({
+      query: (data) => ({
+        url: "api/plumbing/calculate",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["PlimbingPump"],
+    }),
+    getPlumbingPumpByProject: builder.query({
+      query: (project_id) => `api/plumbing/${project_id}`,
+      providesTags: ["PlumbingPump"],
+    }),
+    saveDrainagePipe: builder.mutation({
+      query: (data) => ({
+        url: "api/drainage-pipes/drainage-pipe",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["DrainagePipe"],
+    }),
+
+    // Get Drainage Pipe by Project ID
+    getDrainagePipeByProject: builder.query({
+      query: (projectId) => `api/drainage-pipes/drainage-pipe/${projectId}`,
+      providesTags: ["DrainagePipe"],
+    }),
+    saveRainwaterDrop: builder.mutation({
+      query: (data) => ({
+        url: "api/rainwater-drops/rainwater-drop",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["RainwaterDrop"],
+    }),
+
+    // Get Rainwater Drop by Project ID
+    getRainwaterDropByProject: builder.query({
+      query: (projectId) => `api/rainwater-drops/rainwater-drop/${projectId}`,
+      providesTags: ["RainwaterDrop"],
     }),
   }),
 });
@@ -513,9 +596,11 @@ export const {
   useGetBuildingTypeMutation,
   useAddWaterSupplyPipesMutation,
   useAddDrainagePipesMutation,
-  useAddPlumbingHLMutation,
-  useAddPlumbingPumpMutation,
+  // useAddPlumbingHLMutation,
+  // useAddPlumbingPumpMutation,
   useAddRwhSizingMutation,
+  useSaveRwhDataMutation,
+  useGetRwhDataByProjectQuery,
   useAddRainwaterDropSizingMutation,
   useAddQEMutation,
   useGetQEListQuery,
@@ -527,4 +612,14 @@ export const {
   useGetHeatLoadAutofillQuery,
   // useAddFirePumpMutation,
   useGetFirePumpByProjectQuery,
+  useSaveWaterSupplyPipeMutation,
+  useGetWaterSupplyPipeQuery,
+  useAddPlumbingHLMutation,
+  useGetPlumbingHLByProjectQuery,
+  useAddPlumbingPumpMutation,
+  useGetPlumbingPumpByProjectQuery,
+  useSaveDrainagePipeMutation,
+  useGetDrainagePipeByProjectQuery,
+  useSaveRainwaterDropMutation,
+  useGetRainwaterDropByProjectQuery,
 } = apiSlice;

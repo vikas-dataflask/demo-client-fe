@@ -1,8 +1,14 @@
-import React, { useState } from "react";
-import { useAddRainwaterDropSizingMutation } from "../../redux/features/api/api";
+import React, { useState, useEffect } from "react";
+import {
+  useAddRainwaterDropSizingMutation,
+  useSaveRainwaterDropMutation,
+  useGetRainwaterDropByProjectQuery,
+} from "../../redux/features/api/api";
 import RainWaterIcon from "../../icons/RainWaterIcon";
+import { useParams } from "react-router-dom";
 
 const RainWaterDropping = ({ setData }) => {
+  const { projectId } = useParams();
   const [formData, setFormData] = useState({
     roofAreaM2: 250,
     rainfallIntensityMmHr: 109,
@@ -11,8 +17,31 @@ const RainWaterDropping = ({ setData }) => {
   });
 
   const [result, setResult] = useState(null);
-  const [addRainwaterDropSizing, { isLoading, error }] =
-    useAddRainwaterDropSizingMutation();
+  const [
+    addRainwaterDropSizing,
+    { isLoading: calculationLoading, error: calculationError },
+  ] = useAddRainwaterDropSizingMutation();
+  const [saveRainwaterDrop, { isLoading: saveLoading, error: saveError }] =
+    useSaveRainwaterDropMutation();
+  const { data: savedData, isLoading: autoFillLoading } =
+    useGetRainwaterDropByProjectQuery(projectId, { skip: !projectId });
+
+  // Autofill data when saved data is loaded
+  useEffect(() => {
+    if (savedData?.data?.input_data) {
+      const inputData = savedData.data.input_data;
+      setFormData({
+        roofAreaM2: inputData.roofAreaM2 || 250,
+        rainfallIntensityMmHr: inputData.rainfallIntensityMmHr || 109,
+        preferredPipeSize: inputData.preferredPipeSize || "",
+        coefficientDischarge: inputData.coefficientDischarge || 0.9,
+      });
+      // Set the result data from the saved result_data field
+      if (savedData.data.result_data) {
+        setResult(savedData.data.result_data);
+      }
+    }
+  }, [savedData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -24,6 +53,11 @@ const RainWaterDropping = ({ setData }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!projectId) {
+      alert("Please select a project before calculating!");
+      return;
+    }
 
     try {
       const payload = {
@@ -41,6 +75,18 @@ const RainWaterDropping = ({ setData }) => {
       const response = await addRainwaterDropSizing(payload).unwrap();
       setResult(response.data);
       setData(response.data);
+
+      // Save the data to the database
+      try {
+        await saveRainwaterDrop({
+          project_id: projectId,
+          input_data: payload,
+          result_data: response.data,
+        }).unwrap();
+        console.log("Rainwater drop data saved successfully");
+      } catch (saveErr) {
+        console.error("Error saving rainwater drop data:", saveErr);
+      }
     } catch (err) {
       console.error("Rainwater sizing calculation error:", err);
       console.error("Error details:", {
@@ -279,9 +325,11 @@ const RainWaterDropping = ({ setData }) => {
               <button
                 type="submit"
                 className="w-full px-6 py-3 text-lg font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                disabled={isLoading}
+                disabled={calculationLoading || saveLoading}
               >
-                {isLoading ? "Calculating..." : "Calculate Downpipe Sizing"}
+                {calculationLoading || saveLoading
+                  ? "Calculating..."
+                  : "Calculate Downpipe Sizing"}
               </button>
             </form>
           </div>
@@ -294,11 +342,24 @@ const RainWaterDropping = ({ setData }) => {
             Sizing Results
           </h2>
 
-          {error && (
+          {calculationError && (
             <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
               <div className="text-red-800 font-semibold">Error</div>
               <div className="text-red-700">
-                {error.data?.message || error.error || "An error occurred"}
+                {calculationError.data?.message ||
+                  calculationError.error ||
+                  "An error occurred"}
+              </div>
+            </div>
+          )}
+
+          {saveError && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+              <div className="text-red-800 font-semibold">Error</div>
+              <div className="text-red-700">
+                {saveError.data?.message ||
+                  saveError.error ||
+                  "An error occurred"}
               </div>
             </div>
           )}
@@ -418,7 +479,7 @@ const RainWaterDropping = ({ setData }) => {
                       Roof Area:
                     </span>
                     <span className="text-gray-800">
-                      {result.roofAreaM2} m²
+                      {formData?.roofAreaM2} m²
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -426,7 +487,7 @@ const RainWaterDropping = ({ setData }) => {
                       Rainfall Intensity:
                     </span>
                     <span className="text-gray-800">
-                      {result.rainfallIntensityMmHr} mm/hr
+                      {formData?.rainfallIntensityMmHr} mm/hr
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -434,7 +495,7 @@ const RainWaterDropping = ({ setData }) => {
                       Coefficient:
                     </span>
                     <span className="text-gray-800">
-                      {result.coefficientDischarge}
+                      {formData?.coefficientDischarge}
                     </span>
                   </div>
                   {result.preferredPipeSize && (
@@ -490,20 +551,12 @@ const RainWaterDropping = ({ setData }) => {
                       {result.calculationMethod}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Timestamp:
-                    </span>
-                    <span className="text-gray-800">
-                      {new Date(result.timestamp).toLocaleString()}
-                    </span>
-                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {!result && !isLoading && (
+          {!result && !calculationLoading && !autoFillLoading && (
             <div className="text-center text-gray-500 mt-20">
               <div className="text-6xl mb-4">🌧️</div>
               <div className="text-xl font-medium">
