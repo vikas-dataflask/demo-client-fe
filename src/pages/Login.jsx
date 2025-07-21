@@ -1,114 +1,114 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import BackArrowIcon from "../icons/BackArrowIcon";
 import EyeIcon from "../icons/EyeIcon";
 import EyeCloseIcon from "../icons/EyeCloseIcon";
-import { useLoginMutation } from "../redux/features/api/api";
+
 import { useDispatch } from "react-redux";
+
+import { toast } from "react-toastify";
 import { setUser } from "../redux/features/app/userSLice";
+import { useLoginMutation } from "../redux/features/api/api";
 
 export default function Login() {
-  // const [email, setEmail] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [token, setToken] = useState();
-  const navigate = useNavigate();
-  const [login] = useLoginMutation();
-  const dispatch = useDispatch();
-  const [userInfo, setUserInfo] = useState({ email: "", username: "" });
 
-  useEffect(() => {
-    if (token) {
-      const { email, username, userId } = userInfo; // assuming you set this
-      localStorage.setItem("token", token);
-      dispatch(setUser({ email, username, token, userId }));
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ email, username, token, userId })
-      );
-    }
-  }, [token, dispatch]);
+  const navigate = useNavigate();
+  const [login, { isLoading }] = useLoginMutation();
+  const dispatch = useDispatch();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await login({ identifier, password });
+      // Use .unwrap() to directly get the fulfilled value or throw the error
+      const responseData = await login({ identifier, password }).unwrap();
 
-      if (response?.data?.token) {
-        const { token, email, username, id, _id } = response.data;
-        const userId = id || _id;
-        setToken(token);
-        setUserInfo({ email, username, userId }); // Save it in a state variable
-      } else {
-        console.error("Login failed or token missing", response);
-      }
+      // Dispatch the entire responseData object to setUser.
+      // This ensures all fields (email, username, _id, token, profilePicUrl,
+      // firstName, lastName, contactNumber) are correctly saved to Redux and localStorage.
+      dispatch(setUser(responseData));
+
+      toast.success("Login successful!");
+      // Navigate after a short delay to allow toast to show
+      setTimeout(() => navigate("/home"), 500);
     } catch (err) {
       console.error("Login error:", err);
+      // Access error message from RTK Query error object
+      toast.error(err.data?.message || "Login failed. Please try again.");
     }
-
-    navigate("/home");
   };
 
   return (
-    <div className="flex">
-      <div className="w-1/2 h-[100vh] overflow-hidden">
-        <img
-          className="w-[100%] h-[100%] object-cover"
-          src="src/images/bg.jpeg"
-          alt="Login Banner"
-        />
-      </div>
-      <div className="w-1/2 flex items-center justify-center">
-        <div className="flex flex-col gap-6">
-          <div className="bg-neutral-100 hover:bg-neutral-200 rounded-lg p-2 w-fit flex items-center justify-center">
-            <BackArrowIcon />
-          </div>
-          <div className="flex flex-col gap-8">
-            <div className="text-4xl font-bold">Login</div>
-            <form className="flex flex-col gap-4">
-              <input
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                type="text"
-                placeholder="Email or Username"
-                autoComplete="off"
-                className="text-lg w-88 rounded p-2 outline-none bg-neutral-100"
-              />
-              <div className="flex gap-2">
-                <input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  type={showPassword ? "text" : "Password"}
-                  placeholder="Password"
-                  autoComplete="off"
-                  className="text-lg w-76 rounded p-2 outline-none bg-neutral-100"
-                />
-                <div
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="bg-neutral-100 hover:bg-neutral-200 rounded-lg p-2 w-fit flex items-center justify-center"
-                >
-                  {showPassword ? <EyeIcon /> : <EyeCloseIcon />}
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <div className="text-sm">Don't have an account?</div>
-                <Link
-                  to="/signup"
-                  className="text-sm underline text-blue-500 hover:text-blue-600 font-semibold cursor-pointer"
-                >
-                  Signup
-                </Link>
-              </div>
-              <button
-                onClick={handleSubmit}
-                className="bg-blue-500 text-xl font-bold text-white hover:bg-blue-600 rounded-md p-2 cursor-pointer"
-              >
-                Login
-              </button>
-            </form>
-          </div>
+    <div
+      className="min-h-screen w-full flex items-center justify-center bg-cover bg-center px-4"
+      style={{ backgroundImage: "url('/bg.jpg')" }}
+    >
+      <div className="w-full max-w-sm bg-white/20 backdrop-blur-lg rounded-xl p-6 shadow-lg">
+        {" "}
+        {/* Adjusted max-w and padding */}
+        {/* Logo and Brand */}
+        <div className="flex flex-col items-center mb-4">
+          {" "}
+          {/* Adjusted margin-bottom */}
+          <img
+            src="/src/images/dd3.svg"
+            alt="Logo"
+            className="w-10 h-10 object-contain mb-2" // Adjusted logo size
+          />
+          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            DesignDrafter
+          </h1>
+          <p className="text-white text-sm mt-1">Login to your account</p>
         </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            type="text"
+            name="identifier"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="Email or Username"
+            required
+            className="w-full px-3 py-2 text-sm rounded-md bg-white/90 placeholder-gray-400 focus:outline-none"
+          />
+
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="•••••••••••••"
+              required
+              className="w-full px-3 py-2 text-sm pr-10 rounded-md bg-white/90 placeholder-gray-400 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2 top-2 text-gray-600 hover:text-gray-800"
+            >
+              {showPassword ? <EyeCloseIcon /> : <EyeIcon />}
+            </button>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-2 rounded-md text-white font-medium bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90"
+          >
+            {isLoading ? "Logging in..." : "Login"}
+          </button>
+
+          <p className="text-sm text-white text-center mt-2">
+            Don’t have an account?{" "}
+            <Link
+              to="/signup"
+              className="underline text-blue-300 hover:text-white"
+            >
+              Sign up
+            </Link>
+          </p>
+        </form>
       </div>
     </div>
   );

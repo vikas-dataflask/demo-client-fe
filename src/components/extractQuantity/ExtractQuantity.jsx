@@ -7,8 +7,9 @@ import {
   useDeleteQEMutation,
 } from "../../redux/features/api/api";
 import DraftSideBar from "../shared/DraftSideBar";
+import UserAvatar from "../shared/UserAvatar";
 
-const ExtractQuantity = () => {
+const ExtractQuantity = ({ onOpenSettings }) => {
   const [showModal, setShowModal] = useState(false);
   const navigate = useNavigate();
 
@@ -49,13 +50,15 @@ const ExtractQuantity = () => {
 
       {/* Main */}
       <div className="flex-1 bg-[#f7f7f7] relative overflow-y-auto">
-        <div className="absolute top-6 right-6 z-10">
+        {/* TOP RIGHT ICONS & BUTTONS */}
+        <div className="absolute top-6 right-6 z-10 flex items-center gap-4">
           <button
             onClick={() => setShowModal(true)}
             className="bg-[#007bff] text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-blue-600 transition"
           >
             Add New
           </button>
+          <UserAvatar onOpenSettings={onOpenSettings} />
         </div>
         <div className="px-8 pt-20 pb-8">
           {isLoading ? (
