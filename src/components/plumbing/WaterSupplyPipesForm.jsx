@@ -1,6 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import WaterSupplyIcon from "../../icons/WaterSupplyIcon";
-import { useAddWaterSupplyPipesMutation } from "../../redux/features/api/api";
+import {
+  useSaveWaterSupplyPipeMutation,
+  useGetWaterSupplyPipeQuery,
+} from "../../redux/features/api/api";
 
 const initialState = {
   numWb: 0,
@@ -11,8 +15,7 @@ const initialState = {
   numWaterFountain: 0,
   numWc: 0,
   numUrinal: 0,
-  pipeLength: "",
-  pipeMaterial: "Steel",
+  velocity: "", // ✅ Added velocity
 };
 
 // Fixture unit configuration (matching backend)
@@ -57,9 +60,14 @@ const FU_TO_FLOW_LPM = [
 ];
 
 const WaterSupplyPipesForm = ({ setData }) => {
+  const { projectId } = useParams();
   const [formData, setFormData] = useState(initialState);
-  const [addWaterSupplyPipes, { isLoading, error }] =
-    useAddWaterSupplyPipesMutation();
+  const [saveWaterSupplyPipe, { isLoading, error }] =
+    useSaveWaterSupplyPipeMutation();
+  const { data, isFetching } = useGetWaterSupplyPipeQuery(projectId, {
+    skip: !projectId,
+  });
+
   const [result, setResult] = useState(null);
 
   // Calculate fixture units and flow rate in real-time
@@ -150,40 +158,45 @@ const WaterSupplyPipesForm = ({ setData }) => {
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "pipeMaterial"
-          ? value
-          : name === "pipeLength"
-          ? parseFloat(value) || ""
-          : parseInt(value) || 0,
+        name === "velocity" ? parseFloat(value) || "" : parseInt(value) || 0,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!projectId) {
+      alert("Please select a project before calculating!");
+      return;
+    }
+
+    if (!formData.velocity || formData.velocity <= 0) {
+      alert("Please enter a valid velocity before calculating!");
+      return;
+    }
+
     const payload = {
-      water_supply: [
-        {
-          num_wb: formData.numWb,
-          num_health_faucet: formData.numHealthFaucet,
-          num_bib_tap: formData.numBibTap,
-          num_service_sink: formData.numServiceSink,
-          num_kitchen_sink: formData.numKitchenSink,
-          num_water_fountain: formData.numWaterFountain,
-          num_wc: formData.numWc,
-          num_urinal: formData.numUrinal,
-          ...(formData.pipeLength && { pipe_length: formData.pipeLength }),
-          ...(formData.pipeMaterial && {
-            pipe_material: formData.pipeMaterial,
-          }),
-        },
-      ],
+      project_id: projectId,
+      input_data: {
+        num_wb: formData.numWb,
+        num_health_faucet: formData.numHealthFaucet,
+        num_bib_tap: formData.numBibTap,
+        num_service_sink: formData.numServiceSink,
+        num_kitchen_sink: formData.numKitchenSink,
+        num_water_fountain: formData.numWaterFountain,
+        num_wc: formData.numWc,
+        num_urinal: formData.numUrinal,
+        velocity: formData.velocity,
+      },
     };
+
     try {
-      const response = await addWaterSupplyPipes(payload).unwrap();
-      setResult(response.data);
-      if (setData) setData(response.data);
-    } catch (err) {
-      setResult(null);
+      const response = await saveWaterSupplyPipe(payload).unwrap();
+      console.log("Saved successfully:", response);
+      setResult([response.data]); // ✅ should store the full data, not just result_data
+    } catch (error) {
+      console.error("Save error:", error);
+      alert("Error saving data: " + (error.data?.message || error.error));
     }
   };
 
@@ -191,6 +204,24 @@ const WaterSupplyPipesForm = ({ setData }) => {
     setFormData(initialState);
     setResult(null);
   };
+
+  useEffect(() => {
+    if (data?.data?.length > 0) {
+      const lastEntry = data.data[0]; // latest saved record
+      setFormData({
+        numWb: lastEntry.input_data.num_wb,
+        numHealthFaucet: lastEntry.input_data.num_health_faucet,
+        numBibTap: lastEntry.input_data.num_bib_tap,
+        numServiceSink: lastEntry.input_data.num_service_sink,
+        numKitchenSink: lastEntry.input_data.num_kitchen_sink,
+        numWaterFountain: lastEntry.input_data.num_water_fountain,
+        numWc: lastEntry.input_data.num_wc,
+        numUrinal: lastEntry.input_data.num_urinal,
+        velocity: lastEntry.input_data.velocity,
+      });
+      setResult([lastEntry]);
+    }
+  }, [data]);
 
   return (
     <div className="flex h-screen">
@@ -481,46 +512,26 @@ const WaterSupplyPipesForm = ({ setData }) => {
                 )}
               </div>
 
-              {/* Pipe Parameters Section (Optional) */}
+              {/* ✅ NEW: Velocity Input */}
               <div className="bg-gray-50 rounded-lg p-6">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                  Pipe Parameters{" "}
-                  <span className="text-sm font-normal text-gray-500">
-                    (Optional - for pressure drop calculation)
-                  </span>
+                  Velocity Input
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Pipe Length (m)
+                      Velocity (m/s)
                     </label>
                     <input
                       type="number"
-                      name="pipeLength"
-                      value={formData.pipeLength}
+                      name="velocity"
+                      value={formData.velocity}
                       onChange={handleChange}
                       min="0"
                       step="0.1"
-                      placeholder="Enter pipe length for pressure drop calculation"
+                      placeholder="Enter velocity for pipe sizing"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Pipe Material
-                    </label>
-                    <select
-                      name="pipeMaterial"
-                      value={formData.pipeMaterial}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Steel">Steel</option>
-                      <option value="Copper">Copper</option>
-                      <option value="PVC">PVC</option>
-                      <option value="PEX">PEX</option>
-                      <option value="Galvanized Iron">Galvanized Iron</option>
-                    </select>
                   </div>
                 </div>
               </div>
@@ -565,7 +576,7 @@ const WaterSupplyPipesForm = ({ setData }) => {
                     {result.length > 1 ? `#${index + 1}` : "Summary"}
                   </h3>
 
-                  {/* Fixture Units Summary */}
+                  {/* Fixture Units */}
                   <div className="mb-6">
                     <h4 className="font-medium text-gray-700 mb-3">
                       Fixture Units
@@ -576,9 +587,7 @@ const WaterSupplyPipesForm = ({ setData }) => {
                           Cold Water FU
                         </div>
                         <div className="text-lg font-bold text-blue-800">
-                          {calculation.fixture_units_cold ||
-                            calculation.total_fixture_unit_domestic ||
-                            0}
+                          {calculation.result_data?.fixture_units_cold || 0}
                         </div>
                       </div>
                       <div className="bg-green-50 p-3 rounded-md">
@@ -586,7 +595,7 @@ const WaterSupplyPipesForm = ({ setData }) => {
                           Hot Water FU
                         </div>
                         <div className="text-lg font-bold text-green-800">
-                          {calculation.fixture_units_hot || 0}
+                          {calculation.result_data?.fixture_units_hot || 0}
                         </div>
                       </div>
                     </div>
@@ -603,8 +612,7 @@ const WaterSupplyPipesForm = ({ setData }) => {
                           Estimated Flow Rate
                         </div>
                         <div className="text-lg font-bold text-purple-800">
-                          {calculation.estimated_flow_rate_lpm ||
-                            calculation.flow_lpm_domestic ||
+                          {calculation.result_data?.estimated_flow_rate_lpm ||
                             0}{" "}
                           LPM
                         </div>
@@ -614,7 +622,7 @@ const WaterSupplyPipesForm = ({ setData }) => {
                           Flow Rate (m³/s)
                         </div>
                         <div className="text-lg font-bold text-orange-800">
-                          {calculation.flow_m3s_domestic || 0} m³/s
+                          {calculation.result_data?.flow_m3s_domestic || 0} m³/s
                         </div>
                       </div>
                     </div>
@@ -628,42 +636,27 @@ const WaterSupplyPipesForm = ({ setData }) => {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-indigo-50 p-3 rounded-md">
                         <div className="text-sm text-indigo-600 font-medium">
-                          Recommended Pipe Size
+                          Recommended Pipe diameter
                         </div>
                         <div className="text-lg font-bold text-indigo-800">
-                          {calculation.recommended_pipe_size_mm ||
-                            calculation.pipe_size_provided_domestic ||
+                          {calculation.result_data?.recommended_pipe_size_mm ||
                             0}{" "}
                           mm
                         </div>
                       </div>
                       <div className="bg-teal-50 p-3 rounded-md">
                         <div className="text-sm text-teal-600 font-medium">
-                          Calculated Velocity
+                          Velocity
                         </div>
                         <div className="text-lg font-bold text-teal-800">
-                          {calculation.calculated_velocity_ms || 0} m/s
+                          {calculation.result_data?.calculated_velocity_ms ||
+                            formData?.velocity ||
+                            0}{" "}
+                          m/s
                         </div>
                       </div>
                     </div>
                   </div>
-
-                  {/* Pressure Drop (if available) */}
-                  {calculation.pressure_drop_bar && (
-                    <div className="mb-6">
-                      <h4 className="font-medium text-gray-700 mb-3">
-                        Pressure Drop
-                      </h4>
-                      <div className="bg-red-50 p-3 rounded-md">
-                        <div className="text-sm text-red-600 font-medium">
-                          Pressure Drop
-                        </div>
-                        <div className="text-lg font-bold text-red-800">
-                          {calculation.pressure_drop_bar} bar
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Input Summary */}
                   <div className="border-t pt-4">
@@ -674,25 +667,49 @@ const WaterSupplyPipesForm = ({ setData }) => {
                       <div>
                         <span className="text-gray-600">Wash Basins:</span>
                         <span className="ml-2 font-medium">
-                          {calculation.num_wb || 0}
+                          {calculation.input_data?.num_wb || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Health Faucets:</span>
+                        <span className="ml-2 font-medium">
+                          {calculation.input_data?.num_health_faucet || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Bib Taps:</span>
+                        <span className="ml-2 font-medium">
+                          {calculation.input_data?.num_bib_tap || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Service Sinks:</span>
+                        <span className="ml-2 font-medium">
+                          {calculation.input_data?.num_service_sink || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Water Fountains:</span>
+                        <span className="ml-2 font-medium">
+                          {calculation.input_data?.num_water_fountain || 0}
                         </span>
                       </div>
                       <div>
                         <span className="text-gray-600">WCs:</span>
                         <span className="ml-2 font-medium">
-                          {calculation.num_wc || 0}
+                          {calculation.input_data?.num_wc || 0}
                         </span>
                       </div>
                       <div>
                         <span className="text-gray-600">Kitchen Sinks:</span>
                         <span className="ml-2 font-medium">
-                          {calculation.num_kitchen_sink || 0}
+                          {calculation.input_data?.num_kitchen_sink || 0}
                         </span>
                       </div>
                       <div>
                         <span className="text-gray-600">Urinals:</span>
                         <span className="ml-2 font-medium">
-                          {calculation.num_urinal || 0}
+                          {calculation.input_data?.num_urinal || 0}
                         </span>
                       </div>
                       {calculation.pipe_length && (

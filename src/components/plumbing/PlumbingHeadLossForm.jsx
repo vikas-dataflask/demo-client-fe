@@ -1,11 +1,17 @@
-import React, { useState } from "react";
-import { useAddPlumbingHLMutation } from "../../redux/features/api/api";
-import HeadLossIcon from "../../icons/HeadLossIcon";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { useParams } from "react-router-dom"; // ✅ Add useParams import like AHU
+import {
+  useAddPlumbingHLMutation,
+  useGetPlumbingHLByProjectQuery,
+} from "../../redux/features/api/api";
 
 const PlumbingHeadLossForm = ({ setData }) => {
+  const { projectId } = useParams(); // ✅ Get projectId from URL like AHU
+
   const [formData, setFormData] = useState({
-    pipeDiameter: "50",
-    pipeMaterial: "PVC",
+    pipeDiameter: "150",
+    pipeMaterial: "Steel",
     pipeLengthHorizontal: "",
     pipeLengthVertical: "",
     fittings: {
@@ -18,14 +24,21 @@ const PlumbingHeadLossForm = ({ setData }) => {
       GLV: 0,
       OTHER: 0,
     },
-    frictionalLossCoefficient: 150,
+    frictionalLossCoefficient: 120,
     flowrateLpm: "",
     staticLossMeter: 0,
     staticGainMeter: 0,
+    velocity: "",
+    heightOfFitting: "",
   });
 
   const [result, setResult] = useState(null);
   const [addPlumbingHL, { isLoading, error }] = useAddPlumbingHLMutation();
+
+  const { data, isLoading: autoFillLoading } = useGetPlumbingHLByProjectQuery(
+    projectId,
+    { skip: !projectId }
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,7 +62,13 @@ const PlumbingHeadLossForm = ({ setData }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!projectId) {
+      alert("Please select a project before calculating!");
+      return;
+    }
+
     const requestData = {
+      project_id: projectId, // ✅ Same as AHU
       pipeDia: parseInt(formData.pipeDiameter),
       pipeMaterial: formData.pipeMaterial,
       pipeLengthHorizontal: parseFloat(formData.pipeLengthHorizontal),
@@ -59,12 +78,14 @@ const PlumbingHeadLossForm = ({ setData }) => {
       flowrateLpm: parseFloat(formData.flowrateLpm),
       staticLossMeter: parseFloat(formData.staticLossMeter),
       staticGainMeter: parseFloat(formData.staticGainMeter),
+      velocity: parseFloat(formData.velocity),
+      heightOfFitting: parseFloat(formData.heightOfFitting),
     };
 
     try {
       const response = await addPlumbingHL(requestData).unwrap();
-      setResult(response.data);
-      setData(response.data);
+      setResult(response.data.result_data);
+      setData(response.data.result_data);
     } catch (err) {
       console.error("Plumbing head loss calculation error:", err);
     }
@@ -72,8 +93,8 @@ const PlumbingHeadLossForm = ({ setData }) => {
 
   const resetForm = () => {
     setFormData({
-      pipeDiameter: "50",
-      pipeMaterial: "PVC",
+      pipeDiameter: "150",
+      pipeMaterial: "Steel",
       pipeLengthHorizontal: "",
       pipeLengthVertical: "",
       fittings: {
@@ -86,10 +107,12 @@ const PlumbingHeadLossForm = ({ setData }) => {
         GLV: 0,
         OTHER: 0,
       },
-      frictionalLossCoefficient: 150,
+      frictionalLossCoefficient: 120,
       flowrateLpm: "",
       staticLossMeter: 0,
       staticGainMeter: 0,
+      velocity: "",
+      heightOfFitting: "",
     });
     setResult(null);
   };
@@ -123,15 +146,66 @@ const PlumbingHeadLossForm = ({ setData }) => {
     return totalEquivalent;
   };
 
+  useEffect(() => {
+    if (!projectId) return;
+
+    const fetchData = async () => {
+      try {
+        const res = await axios.get(`/api/plumbing-head-loss/${projectId}`);
+        if (res.data.success) {
+          const { input_data, result_data } = res.data.data;
+          setFormData({
+            pipeDiameter: input_data.pipeDia.toString(),
+            pipeMaterial: input_data.pipeMaterial,
+            pipeLengthHorizontal: input_data.pipeLengthHorizontal,
+            pipeLengthVertical: input_data.pipeLengthVertical,
+            fittings: input_data.fittings,
+            frictionalLossCoefficient: input_data.frictionalLossCoefficient,
+            flowrateLpm: input_data.flowrateLpm,
+            staticLossMeter: input_data.staticLossMeter,
+            staticGainMeter: input_data.staticGainMeter,
+            velocity: input_data.velocity,
+            heightOfFitting: input_data.heightOfFitting,
+          });
+          setResult(result_data);
+        }
+      } catch (err) {
+        console.error("Autofill error:", err);
+      }
+    };
+
+    fetchData();
+  }, [projectId]);
+
+  useEffect(() => {
+    if (data?.success) {
+      const { input_data, result_data } = data.data;
+      setFormData({
+        pipeDiameter: input_data.pipeDia.toString(),
+        pipeMaterial: input_data.pipeMaterial,
+        pipeLengthHorizontal: input_data.pipeLengthHorizontal,
+        pipeLengthVertical: input_data.pipeLengthVertical,
+        fittings: input_data.fittings,
+        frictionalLossCoefficient: input_data.frictionalLossCoefficient,
+        flowrateLpm: input_data.flowrateLpm,
+        staticLossMeter: input_data.staticLossMeter,
+        staticGainMeter: input_data.staticGainMeter,
+        velocity: input_data.velocity,
+        heightOfFitting: input_data.heightOfFitting,
+      });
+      setResult(result_data);
+    }
+  }, [data]);
+
   return (
-    <div className="flex h-screen">
+    <div className="flex h-[92vh]">
       {/* Left Sidebar - Form */}
-      <div className="flex-1 bg-white border-r border-gray-300 text-sm font-medium flex flex-col h-full">
+      <div className="flex-1 bg-white border-r border-gray-300 text-sm font-medium flex flex-col ">
         {/* Header */}
         <div className="p-4 pb-0 border-b border-gray-200">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
-              <HeadLossIcon size={32} />
+              {/* <PLumning HeadLossIcon size={32} /> */}
               <div>
                 <h2 className="text-[15px] font-semibold text-gray-800">
                   Plumbing Head Loss Calculator
@@ -205,15 +279,11 @@ const PlumbingHeadLossForm = ({ setData }) => {
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="25">25 mm</option>
-                      <option value="32">32 mm</option>
-                      <option value="40">40 mm</option>
-                      <option value="50">50 mm</option>
-                      <option value="65">65 mm</option>
-                      <option value="80">80 mm</option>
                       <option value="100">100 mm</option>
                       <option value="150">150 mm</option>
                       <option value="200">200 mm</option>
+                      <option value="250">250 mm</option>
+                      <option value="300">300 mm</option>
                     </select>
                   </div>
                   <div>
@@ -226,14 +296,11 @@ const PlumbingHeadLossForm = ({ setData }) => {
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
+                      <option value="Steel">Steel (C=120)</option>
+                      <option value="Cast Iron">Cast Iron (C=100)</option>
                       <option value="PVC">PVC (C=150)</option>
                       <option value="HDPE">HDPE (C=150)</option>
                       <option value="Copper">Copper (C=130)</option>
-                      <option value="Steel">Steel (C=120)</option>
-                      <option value="Cast Iron">Cast Iron (C=100)</option>
-                      <option value="Galvanized Iron">
-                        Galvanized Iron (C=110)
-                      </option>
                     </select>
                   </div>
                   <div>
@@ -297,6 +364,39 @@ const PlumbingHeadLossForm = ({ setData }) => {
                 <h2 className="text-lg font-semibold text-gray-800 mb-4">
                   Fittings & Valves
                 </h2>
+                {/* ✅ New Inputs */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Velocity (m/s)
+                    </label>
+                    <input
+                      type="number"
+                      name="velocity"
+                      value={formData.velocity}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter velocity"
+                      step="0.1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Height of Fitting (m)
+                    </label>
+                    <input
+                      type="number"
+                      name="heightOfFitting"
+                      value={formData.heightOfFitting}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter height"
+                      step="0.1"
+                      required
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -550,51 +650,51 @@ const PlumbingHeadLossForm = ({ setData }) => {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
-                      Friction Loss:
+                      Friction Loss (H_friction):
+                    </span>
+                    <span className="text-gray-800">{result.H_friction} m</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Fitting Loss (H_fitting):
+                    </span>
+                    <span className="text-gray-800">{result.H_fitting} m</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Elevation Loss (H_elevation):
                     </span>
                     <span className="text-gray-800">
-                      {result.pressureLossTotalBar} bar
+                      {result.H_elevation} m
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
-                      Static Loss:
+                      Static Head (H_static):
                     </span>
-                    <span className="text-gray-800">
-                      {result.staticLossMeter} m
+                    <span className="text-gray-800">{result.H_static} m</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">
+                      Total Head Loss (H_total):
+                    </span>
+                    <span className="text-gray-800 font-semibold">
+                      {result.H_total} m
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
-                      Static Gain:
-                    </span>
-                    <span className="text-gray-800">
-                      {result.staticGainMeter} m
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Total Head:
+                      Total Pressure Loss:
                     </span>
                     <span className="text-gray-800">
                       {result.totalPressureLossBar} bar
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between pt-2 border-t border-gray-200">
                     <span className="font-medium text-gray-600">
-                      Pressure Loss/m:
+                      Total K Value (ΣK):
                     </span>
-                    <span className="text-gray-800">
-                      {result.pressureLossPerMeterBar} bar/m
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Flow Rate:
-                    </span>
-                    <span className="text-gray-800">
-                      {result.flowRateM3s} m³/s
-                    </span>
+                    <span className="text-gray-800">{result.K_total}</span>
                   </div>
                 </div>
               </div>
@@ -609,20 +709,24 @@ const PlumbingHeadLossForm = ({ setData }) => {
                     <span className="font-medium text-gray-600">
                       Pipe Diameter:
                     </span>
-                    <span className="text-gray-800">{result.pipeDia} mm</span>
+                    <span className="text-gray-800">
+                      {formData?.pipeDiameter} mm
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
                       Pipe Material:
                     </span>
-                    <span className="text-gray-800">{result.pipeMaterial}</span>
+                    <span className="text-gray-800">
+                      {formData?.pipeMaterial}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
                       Horizontal Length:
                     </span>
                     <span className="text-gray-800">
-                      {result.pipeLengthHorizontal} m
+                      {formData?.pipeLengthHorizontal} m
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -630,7 +734,7 @@ const PlumbingHeadLossForm = ({ setData }) => {
                       Vertical Length:
                     </span>
                     <span className="text-gray-800">
-                      {result.pipeLengthVertical} m
+                      {formData?.pipeLengthVertical} m
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -638,51 +742,22 @@ const PlumbingHeadLossForm = ({ setData }) => {
                       Flow Rate:
                     </span>
                     <span className="text-gray-800">
-                      {result.flowrateLpm} L/min
+                      {formData?.flowrateLpm} L/min
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-600">Velocity:</span>
+                    <span className="text-gray-800">
+                      {formData?.velocity} m/s
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">
-                      Friction Coefficient:
+                      Height of Fitting:
                     </span>
                     <span className="text-gray-800">
-                      {result.frictionalLossCoefficient}
+                      {formData.heightOfFitting} m
                     </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Fittings Breakdown */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                  Fittings Breakdown
-                </h3>
-                <div className="space-y-2 text-sm">
-                  {result.fittings &&
-                    Object.entries(result.fittings).map(
-                      ([fitting, count]) =>
-                        count > 0 && (
-                          <div key={fitting} className="flex justify-between">
-                            <span className="font-medium text-gray-600">
-                              {fitting}:
-                            </span>
-                            <span className="text-gray-800">{count}</span>
-                          </div>
-                        )
-                    )}
-
-                  <div className="pt-2 border-t border-gray-200">
-                    <div className="flex justify-between font-medium">
-                      <span className="text-gray-600">Total Fittings:</span>
-                      <span className="text-gray-800">
-                        {result.fittings
-                          ? Object.values(result.fittings).reduce(
-                              (sum, count) => sum + count,
-                              0
-                            )
-                          : 0}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -691,7 +766,7 @@ const PlumbingHeadLossForm = ({ setData }) => {
 
           {!result && !isLoading && (
             <div className="text-center text-gray-500 mt-20">
-              <div className="text-6xl mb-4">🚰</div>
+              <div className="text-6xl mb-4">🔥</div>
               <div className="text-xl font-medium">
                 No calculation performed yet
               </div>

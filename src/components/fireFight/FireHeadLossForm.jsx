@@ -643,7 +643,6 @@ const FireHeadLossForm = ({ setData }) => {
               </div>
 
               {/* Detailed Results */}
-              {/* Detailed Results */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Detailed Results
@@ -746,14 +745,6 @@ const FireHeadLossForm = ({ setData }) => {
                       {formData?.flowrateLpm} L/min
                     </span>
                   </div>
-                  {/* <div className="flex justify-between">
-                    <span className="font-medium text-gray-600">
-                      Friction Coefficient:
-                    </span>
-                    <span className="text-gray-800">
-                      {result.frictionalLossCoefficient}
-                    </span>
-                  </div> */}
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">Velocity:</span>
                     <span className="text-gray-800">
@@ -770,39 +761,6 @@ const FireHeadLossForm = ({ setData }) => {
                   </div>
                 </div>
               </div>
-
-              {/* Fittings Breakdown */}
-              {/* <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                  Fittings Breakdown
-                </h3>
-                <div className="space-y-2 text-sm">
-                  {result?.fittings &&
-                    Object.entries(result.fittings).map(([fitting, count]) =>
-                      count > 0 ? (
-                        <div key={fitting} className="flex justify-between">
-                          <span className="font-medium text-gray-600">
-                            {fitting}:
-                          </span>
-                          <span className="text-gray-800">{count}</span>
-                        </div>
-                      ) : null
-                    )}
-                  <div className="pt-2 border-t border-gray-200">
-                    <div className="flex justify-between font-medium">
-                      <span className="text-gray-600">Total Fittings:</span>
-                      <span className="text-gray-800">
-                        {result?.fittings
-                          ? Object.values(result.fittings).reduce(
-                              (sum, count) => sum + count,
-                              0
-                            )
-                          : 0}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div> */}
             </div>
           )}
 

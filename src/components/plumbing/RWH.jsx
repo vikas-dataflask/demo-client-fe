@@ -1,6 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import FloorPreview from "../shared/FloorPreview";
-import { useAddRwhSizingMutation } from "../../redux/features/api/api";
+import { 
+  useAddRwhSizingMutation,
+  useSaveRwhDataMutation,
+  useGetRwhDataByProjectQuery
+} from "../../redux/features/api/api";
+import { useParams } from "react-router-dom";
 
 const DEFAULTS = {
   annualRainfallMm: 800,
@@ -57,12 +62,31 @@ const exportToCSV = (result) => {
 };
 
 const RWH = ({ setData }) => {
+  const { projectId } = useParams();
   const [form, setForm] = useState(DEFAULTS);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [addRwhSizing, { isLoading }] = useAddRwhSizingMutation();
+  const [addRwhSizing, { isLoading: calculationLoading }] = useAddRwhSizingMutation();
+  const [saveRwhData, { isLoading: saveLoading, error: saveError }] = useSaveRwhDataMutation();
+  const { data: savedData, isLoading: autoFillLoading } = useGetRwhDataByProjectQuery(projectId, { skip: !projectId });
 
   const [error, setError] = useState("");
+
+  // Autofill data when saved data is loaded
+  useEffect(() => {
+    if (savedData?.data?.input_data) {
+      const inputData = savedData.data.input_data;
+      setForm({
+        annualRainfallMm: inputData.annualRainfallMm || 800,
+        pitVolumeM3: inputData.pitVolumeM3 || 10,
+        areas: inputData.areas || DEFAULTS.areas,
+      });
+      // Set the result data from the saved result_data field
+      if (savedData.data.result_data) {
+        setResult(savedData.data.result_data);
+      }
+    }
+  }, [savedData]);
 
   // Calculate weighted runoff coefficient
   const calculateWeightedRunoffCoefficient = (areas) => {
@@ -124,6 +148,11 @@ const RWH = ({ setData }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!projectId) {
+      alert("Please select a project before calculating!");
+      return;
+    }
+
     if (totalCatchmentArea === 0) {
       setError("Please add at least one area with a value greater than 0");
       return;
@@ -170,6 +199,18 @@ const RWH = ({ setData }) => {
 
         setResult(enhancedResult);
         setData(enhancedResult);
+
+        // Save the data to the database
+        try {
+          await saveRwhData({
+            project_id: projectId,
+            input_data: requestData,
+            result_data: enhancedResult,
+          }).unwrap();
+          console.log("RWH data saved successfully");
+        } catch (saveErr) {
+          console.error("Error saving RWH data:", saveErr);
+        }
       }
     } catch (err) {
       console.error("RWH API Error:", err);
@@ -362,9 +403,9 @@ const RWH = ({ setData }) => {
               <button
                 type="submit"
                 className="w-full px-6 py-3 text-lg font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                disabled={loading || totalCatchmentArea === 0}
+                disabled={loading || calculationLoading || saveLoading || totalCatchmentArea === 0}
               >
-                {loading ? "Calculating..." : "Calculate RWH Pit Sizing"}
+                {loading || calculationLoading || saveLoading ? "Calculating..." : "Calculate RWH Pit Sizing"}
               </button>
             </form>
           </div>
@@ -381,6 +422,17 @@ const RWH = ({ setData }) => {
             <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
               <div className="text-red-800 font-semibold">Error</div>
               <div className="text-red-700">{error}</div>
+            </div>
+          )}
+
+          {saveError && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+              <div className="text-red-800 font-semibold">Error</div>
+              <div className="text-red-700">
+                {saveError.data?.message ||
+                  saveError.error ||
+                  "An error occurred while saving"}
+              </div>
             </div>
           )}
 
@@ -523,7 +575,7 @@ const RWH = ({ setData }) => {
             </div>
           )}
 
-          {!result && !loading && (
+          {!result && !loading && !calculationLoading && !autoFillLoading && (
             <div className="text-center text-gray-500 mt-20">
               <div className="text-6xl mb-4">🌧️</div>
               <div className="text-xl font-medium">
