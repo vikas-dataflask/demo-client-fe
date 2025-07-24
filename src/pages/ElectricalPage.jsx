@@ -9,6 +9,8 @@ import DbDetailForm from "../components/electrical/DbDetailForm";
 import BreakerSizingForm from "../components/electrical/BreakerSizingForm";
 import CableSizingForm from "../components/electrical/CableSizingForm";
 import PowerForm from "../components/electrical/PowerForm";
+import TraySizer from "../components/electrical/TraySizer";
+import EarthmatCalculator from "../components/electrical/EarthmatCalculator";
 
 export default function ElectricalPage() {
   const [activeSection, setActiveSection] = useState("dialux"); // Default
@@ -25,6 +27,10 @@ export default function ElectricalPage() {
         return <BreakerSizingForm />;
       case "cable-size":
         return <CableSizingForm />;
+      case "tray-size":
+        return <TraySizer />;
+      case "earthmat":
+        return <EarthmatCalculator />;
 
       default:
         return <Dialux />;

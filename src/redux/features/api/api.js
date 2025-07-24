@@ -596,6 +596,123 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["User"],
     }),
+    saveBreaker: builder.mutation({
+      query: (data) => ({
+        url: "api/breaker/save",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    getBreaker: builder.query({
+      query: (projectId) => `api/breaker/${projectId}`,
+    }),
+    calculateCableSize: builder.mutation({
+      query: (data) => ({
+        url: "api/cable-sizing/calculate",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["CableSizing"],
+    }),
+    bulkCalculateCableSize: builder.mutation({
+      query: (data) => ({
+        url: "api/cable-sizing/bulk-calculate",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["CableSizing"],
+    }),
+    getCableSizes: builder.query({
+      query: () => "api/cable-sizing/cable-sizes",
+      providesTags: ["CableSizing"],
+    }),
+    getMCBRatings: builder.query({
+      query: () => "api/cable-sizing/mcb-ratings",
+      providesTags: ["CableSizing"],
+    }),
+    getReferenceData: builder.query({
+      query: () => "api/cable-sizing/reference",
+      providesTags: ["CableSizing"],
+    }),
+    getCalculationHistory: builder.query({
+      query: () => "api/cable-sizing/history", // this route can be implemented later if needed
+      providesTags: ["CableSizing"],
+    }),
+    saveCableSizingData: builder.mutation({
+      query: (data) => ({
+        url: "api/cable-sizing/save",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["CableSizing"],
+    }),
+    getCableSizingByProject: builder.query({
+      query: (projectId) => `api/cable-sizing/${projectId}`,
+      providesTags: ["CableSizing"],
+    }),
+    calculateTraySize: builder.mutation({
+      query: (data) => ({
+        url: "api/cable-tray/calculate",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    saveTrayCalculation: builder.mutation({
+      query: (data) => ({
+        url: "api/cable-tray/save",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["CableTray"],
+    }),
+    getTrayCalculation: builder.query({
+      query: (projectId) => `api/cable-tray/get/${projectId}`,
+      providesTags: ["CableTray"],
+    }),
+    updateTrayCalculation: builder.mutation({
+      query: ({ projectId, ...data }) => ({
+        url: `api/cable-tray/update/${projectId}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["CableTray"],
+    }),
+    getCableTrayReferenceData: builder.query({
+      query: () => "api/cable-tray/reference",
+    }),
+    getCableTrayCableSizes: builder.query({
+      query: () => "api/cable-tray/cable-sizes",
+    }),
+    getCableTrayTraySizes: builder.query({
+      query: () => "api/cable-tray/tray-sizes",
+    }),
+    getCableTrayTrayTypes: builder.query({
+      query: () => "api/cable-tray/tray-types",
+    }),
+    addEarthmatCalculation: builder.mutation({
+      query: (data) => ({
+        url: "api/earthmat/calculate",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["Earthmat"],
+    }),
+    getEarthmatAutofill: builder.query({
+      query: (projectId) => `api/earthmat/autofill/${projectId}`,
+      providesTags: ["Earthmat"],
+    }),
+    updateEarthmatCalculation: builder.mutation({
+      query: ({ id, ...data }) => ({
+        url: `api/earthmat/update/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["Earthmat"],
+    }),
+    getEarthmatReference: builder.query({
+      query: () => "api/earthmat/reference",
+      providesTags: ["Earthmat"],
+    }),
   }),
 });
 
@@ -667,6 +784,29 @@ export const {
   useGetDrainagePipeByProjectQuery,
   useSaveRainwaterDropMutation,
   useGetRainwaterDropByProjectQuery,
+  useSaveBreakerMutation,
+  useGetBreakerQuery,
+  useCalculateCableSizeMutation,
+  useBulkCalculateCableSizeMutation,
+  useGetCableSizesQuery,
+  useGetMCBRatingsQuery,
+  useGetReferenceDataQuery,
+  useGetCalculationHistoryQuery,
+  useSaveCableSizingDataMutation,
+  useGetCableSizingByProjectQuery,
+  useCalculateTraySizeMutation,
+  useSaveTrayCalculationMutation,
+  useGetTrayCalculationQuery,
+  useUpdateTrayCalculationMutation,
+  useGetCableTrayReferenceDataQuery,
+  useGetCableTrayCableSizesQuery,
+  useGetCableTrayTraySizesQuery,
+  useGetCableTrayTrayTypesQuery,
+  useValidateCableTrayCableSizeMutation,
+  useAddEarthmatCalculationMutation,
+  useGetEarthmatAutofillQuery,
+  useUpdateEarthmatCalculationMutation,
+  useGetEarthmatReferenceQuery,
 
   useUpdateUserProfileMutation,
   useUploadProfilePicMutation,

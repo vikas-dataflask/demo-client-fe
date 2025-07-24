@@ -996,16 +996,6 @@ const HeatLoad = () => {
               "Calculate"
             )}
           </button>
-
-          {/* Update Button - Only show if data exists and has been calculated */}
-          {/* {autofillData?.data?.input_data && result && (
-            <button
-              onClick={handleManualUpdate}
-              className="w-full py-2 rounded-[10px] font-medium text-[13px] bg-[#10B981] text-white hover:bg-[#059669] transition flex items-center justify-center"
-            >
-              Update Existing Data
-            </button>
-          )} */}
         </div>
 
         {error && (

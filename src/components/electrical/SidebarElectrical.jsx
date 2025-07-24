@@ -3,6 +3,7 @@ import DialuxIcon from "../../icons/DialuxIcon";
 import { DbDetailsIcon } from "../../icons/DbDetailsIcon";
 import BreakerSizingIcon from "../../icons/BreakerSizingIcon";
 import CableSizeIcon from "../../icons/CableSizeIcon";
+import ElectricalIcon from "../../icons/ElectricalIcon";
 
 function SidebarElectrical({ activeSection, setActiveSection }) {
   const sidebarItems = [
@@ -11,6 +12,8 @@ function SidebarElectrical({ activeSection, setActiveSection }) {
     { icon: <DbDetailsIcon />, id: "db-details" },
     { icon: <BreakerSizingIcon />, id: "breaker-sizing" },
     { icon: <CableSizeIcon />, id: "cable-size" },
+    { icon: <CableSizeIcon />, id: "tray-size" },
+    { icon: <ElectricalIcon />, id: "earthmat" },
   ];
 
   return (
