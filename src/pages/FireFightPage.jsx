@@ -1,9 +1,11 @@
 import React, { useState } from "react";
+import { useParams } from "react-router-dom";
 import TopBarSecondary from "../components/TopBarSecondary";
 
 // Content Components
 import FireHeadLossForm from "../components/fireFight/FireHeadLossForm";
 import FirePumpPage from "../components/fireFight/FirePumpPage";
+import SprinklerLayoutForm from "../components/fireFight/SprinklerLayoutForm";
 
 import SidebarFireFight from "../components/fireFight/SidebarFireFight";
 import RightModal from "../components/shared/RightModal";
@@ -13,6 +15,7 @@ import FirePumpPageModal from "../components/fireFight/FirePumpPageModal";
 export default function FireFightPage() {
   const [activeSection, setActiveSection] = useState("head-loss");
   const [data, setData] = useState();
+  const { projectId } = useParams();
 
   const renderContent = () => {
     switch (activeSection) {
@@ -20,6 +23,9 @@ export default function FireFightPage() {
         return <FireHeadLossForm setData={setData} />;
       case "fire-pump":
         return <FirePumpPage setData={setData} />;
+      case "sprinkler-layout":
+        return <SprinklerLayoutForm setData={setData} projectId={projectId} />;
+
       default:
         return <FireHeadLossForm />;
     }
