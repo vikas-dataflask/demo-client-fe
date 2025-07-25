@@ -348,6 +348,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["WaterDemand"],
     }),
+    addBuildingWaterDemand: builder.mutation({
+      query: (body) => ({
+        url: `api/water-demand/calculate-building`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["WaterDemand"],
+    }),
     getBuildingType: builder.mutation({
       query: () => ({
         url: "/api/water-demand/building-types",
@@ -355,7 +363,13 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ["WaterDemand"],
     }),
-
+    getBuildingList: builder.mutation({
+      query: () => ({
+        url: "/api/water-demand/building-list",
+        method: "GET",
+      }),
+      invalidatesTags: ["WaterDemand"],
+    }),
     addWaterSupplyPipes: builder.mutation({
       query: (body) => ({
         url: `api/watersupplypipes`,
@@ -713,6 +727,88 @@ export const apiSlice = createApi({
       query: () => "api/earthmat/reference",
       providesTags: ["Earthmat"],
     }),
+    getBuildingStandards: builder.query({
+      query: () => "api/water-demand-v2/building-standards",
+    }),
+    // ✅ Calculate single standard building
+    calculateStandardWaterDemand: builder.mutation({
+      query: (data) => ({
+        url: "api/water-demand-v2/calculate",
+        method: "POST",
+        body: data,
+      }),
+    }),
+
+    // ✅ Calculate custom building
+    calculateCustomBuildingDemand: builder.mutation({
+      query: (data) => ({
+        url: "api/water-demand-v2/calculate-custom",
+        method: "POST",
+        body: data,
+      }),
+    }),
+
+    // ✅ Calculate multiple buildings
+    calculateAllSelectedBuildings: builder.mutation({
+      query: (data) => ({
+        url: "api/water-demand-v2/calculate-multiple",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    // ✅ 1. Get Standard Building Types
+    getStandardBuildingTypes: builder.query({
+      query: () => `api/water-demand-v2/standards`,
+    }),
+
+    // ✅ 2. Save or Update Water Demand (Calculate + Save)
+    saveOrUpdateWaterDemand: builder.mutation({
+      query: (data) => ({
+        url: `api/water-demand-v2/save-or-update`,
+        method: "POST",
+        body: data,
+      }),
+    }),
+
+    // ✅ 3. Get Saved Water Demand (Autofill)
+    getWaterDemandByProject: builder.query({
+      query: ({ projectId, buildingType }) =>
+        `api/water-demand-v2/get?projectId=${projectId}&buildingType=${buildingType}`,
+    }),
+
+    // ✅ 4. Calculate Multiple Buildings (No DB Save)
+    calculateMultipleWaterDemands: builder.mutation({
+      query: (data) => ({
+        url: `api/water-demand-v2/calculate-multiple`,
+        method: "POST",
+        body: data,
+      }),
+    }),
+    getSprinklerLayout: builder.query({
+      query: ({ projectId, roomId }) => {
+        let url = `api/sprinkler-layout/?projectId=${projectId}`;
+        if (roomId) url += `&roomId=${roomId}`;
+        return url;
+      },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.data.map(({ _id }) => ({
+                type: "SprinklerLayout",
+                id: _id,
+              })),
+              { type: "SprinklerLayout", id: "LIST" },
+            ]
+          : [{ type: "SprinklerLayout", id: "LIST" }],
+    }),
+    saveOrUpdateSprinklerLayout: builder.mutation({
+      query: (payload) => ({
+        url: "api/sprinkler-layout/save",
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: [{ type: "SprinklerLayout", id: "LIST" }],
+    }),
   }),
 });
 
@@ -755,7 +851,9 @@ export const {
   useGetFluidTypesQuery,
   useCalculateCondenserMutation, // Exported for Condenser
   useAddWaterDemandMutation,
+  useAddBuildingWaterDemandMutation,
   useGetBuildingTypeMutation,
+  useGetBuildingListMutation,
   useAddWaterSupplyPipesMutation,
   useAddDrainagePipesMutation,
   // useAddPlumbingHLMutation,
@@ -807,6 +905,17 @@ export const {
   useGetEarthmatAutofillQuery,
   useUpdateEarthmatCalculationMutation,
   useGetEarthmatReferenceQuery,
+  useGetBuildingStandardsQuery,
+  useCalculateStandardWaterDemandMutation,
+  useCalculateCustomBuildingDemandMutation,
+  useCalculateAllSelectedBuildingsMutation,
+  useGetStandardBuildingTypesQuery,
+  useSaveOrUpdateWaterDemandMutation,
+  useGetWaterDemandByProjectQuery,
+  useCalculateMultipleWaterDemandsMutation,
+  useGetSprinklerLayoutQuery,
+  useLazyGetSprinklerLayoutQuery,
+  useSaveOrUpdateSprinklerLayoutMutation,
 
   useUpdateUserProfileMutation,
   useUploadProfilePicMutation,

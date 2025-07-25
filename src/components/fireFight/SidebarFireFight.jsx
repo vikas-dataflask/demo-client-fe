@@ -1,12 +1,14 @@
 import React from "react";
 import HeadLossIcon from "../../icons/HeadLossIcon";
 import FirePumpIcon from "../../icons/FirePumpIcon";
+// import SprinklerIcon from "../../icons/SprinklerIcon";
 import DropletIcon from "../../icons/DropletIcon";
 
 function SidebarFireFight({ activeSection, setActiveSection }) {
   const sidebarItems = [
     { icon: <HeadLossIcon />, id: "head-loss" },
     { icon: <FirePumpIcon />, id: "fire-pump" },
+    { icon: <FirePumpIcon />, id: "sprinkler-layout" },
   ];
 
   return (
