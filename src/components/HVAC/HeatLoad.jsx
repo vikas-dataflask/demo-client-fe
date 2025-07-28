@@ -19,6 +19,14 @@ const defaultEquipment = { power: "", diversity: "" };
 const defaultRoof = { area: "", uValue: "", deltaT: "" };
 const defaultLighting = { watts: "", cuf: "", llf: "" };
 const defaultInfiltration = { ach: "", volume: "", deltaT: "", latent: "" };
+const defaultSunGainComponent = {
+  name: "",
+  summerSunGain: "",
+  monsoonSunGain: "",
+  area: "",
+  partGlassArea: "",
+  cfm: "",
+};
 
 const HeatLoad = () => {
   const dispatch = useDispatch();
@@ -38,20 +46,24 @@ const HeatLoad = () => {
     heightUnit: "m",
     occupancy: "",
     occupancyUnit: "Nos",
+    sensibleHeatOfPeople: "",
+    sensibleHeatOfPeopleUnit: "W/Person",
     lightLoad: "",
     lightLoadUnit: "Watts",
     heatDissipation: "",
-    heatDissipationUnit: "KW",
+    heatDissipationUnit: "W",
     cfmSqft: "",
     cfmSqftUnit: "CFM/Sqft",
     cfmPerson: "",
     cfmPersonUnit: "CFM/Person",
     sensibleHeat: "",
-    sensibleHeatUnit: "KW",
+    sensibleHeatUnit: "W",
     latentHeat: "",
-    latentHeatUnit: "KW",
+    latentHeatUnit: "W",
     internalHeat: "",
-    internalHeatUnit: "KW",
+    internalHeatUnit: "W",
+    roomLatentHeat: "",
+    roomLatentHeatUnit: "W",
     relativeHumidity: "",
     outsideDryBulb: "",
     // Summer conditions - now editable
@@ -80,12 +92,14 @@ const HeatLoad = () => {
     equipment: [{ ...defaultEquipment }],
     lighting: { ...defaultLighting },
     infiltration: { ...defaultInfiltration },
+    sunGainComponents: [{ ...defaultSunGainComponent }],
     safetyFactor: 1.15,
   });
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
   const [roomDetailsOpen, setRoomDetailsOpen] = useState(true);
+  const [sunGainOpen, setSunGainOpen] = useState(true);
   const [internalOpen, setInternalOpen] = useState(true);
   const [summerConditionsOpen, setSummerConditionsOpen] = useState(false);
   const [monsoonConditionsOpen, setMonsoonConditionsOpen] = useState(false);
@@ -145,6 +159,193 @@ const HeatLoad = () => {
     }));
   };
 
+  // Sun gain calculation handler
+  const handleSunGainCalculate = () => {
+    const sunGainComponents = formData.sunGainComponents.filter(
+      (component) => component.name
+    );
+
+    if (sunGainComponents.length === 0) {
+      setError("Please add at least one sun gain component with name");
+      return;
+    }
+
+    if (!formData.area) {
+      setError("Please enter room area for sun gain calculation");
+      return;
+    }
+
+    // Get temperature differences from form data
+    const summerTempDiff =
+      Number(formData.summerOutsideDb) - Number(formData.summerRoomDb);
+    const monsoonTempDiff =
+      Number(formData.monsoonOutsideDb) - Number(formData.monsoonRoomDb);
+    const TOTAL_CFM =
+      Number(formData.area) * Number(formData.cfmSqft) +
+      Number(formData.occupancy) * Number(formData.cfmPerson);
+
+    // Constants for sun gain calculations
+    const GLASS_CONSTANT = 0.56;
+    const WALL_CONSTANT = 0.36;
+    const PART_GLASS_CONSTANT = 1.13;
+    const PART_WALL_CONSTANT = 0.32;
+    const CEILING_CONSTANT = 0.38;
+    const FLOOR_CONSTANT = 0.46;
+    const INFILTRATION_CONSTANT = 1.08;
+    const OUTSIDE_AIR_CONSTANT = 0.12;
+    const OUTSIDE_AIR_DENSITY_CONSTANT = 1.08;
+
+    const results = sunGainComponents.map((component) => {
+      // Determine constant and calculation method based on component name
+      const componentName = component.name.toLowerCase();
+      let summerSunGain = 0;
+      let monsoonSunGain = 0;
+      let constant = WALL_CONSTANT; // default
+      let calculationType = "standard";
+
+      if (componentName.includes("part-glass")) {
+        // Part-Glass calculation: area * (temp diff - 10) * 1.13
+        constant = PART_GLASS_CONSTANT;
+        calculationType = "part-glass";
+        const partGlassArea = Number(component.area || formData.area);
+        summerSunGain = partGlassArea * (summerTempDiff - 10) * constant;
+        monsoonSunGain = partGlassArea * (monsoonTempDiff - 10) * constant;
+      } else if (componentName.includes("part-wall")) {
+        // Part-Wall calculation: (wall area - glass area) * (temp diff - 10) * 0.32
+        constant = PART_WALL_CONSTANT;
+        calculationType = "part-wall";
+        const partWallArea = Number(component.area || formData.area);
+        const partGlassArea = Number(component.partGlassArea || 0);
+        const effectiveWallArea = partWallArea - partGlassArea;
+        summerSunGain = effectiveWallArea * (summerTempDiff - 10) * constant;
+        monsoonSunGain = effectiveWallArea * (monsoonTempDiff - 10) * constant;
+      } else if (
+        componentName.includes("glass") ||
+        componentName.includes("window") ||
+        componentName.includes("glazing")
+      ) {
+        // Standard glass calculation
+        constant = GLASS_CONSTANT;
+        summerSunGain =
+          Number(component.summerSunGain || 0) *
+          Number(formData.area) *
+          constant;
+        monsoonSunGain =
+          Number(component.monsoonSunGain || 0) *
+          Number(formData.area) *
+          constant;
+      } else if (
+        componentName.includes("wall") &&
+        !componentName.includes("part-wall")
+      ) {
+        // Standard wall calculation
+        constant = WALL_CONSTANT;
+        summerSunGain =
+          Number(component.summerSunGain || 0) *
+          Number(formData.area) *
+          constant;
+        monsoonSunGain =
+          Number(component.monsoonSunGain || 0) *
+          Number(formData.area) *
+          constant;
+        // Part-Glass calculation: area * (temp diff - 10) * 1.13
+        constant = PART_GLASS_CONSTANT;
+        calculationType = "part-glass";
+        const partGlassArea = Number(component.area || formData.area);
+        summerSunGain = partGlassArea * (summerTempDiff - 10) * constant;
+        monsoonSunGain = partGlassArea * (monsoonTempDiff - 10) * constant;
+      } else if (componentName.includes("part-wall")) {
+        // Part-Wall calculation: (wall area - glass area) * (temp diff - 10) * 0.32
+        constant = PART_WALL_CONSTANT;
+        calculationType = "part-wall";
+        const partWallArea = Number(component.area || formData.area);
+        const partGlassArea = Number(component.partGlassArea || 0);
+        const effectiveWallArea = partWallArea - partGlassArea;
+        summerSunGain = effectiveWallArea * (summerTempDiff - 10) * constant;
+        monsoonSunGain = effectiveWallArea * (monsoonTempDiff - 10) * constant;
+      } else if (componentName.includes("ceiling")) {
+        // Ceiling calculation: area * (temp diff - 10) * 0.38
+        constant = CEILING_CONSTANT;
+        calculationType = "ceiling";
+        const ceilingArea = Number(component.area || formData.area);
+        summerSunGain = ceilingArea * (summerTempDiff - 10) * constant;
+        monsoonSunGain = ceilingArea * (monsoonTempDiff - 10) * constant;
+      } else if (componentName.includes("floor")) {
+        // Floor calculation: area * (temp diff - 10) * 0.46
+        constant = FLOOR_CONSTANT;
+        calculationType = "floor";
+        const floorArea = Number(component.area || formData.area);
+        summerSunGain = floorArea * (summerTempDiff - 10) * constant;
+        monsoonSunGain = floorArea * (monsoonTempDiff - 10) * constant;
+      } else if (componentName.includes("infiltration")) {
+        // Infiltration calculation: area * temp diff * 1.08
+        constant = INFILTRATION_CONSTANT;
+        calculationType = "infiltration";
+        const infiltrationArea = Number(component.area || formData.area);
+        summerSunGain = infiltrationArea * summerTempDiff * constant;
+        monsoonSunGain = infiltrationArea * monsoonTempDiff * constant;
+      } else if (
+        componentName.includes("outside air") ||
+        componentName.includes("outside-air")
+      ) {
+        // Outside air calculation: CFM * temp diff * 0.12 * 1.08
+        constant = OUTSIDE_AIR_CONSTANT * OUTSIDE_AIR_DENSITY_CONSTANT;
+        calculationType = "outside-air";
+        const componentCFM = Number(component.cfm || TOTAL_CFM);
+        summerSunGain =
+          componentCFM *
+          summerTempDiff *
+          OUTSIDE_AIR_CONSTANT *
+          OUTSIDE_AIR_DENSITY_CONSTANT;
+        monsoonSunGain =
+          componentCFM *
+          monsoonTempDiff *
+          OUTSIDE_AIR_CONSTANT *
+          OUTSIDE_AIR_DENSITY_CONSTANT;
+      } else {
+        // Default to standard wall calculation
+        constant = WALL_CONSTANT;
+        summerSunGain =
+          Number(component.summerSunGain || 0) *
+          Number(formData.area) *
+          constant;
+        monsoonSunGain =
+          Number(component.monsoonSunGain || 0) *
+          Number(formData.area) *
+          constant;
+      }
+
+      return {
+        name: component.name,
+        summerSunGain: parseFloat(summerSunGain.toFixed(2)),
+        monsoonSunGain: parseFloat(monsoonSunGain.toFixed(2)),
+        constant: constant,
+        calculationType: calculationType,
+      };
+    });
+
+    const totalSummerSunGain = results.reduce(
+      (sum, result) => sum + result.summerSunGain,
+      0
+    );
+    const totalMonsoonSunGain = results.reduce(
+      (sum, result) => sum + result.monsoonSunGain,
+      0
+    );
+
+    // Store results in form data for later use
+    setFormData((prev) => ({
+      ...prev,
+      sunGainResults: {
+        components: results,
+        totalSummerSunGain: parseFloat(totalSummerSunGain.toFixed(2)),
+        totalMonsoonSunGain: parseFloat(totalMonsoonSunGain.toFixed(2)),
+      },
+    }));
+
+    setError(null);
+  };
+
   const handleCalculate = async () => {
     setError(null);
     setResult(null);
@@ -176,13 +377,23 @@ const HeatLoad = () => {
         area: Number(formData.area) || 0,
         height: Number(formData.height) || 0,
         people: Number(formData.occupancy) || 0,
+        sensible_heat_people: Number(formData.sensibleHeatOfPeople) || 0,
         light: Number(formData.lightLoad) || 0,
         equipment: Number(formData.heatDissipation) || 0,
         cfm_sqft: Number(formData.cfmSqft) || 0,
         cfm_person: Number(formData.cfmPerson) || 0,
-        sensible_heat_people: Number(formData.sensibleHeat) || 0,
         latent_heat_people: Number(formData.latentHeat) || 0,
         internal_heat: Number(formData.internalHeat) || 0,
+        sunGainComponents: formData.sunGainComponents
+          .filter((component) => component.name)
+          .map((component) => ({
+            name: component.name,
+            summerSunGain: Number(component.summerSunGain) || 0,
+            monsoonSunGain: Number(component.monsoonSunGain) || 0,
+            area: Number(component.area) || 0,
+            partGlassArea: Number(component.partGlassArea) || 0,
+            cfm: Number(component.cfm) || 0,
+          })),
       };
 
       console.log("Sending payload to backend:", payload);
@@ -201,6 +412,7 @@ const HeatLoad = () => {
             sensibleHeat: resultData.summer.sensible_heat.toString(),
             latentHeat: resultData.summer.latent_heat.toString(),
             internalHeat: resultData.summer.internal_heat.toString(),
+            roomLatentHeat: resultData.summer.room_latent_heat.toString(),
           }));
         }
 
@@ -435,6 +647,30 @@ const HeatLoad = () => {
                   </div>
 
                   <div className="space-y-[6px]">
+                    <label className="text-[#444] block">
+                      Sensible heat of People
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        name="sensibleHeatOfPeople"
+                        value={formData.sensibleHeatOfPeople}
+                        onChange={handleChange}
+                        placeholder="Sensible heat of People"
+                        className="w-2/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
+                      />
+                      <select
+                        name="sensibleHeatOfPeopleUnit"
+                        value={formData.sensibleHeatOfPeopleUnit}
+                        onChange={handleChange}
+                        className="w-1/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
+                      >
+                        <option>X</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-[6px]">
                     <label className="text-[#444] block">Light Load</label>
                     <div className="flex gap-2">
                       <input
@@ -451,7 +687,7 @@ const HeatLoad = () => {
                         onChange={handleChange}
                         className="w-1/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
                       >
-                        <option>Watts</option>
+                        <option>W</option>
                       </select>
                     </div>
                   </div>
@@ -475,7 +711,7 @@ const HeatLoad = () => {
                         onChange={handleChange}
                         className="w-1/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
                       >
-                        <option>KW</option>
+                        <option>W</option>
                       </select>
                     </div>
                   </div>
@@ -531,6 +767,262 @@ const HeatLoad = () => {
             )}
           </div>
 
+          {/* Sun Gain Components Accordion */}
+          <div className="mt-5">
+            <button
+              onClick={() => setSunGainOpen(!sunGainOpen)}
+              className="flex items-center gap-2 text-black font-medium mb-3"
+            >
+              <span className="text-xs">{sunGainOpen ? "▾" : "▸"}</span> Sun
+              Gain Components
+            </button>
+
+            {sunGainOpen && (
+              <div className="space-y-[14px]">
+                {/* Sun Gain Components List */}
+                {formData.sunGainComponents.map((component, index) => (
+                  <div
+                    key={index}
+                    className="border border-gray-200 rounded-[10px] p-[12px] bg-white space-y-[12px]"
+                  >
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-[#444] font-medium">
+                        Component {index + 1}
+                      </h4>
+                      {formData.sunGainComponents.length > 1 && (
+                        <button
+                          onClick={() =>
+                            handleRemoveArrayItem("sunGainComponents", index)
+                          }
+                          className="text-red-500 text-xs hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Component Name */}
+                    <div className="space-y-[6px]">
+                      <label className="text-[#444] block">
+                        Component Name
+                      </label>
+                      <input
+                        type="text"
+                        value={component.name}
+                        onChange={(e) =>
+                          handleArrayChange(
+                            "sunGainComponents",
+                            index,
+                            "name",
+                            e.target.value
+                          )
+                        }
+                        placeholder="e.g., Window, Wall, Part-Glass, Ceiling, Floor, Infiltration, Outside Air"
+                        className="w-full p-2 rounded-[8px] text-[13px] bg-gray-200"
+                      />
+                    </div>
+
+                    {/* Component Area (for specific calculations) */}
+                    <div className="space-y-[6px]">
+                      <label className="text-[#444] block">
+                        Component Area (optional)
+                      </label>
+                      <input
+                        type="number"
+                        value={component.area}
+                        onChange={(e) =>
+                          handleArrayChange(
+                            "sunGainComponents",
+                            index,
+                            "area",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Component Area (uses room area if empty)"
+                        className="w-full p-2 rounded-[8px] text-[13px] bg-gray-200"
+                      />
+                    </div>
+
+                    {/* Part Glass Area (for Part-Wall calculations) */}
+                    {component.name.toLowerCase().includes("part-wall") && (
+                      <div className="space-y-[6px]">
+                        <label className="text-[#444] block">
+                          Part Glass Area
+                        </label>
+                        <input
+                          type="number"
+                          value={component.partGlassArea}
+                          onChange={(e) =>
+                            handleArrayChange(
+                              "sunGainComponents",
+                              index,
+                              "partGlassArea",
+                              e.target.value
+                            )
+                          }
+                          placeholder="Part Glass Area"
+                          className="w-full p-2 rounded-[8px] text-[13px] bg-gray-200"
+                        />
+                      </div>
+                    )}
+
+                    {/* CFM (for Outside Air calculations) */}
+                    {(component.name.toLowerCase().includes("outside air") ||
+                      component.name.toLowerCase().includes("outside-air")) && (
+                      <div className="space-y-[6px]">
+                        <label className="text-[#444] block">
+                          CFM (optional)
+                        </label>
+                        <input
+                          type="number"
+                          value={component.cfm}
+                          onChange={(e) =>
+                            handleArrayChange(
+                              "sunGainComponents",
+                              index,
+                              "cfm",
+                              e.target.value
+                            )
+                          }
+                          placeholder="CFM (uses calculated CFM if empty)"
+                          className="w-full p-2 rounded-[8px] text-[13px] bg-gray-200"
+                        />
+                      </div>
+                    )}
+
+                    {/* Summer Sun Gain (for standard calculations) */}
+                    {!component.name.toLowerCase().includes("part-glass") &&
+                      !component.name.toLowerCase().includes("part-wall") &&
+                      !component.name.toLowerCase().includes("ceiling") &&
+                      !component.name.toLowerCase().includes("floor") &&
+                      !component.name.toLowerCase().includes("infiltration") &&
+                      !component.name.toLowerCase().includes("outside air") &&
+                      !component.name.toLowerCase().includes("outside-air") && (
+                        <>
+                          <div className="space-y-[6px]">
+                            <label className="text-[#444] block">
+                              Summer Sun Gain
+                            </label>
+                            <input
+                              type="number"
+                              value={component.summerSunGain}
+                              onChange={(e) =>
+                                handleArrayChange(
+                                  "sunGainComponents",
+                                  index,
+                                  "summerSunGain",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Summer Sun Gain"
+                              className="w-full p-2 rounded-[8px] text-[13px] bg-gray-200"
+                            />
+                          </div>
+
+                          <div className="space-y-[6px]">
+                            <label className="text-[#444] block">
+                              Monsoon Sun Gain
+                            </label>
+                            <input
+                              type="number"
+                              value={component.monsoonSunGain}
+                              onChange={(e) =>
+                                handleArrayChange(
+                                  "sunGainComponents",
+                                  index,
+                                  "monsoonSunGain",
+                                  e.target.value
+                                )
+                              }
+                              placeholder="Monsoon Sun Gain"
+                              className="w-full p-2 rounded-[8px] text-[13px] bg-gray-200"
+                            />
+                          </div>
+                        </>
+                      )}
+                  </div>
+                ))}
+
+                {/* Add Component Button */}
+                <button
+                  onClick={() =>
+                    handleAddArrayItem(
+                      "sunGainComponents",
+                      defaultSunGainComponent
+                    )
+                  }
+                  className="w-full py-2 border-2 border-dashed border-gray-300 rounded-[10px] text-gray-500 hover:border-gray-400 hover:text-gray-600 transition"
+                >
+                  + Add Sun Gain Component
+                </button>
+
+                {/* Calculate Sun Gain Button */}
+                <button
+                  onClick={handleSunGainCalculate}
+                  className="w-full py-2 bg-blue-600 text-white rounded-[10px] font-medium hover:bg-blue-700 transition"
+                >
+                  Calculate Sun Gain
+                </button>
+
+                {/* Sun Gain Results */}
+                {formData.sunGainResults && (
+                  <div className="border border-blue-200 rounded-[10px] p-[12px] bg-blue-50 space-y-[12px]">
+                    <h4 className="text-blue-800 font-medium">
+                      Sun Gain Results
+                    </h4>
+
+                    {/* Component Results */}
+                    {formData.sunGainResults.components.map((result, index) => (
+                      <div key={index} className="bg-white p-2 rounded border">
+                        <div className="font-medium text-sm">{result.name}</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs mt-1">
+                          <div>Summer: {result.summerSunGain} Btu/hr</div>
+                          <div>Monsoon: {result.monsoonSunGain} Btu/hr</div>
+                        </div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          Constant used: {result.constant} (
+                          {result.constant === 0.56
+                            ? "Glass"
+                            : result.constant === 0.36
+                            ? "Wall"
+                            : result.constant === 1.13
+                            ? "Part-Glass"
+                            : result.constant === 0.32
+                            ? "Part-Wall"
+                            : result.constant === 0.38
+                            ? "Ceiling"
+                            : result.constant === 0.46
+                            ? "Floor"
+                            : result.constant === 1.08
+                            ? "Infiltration"
+                            : "Outside Air"}
+                          )
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Type: {result.calculationType}
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Total Results */}
+                    <div className="border-t border-blue-200 pt-2">
+                      <div className="grid grid-cols-2 gap-2 text-sm font-medium">
+                        <div className="bg-blue-100 p-2 rounded">
+                          Total Summer:{" "}
+                          {formData.sunGainResults.totalSummerSunGain} Btu/hr
+                        </div>
+                        <div className="bg-blue-100 p-2 rounded">
+                          Total Monsoon:{" "}
+                          {formData.sunGainResults.totalMonsoonSunGain} Btu/hr
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Additional Accordions */}
           <div className="mt-5 space-y-[10px]">
             {/* Internal Heat Accordion */}
@@ -561,20 +1053,18 @@ const HeatLoad = () => {
                       />
                       <select
                         name="sensibleHeatUnit"
-                        value={formData.sensibleHeatUnit || "KW"}
+                        value={formData.sensibleHeatUnit || "W"}
                         onChange={handleChange}
                         className="w-1/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
                       >
-                        <option>KW</option>
+                        <option>W</option>
                       </select>
                     </div>
                   </div>
 
-                  {/* Room Latent Heat */}
+                  {/*  Latent Heat */}
                   <div className="space-y-[6px]">
-                    <label className="text-[#444] block">
-                      Room Latent Heat
-                    </label>
+                    <label className="text-[#444] block">Latent Heat</label>
                     <div className="flex gap-2">
                       <input
                         type="number"
@@ -586,11 +1076,11 @@ const HeatLoad = () => {
                       />
                       <select
                         name="latentHeatUnit"
-                        value={formData.latentHeatUnit || "KW"}
+                        value={formData.latentHeatUnit || "W"}
                         onChange={handleChange}
                         className="w-1/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
                       >
-                        <option>KW</option>
+                        <option>W</option>
                       </select>
                     </div>
                   </div>
@@ -609,11 +1099,36 @@ const HeatLoad = () => {
                       />
                       <select
                         name="internalHeatUnit"
-                        value={formData.internalHeatUnit || "KW"}
+                        value={formData.internalHeatUnit || "W"}
                         onChange={handleChange}
                         className="w-1/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
                       >
-                        <option>KW</option>
+                        <option>W</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Room Latent Heat */}
+                  <div className="space-y-[6px]">
+                    <label className="text-[#444] block">
+                      Room Latent Heat
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        name="roomLatentHeat"
+                        value={formData.roomLatentHeat || ""}
+                        onChange={handleChange}
+                        placeholder="Room Latent Heat"
+                        className="w-2/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
+                      />
+                      <select
+                        name="roomLatentHeatUnit"
+                        value={formData.roomLatentHeatUnit || "W"}
+                        onChange={handleChange}
+                        className="w-1/3 p-2 rounded-[8px]  text-[13px] bg-gray-200"
+                      >
+                        <option>W</option>
                       </select>
                     </div>
                   </div>
@@ -888,25 +1403,33 @@ const HeatLoad = () => {
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">Sensible Heat:</span>{" "}
-                        {result.summer?.sensible_heat} kW
+                        {result.summer?.sensible_heat} Btu/hr
                       </div>
                       <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">Latent Heat:</span>{" "}
-                        {result.summer?.latent_heat} kW
+                        {result.summer?.latent_heat} Btu/hr
                       </div>
                       <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">Internal Heat:</span>{" "}
-                        {result.summer?.internal_heat} kW
+                        {result.summer?.internal_heat} Btu/hr
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Room Latent Heat:</span>{" "}
+                        {result.summer?.room_latent_heat} Btu/hr
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Sun Gain Heat:</span>{" "}
+                        {result.summer?.sun_gain_heat || 0} Btu/hr
                       </div>
                       <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">Total Heat Load:</span>{" "}
-                        {result.summer?.heatload_total} kW
+                        {result.summer?.heatload_total} Btu/hr
                       </div>
-                      <div className="bg-blue-100 p-2 rounded col-span-2">
+                      <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">
                           Heat Load with Safety Factor:
                         </span>{" "}
-                        {result.summer?.heatload_with_safety_factor} kW
+                        {result.summer?.heatload_with_safety_factor} Btu/hr
                       </div>
                     </div>
                   </div>
@@ -919,28 +1442,109 @@ const HeatLoad = () => {
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">Sensible Heat:</span>{" "}
-                        {result.monsoon?.sensible_heat} kW
+                        {result.monsoon?.sensible_heat} Btu/hr
                       </div>
                       <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">Latent Heat:</span>{" "}
-                        {result.monsoon?.latent_heat} kW
+                        {result.monsoon?.latent_heat} Btu/hr
                       </div>
                       <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">Internal Heat:</span>{" "}
-                        {result.monsoon?.internal_heat} kW
+                        {result.monsoon?.internal_heat} Btu/hr
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Room Latent Heat:</span>{" "}
+                        {result.monsoon?.room_latent_heat} Btu/hr
+                      </div>
+                      <div className="bg-blue-100 p-2 rounded">
+                        <span className="font-medium">Sun Gain Heat:</span>{" "}
+                        {result.monsoon?.sun_gain_heat || 0} Btu/hr
                       </div>
                       <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">Total Heat Load:</span>{" "}
-                        {result.monsoon?.heatload_total} kW
+                        {result.monsoon?.heatload_total} Btu/hr
                       </div>
-                      <div className="bg-blue-100 p-2 rounded col-span-2">
+                      <div className="bg-blue-100 p-2 rounded">
                         <span className="font-medium">
                           Heat Load with Safety Factor:
                         </span>{" "}
-                        {result.monsoon?.heatload_with_safety_factor} kW
+                        {result.monsoon?.heatload_with_safety_factor} Btu/hr
                       </div>
                     </div>
                   </div>
+
+                  {/* Sun Gain Details */}
+                  {result.sun_gain && (
+                    <div className="mt-3 pt-3 border-t border-blue-200">
+                      <h4 className="font-medium text-blue-800 mb-2">
+                        Sun Gain Details
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-blue-100 p-2 rounded">
+                          <span className="font-medium">
+                            Total Summer Sun Gain:
+                          </span>{" "}
+                          {result.sun_gain.total_summer_sun_gain} Btu/hr
+                        </div>
+                        <div className="bg-blue-100 p-2 rounded">
+                          <span className="font-medium">
+                            Total Monsoon Sun Gain:
+                          </span>{" "}
+                          {result.sun_gain.total_monsoon_sun_gain} Btu/hr
+                        </div>
+                      </div>
+
+                      {/* Component Results */}
+                      {result.sun_gain.component_results &&
+                        result.sun_gain.component_results.length > 0 && (
+                          <div className="mt-2">
+                            <h5 className="font-medium text-blue-700 mb-1">
+                              Component Breakdown:
+                            </h5>
+                            {result.sun_gain.component_results.map(
+                              (comp, index) => (
+                                <div
+                                  key={index}
+                                  className="bg-blue-50 p-2 rounded mb-1 text-xs"
+                                >
+                                  <div className="font-medium">{comp.name}</div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      Summer: {comp.summerSunGain} Btu/hr
+                                    </div>
+                                    <div>
+                                      Monsoon: {comp.monsoonSunGain} Btu/hr
+                                    </div>
+                                  </div>
+                                  <div className="text-gray-600 mt-1">
+                                    Constant: {comp.constant} (
+                                    {comp.constant === 0.56
+                                      ? "Glass"
+                                      : comp.constant === 0.36
+                                      ? "Wall"
+                                      : comp.constant === 1.13
+                                      ? "Part-Glass"
+                                      : comp.constant === 0.32
+                                      ? "Part-Wall"
+                                      : comp.constant === 0.38
+                                      ? "Ceiling"
+                                      : comp.constant === 0.46
+                                      ? "Floor"
+                                      : comp.constant === 1.08
+                                      ? "Infiltration"
+                                      : "Outside Air"}
+                                    )
+                                  </div>
+                                  <div className="text-gray-500 text-xs">
+                                    Type: {comp.calculationType}
+                                  </div>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        )}
+                    </div>
+                  )}
 
                   {/* Constants */}
                   <div className="mt-3 pt-3 border-t border-blue-200">
