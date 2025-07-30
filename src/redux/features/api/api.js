@@ -176,23 +176,32 @@ export const apiSlice = createApi({
       invalidatesTags: ["AhuPressureDrop"],
     }),
     getAhuPressureDropData: builder.query({
-      query: ({ project_id, room }) => ({
-        url: `api/ahu-pressure-drop/${project_id}/${room}`,
+      query: ({ project_id }) => ({
+        url: `api/ahu-pressure-drop/${project_id}`,
         method: "GET",
       }),
-      providesTags: (result, error, { project_id, room }) => [
-        { type: "AhuPressureDrop", id: `${project_id}-${room}` },
+      providesTags: (result, error, { project_id }) => [
+        { type: "AhuPressureDrop", id: project_id },
       ],
     }),
     updateAhuPressureDropData: builder.mutation({
-      query: ({ project_id, room, input_data }) => ({
-        url: `api/ahu-pressure-drop/${project_id}/${room}`,
+      query: ({ project_id, input_data }) => ({
+        url: `api/ahu-pressure-drop/${project_id}`,
         method: "PUT",
         body: { input_data },
       }),
-      invalidatesTags: (result, error, { project_id, room }) => [
-        { type: "AhuPressureDrop", id: `${project_id}-${room}` },
+      invalidatesTags: (result, error, { project_id }) => [
+        { type: "AhuPressureDrop", id: project_id },
       ],
+    }),
+    // Calculate total system pressure drop for multiple equipment
+    calculateTotalSystemPressureDrop: builder.mutation({
+      query: (body) => ({
+        url: `api/ahu-pressure-drop/calculate-total-system`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["AhuPressureDrop"],
     }),
     // New Chiller pressure drop data management endpoints
     saveChillerPressureDropData: builder.mutation({
@@ -267,6 +276,7 @@ export const apiSlice = createApi({
       invalidatesTags: ["Grille Size"],
     }),
     // New mutation for AHU calculations
+    // AHU calculation endpoint (legacy - kept for compatibility)
     calculateAHU: builder.mutation({
       query: (body) => ({
         url: `api/ahu`, // Full path relative to your `/api` baseUrl
@@ -274,29 +284,6 @@ export const apiSlice = createApi({
         body,
       }),
       invalidatesTags: ["AHU"], // You might want to define a new tag for AHU
-    }),
-    calculateFittingLosses: builder.mutation({
-      query: (body) => ({
-        url: `api/hvac/fitting-losses`,
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: ["AHU"],
-    }),
-    calculateTotalAHUPressureDrop: builder.mutation({
-      query: (body) => ({
-        url: `api/hvac/total-pressure-drop`,
-        method: "POST",
-        body,
-      }),
-      invalidatesTags: ["AHU"],
-    }),
-    getStandardFittings: builder.query({
-      query: () => ({
-        url: `api/hvac/standard-fittings`,
-        method: "GET",
-      }),
-      providesTags: ["AHU"],
     }),
     // New Chiller calculation mutation
     calculateChiller: builder.mutation({
@@ -833,6 +820,7 @@ export const {
   useSaveAhuPressureDropDataMutation,
   useGetAhuPressureDropDataQuery,
   useUpdateAhuPressureDropDataMutation,
+  useCalculateTotalSystemPressureDropMutation,
   useSaveChillerPressureDropDataMutation,
   useGetChillerPressureDropDataQuery,
   useUpdateChillerPressureDropDataMutation,
