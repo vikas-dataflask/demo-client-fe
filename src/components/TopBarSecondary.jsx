@@ -4,9 +4,9 @@ import React from "react";
 import ElectricalIcon from "../icons/ElectricalIcon";
 import FileSetup from "../icons/FileSetup";
 import FireFightIcon from "../icons/FireFightIcon";
-import HVACICON from "../icons/HVACICON";
 import PlumbingIcon from "../icons/PlumbingIcon";
 import { useGetProjectListQuery } from "../redux/features/api/api";
+import HvacIcon from "../icons/HvacIcon";
 
 export default function TopBarSecondary() {
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ export default function TopBarSecondary() {
   const tabs = [
     { label: "File Setup", icon: <FileSetup />, path: "file-setup" },
     { label: "Electrical", icon: <ElectricalIcon />, path: "electrical" },
-    { label: "HVAC", icon: <HVACICON />, path: "hvac" },
+    { label: "HVAC", icon: <HvacIcon />, path: "hvac" },
     { label: "Fire Fight", icon: <FireFightIcon />, path: "fire-fight" },
     { label: "Plumbing", icon: <PlumbingIcon />, path: "plumbing" },
   ];

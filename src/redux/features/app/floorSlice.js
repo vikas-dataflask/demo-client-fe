@@ -8,6 +8,8 @@ const initialState = {
   floor_height: 0,
   floor_area: 0,
   floor_volume: 0,
+  floor_dxf: null,
+  floor_bounds: null,
 };
 
 const floorSlice = createSlice({
@@ -32,6 +34,12 @@ const floorSlice = createSlice({
     setFloorVolume(state, action) {
       state.floor_volume = action.payload;
     },
+    setFloorDxf(state, action) {
+      state.floor_dxf = action.payload;
+    },
+    setFloorBounds: (state, action) => {
+      state.floor_bounds = action.payload;
+    },
   },
 });
 
@@ -42,6 +50,8 @@ export const {
   setFloorHeight,
   setFloorArea,
   setFloorVolume,
+  setFloorDxf,
+  setFloorBounds,
 } = floorSlice.actions;
 
 export default floorSlice.reducer;

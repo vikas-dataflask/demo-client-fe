@@ -796,10 +796,18 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: [{ type: "SprinklerLayout", id: "LIST" }],
     }),
+    getDxfEntities: builder.mutation({
+      query: (payload) => ({
+        url: "api/dxf",
+        method: "POST",
+        body: payload,
+      }),
+    }),
   }),
 });
 
 export const {
+  useGetDxfEntitiesMutation,
   useSignupMutation,
   useLoginMutation,
   useAddProjectMutation,
@@ -904,7 +912,6 @@ export const {
   useGetSprinklerLayoutQuery,
   useLazyGetSprinklerLayoutQuery,
   useSaveOrUpdateSprinklerLayoutMutation,
-
   useUpdateUserProfileMutation,
   useUploadProfilePicMutation,
   useDeleteProfilePicMutation,

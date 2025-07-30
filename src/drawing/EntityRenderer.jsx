@@ -1,362 +1,239 @@
-import React from "react";
-import {
-  Stage,
-  Layer,
-  Line,
-  Circle,
-  Arc,
-  Text,
-  Group,
-  Ellipse,
-} from "react-konva";
-import { useEffect, useRef, useState } from "react";
+import { Line, Text, Circle, Group, Arc, Ellipse } from "react-konva";
+import { useSelector } from "react-redux";
 
-const colorMap = {
-  1: "red",
-  2: "yellow",
-  3: "green",
-  4: "cyan",
-  5: "blue",
-  6: "magenta",
-  7: "black",
-  8: "gray",
-  9: "darkgray",
-  10: "#FF0000",
-  11: "#FF7F7F",
-  12: "#DC0000",
-  13: "#DC7F7F",
-};
+const safeNum = (value, fallback = 0) =>
+  typeof value === "number" && !isNaN(value) ? value : fallback;
 
-const isValidNumber = (n) => typeof n === "number" && !isNaN(n);
+export default function EntityRender({ entities = [], layers = [] }) {
+  const floorBounds = useSelector((state) => state.floor.floor_bounds);
+  if (!floorBounds || !entities.length) return null;
 
-const EntityRender = ({ entities = [], blocks = {}, layers = {} }) => {
-  const stageWidth = window.innerWidth - 300; // adjust for sidebar
-  const stageHeight = window.innerHeight - 100; // adjust for nav/header
+  const getLayerColor = (layerName) => {
+    const layer = layers?.find((l) => l.name === layerName);
+    return layer?.color || "black";
+  };
 
-  useEffect(() => {
-    localStorage.setItem("entities", JSON.stringify(entities));
-    localStorage.setItem("blocks", JSON.stringify(blocks));
-    localStorage.setItem("layers", JSON.stringify(layers));
-  }, [entities, blocks, layers]);
-
-  const getAllPoints = () => {
-    const points = [];
-
-    const addPoint = (x, y) => {
-      if (typeof x === "number" && typeof y === "number") {
-        points.push([x, y]);
-      }
-    };
+  const getEntityBounds = () => {
+    const allPoints = [];
 
     entities.forEach((entity) => {
-      switch (entity.type) {
-        case "LINE":
-        case "POLYLINE":
-        case "LWPOLYLINE":
-        case "LEADER":
-          (entity.vertices || []).forEach((v) => addPoint(v.x, v.y));
-          break;
-        case "CIRCLE":
-        case "ARC":
-        case "ELLIPSE":
-        case "POINT":
-        case "TEXT":
-        case "MTEXT":
-          if (entity.center) addPoint(entity.center.x, entity.center.y);
-          if (entity.position) addPoint(entity.position.x, entity.position.y);
-          break;
-        case "DIMENSION":
-          if (entity.start) addPoint(entity.start.x, entity.start.y);
-          if (entity.end) addPoint(entity.end.x, entity.end.y);
-          break;
-        case "INSERT":
-          if (entity.position) addPoint(entity.position.x, entity.position.y);
-          break;
-        default:
-          break;
+      if (entity.vertices) {
+        entity.vertices.forEach((v) =>
+          allPoints.push([safeNum(v.x), safeNum(v.y)])
+        );
+      } else if (entity.center) {
+        allPoints.push([safeNum(entity.center.x), safeNum(entity.center.y)]);
+      } else if (entity.position) {
+        allPoints.push([
+          safeNum(entity.position.x),
+          safeNum(entity.position.y),
+        ]);
       }
     });
 
-    return points;
+    const xs = allPoints.map(([x]) => x);
+    const ys = allPoints.map(([, y]) => y);
+
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    return {
+      minX,
+      minY,
+      width: maxX - minX || 1,
+      height: maxY - minY || 1,
+    };
   };
 
-  const points = getAllPoints();
-  const xs = points.map(([x]) => x);
-  const ys = points.map(([, y]) => y);
+  const bounds = getEntityBounds();
 
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
+  const scaleX = floorBounds.width / bounds.width;
+  const scaleY = floorBounds.height / bounds.height;
+  const scale = Math.min(scaleX, scaleY);
 
-  const drawingWidth = maxX - minX || 1;
-  const drawingHeight = maxY - minY || 1;
-
-  const scaleX = stageWidth / drawingWidth;
-  const scaleY = stageHeight / drawingHeight;
-  const scale = Math.min(scaleX, scaleY) * 2; // Add some padding
-
-  const offsetX = -(minX + drawingWidth / 2);
-  const offsetY = -(minY + drawingHeight / 2);
-
-  const getColor = (entity) => {
-    let colorNumber = entity.colorNumber;
-    if (!isValidNumber(colorNumber) || colorNumber === 0) {
-      const layerName = entity.layer;
-      colorNumber = layers[layerName]?.color;
-    }
-    return colorMap[colorNumber] || "#000000";
-  };
-
-  const renderBlock = (name, insert, prefix) => {
-    const block = blocks[name];
-    if (!block) return null;
-
-    const {
-      position = { x: 0, y: 0 },
-      rotation = 0,
-      scaleX = 1,
-      scaleY = 1,
-    } = insert;
-
-    return (
-      <Group
-        key={prefix + name}
-        x={position.x}
-        y={-position.y}
-        rotation={-rotation}
-        scaleX={scaleX}
-        scaleY={scaleY}
-      >
-        {block.entities.map((entity, i) =>
-          renderEntity(entity, `${prefix}_${name}_${i}_`)
-        )}
-      </Group>
-    );
-  };
-
-  const renderEntity = (entity, key) => {
-    const stroke = getColor(entity);
-    switch (entity.type) {
-      case "LINE": {
-        const [s, e] = entity.vertices ?? [];
-        return (
-          isValidNumber(s?.x) &&
-          isValidNumber(e?.x) && (
-            <Line
-              key={key}
-              points={[s.x, -s.y, e.x, -e.y]}
-              stroke={stroke}
-              strokeWidth={4}
-            />
-          )
-        );
-      }
-      case "CIRCLE": {
-        const { center, radius } = entity;
-        return (
-          <Circle
-            key={key}
-            x={center.x}
-            y={-center.y}
-            radius={radius}
-            stroke={stroke}
-            strokeWidth={4}
-          />
-        );
-      }
-      case "ARC": {
-        const { center, radius, startAngle, endAngle } = entity;
-        return (
-          <Arc
-            key={key}
-            x={center.x}
-            y={-center.y}
-            innerRadius={radius}
-            outerRadius={radius}
-            angle={endAngle - startAngle}
-            rotation={-startAngle}
-            stroke={stroke}
-            strokeWidth={4}
-          />
-        );
-      }
-      case "TEXT":
-      case "MTEXT": {
-        const { text, position, height = 12, rotation = 0 } = entity;
-        if (/^[A-Z]$/i.test(entity.text) || /^[0-9]$/.test(entity.text))
-          return null;
-
-        return (
-          <Text
-            key={key}
-            text={text}
-            x={position.x}
-            y={-position.y}
-            fontSize={height}
-            fill={stroke}
-            rotation={-rotation}
-          />
-        );
-      }
-      case "POLYLINE":
-      case "LWPOLYLINE": {
-        const points = (entity.vertices || []).flatMap((v) => [v.x, -v.y]);
-        return (
-          <Line
-            key={key}
-            points={points}
-            closed={entity.shape || entity.closed}
-            stroke={stroke}
-            strokeWidth={4}
-          />
-        );
-      }
-      case "ELLIPSE": {
-        const { center, majorAxisEndPoint, axisRatio, rotation } = entity;
-        const rx = Math.sqrt(
-          majorAxisEndPoint.x ** 2 + majorAxisEndPoint.y ** 2
-        );
-        const ry = rx * axisRatio;
-        return (
-          <Ellipse
-            key={key}
-            x={center.x}
-            y={-center.y}
-            radiusX={rx}
-            radiusY={ry}
-            rotation={-rotation}
-            stroke={stroke}
-            strokeWidth={4}
-          />
-        );
-      }
-      case "POINT": {
-        const { position } = entity;
-        return (
-          <Circle
-            key={key}
-            x={position.x}
-            y={-position.y}
-            radius={1.5}
-            fill={stroke}
-          />
-        );
-      }
-      case "SOLID":
-      case "TRACE": {
-        const pts = (entity.points || []).map((p) => [p.x, -p.y]).flat();
-        return (
-          <Line
-            key={key}
-            points={pts}
-            closed={true}
-            fill={stroke}
-            stroke={stroke}
-          />
-        );
-      }
-      case "SPLINE": {
-        const points = (entity.controlPoints || [])
-          .map((p) => [p.x, -p.y])
-          .flat();
-        return (
-          <Line
-            key={key}
-            points={points}
-            stroke={stroke}
-            strokeWidth={4}
-            tension={0.5}
-          />
-        );
-      }
-      case "HATCH": {
-        if (!entity.paths) return null;
-        return entity.paths.map((path, i) => {
-          const pts = (path.edges || []).flatMap((edge) => {
-            if (edge.vertices)
-              return edge.vertices.map((v) => [v.x, -v.y]).flat();
-            return [];
-          });
-          return (
-            <Line
-              key={`${key}_${i}`}
-              points={pts}
-              closed
-              fill={stroke}
-              stroke={stroke}
-              opacity={0.6}
-            />
-          );
-        });
-      }
-      case "DIMENSION": {
-        const { textMidpoint, text, start, end } = entity;
-        if (!start || !end || !textMidpoint) return null;
-        return (
-          <Group key={key}>
-            <Line
-              points={[start.x, -start.y, end.x, -end.y]}
-              stroke={stroke}
-              strokeWidth={4}
-            />
-            <Text
-              x={textMidpoint.x}
-              y={-textMidpoint.y}
-              text={text || ""}
-              fontSize={10}
-              fill={stroke}
-            />
-          </Group>
-        );
-      }
-      case "LEADER": {
-        const pts = (entity.vertices || []).map((p) => [p.x, -p.y]).flat();
-        if (pts.length < 4) return null;
-        return <Line key={key} points={pts} stroke={stroke} strokeWidth={1} />;
-      }
-      case "XLINE":
-      case "RAY": {
-        const start = entity.start;
-        const unit = entity.unitVector;
-        if (!start || !unit) return null;
-
-        const length = 10000;
-        const end = {
-          x: start.x + unit.x * length,
-          y: start.y + unit.y * length,
-        };
-        return (
-          <Line
-            key={key}
-            points={[start.x, -start.y, end.x, -end.y]}
-            stroke={stroke}
-            strokeWidth={4}
-            dash={[10, 5]}
-          />
-        );
-      }
-
-      case "INSERT":
-        return renderBlock(entity.name, entity, key);
-
-      default:
-        return null;
-    }
-  };
+  const offsetX = bounds.minX;
+  const offsetY = bounds.minY;
 
   return (
     <Group
+      x={floorBounds.x}
+      y={floorBounds.y}
       scaleX={scale}
       scaleY={scale}
-      x={stageWidth / 2 - 400}
-      y={stageHeight / 2}
       offsetX={offsetX}
       offsetY={offsetY}
     >
-      {entities.map((e, i) => renderEntity(e, `ent_${i}`))}
+      {entities.map((entity) => {
+        const layerColor = getLayerColor(entity.layer);
+
+        switch (entity.type) {
+          case "LINE":
+            return (
+              <Line
+                key={entity.handle}
+                points={[
+                  safeNum(entity.vertices?.[0]?.x),
+                  safeNum(entity.vertices?.[0]?.y),
+                  safeNum(entity.vertices?.[1]?.x),
+                  safeNum(entity.vertices?.[1]?.y),
+                ]}
+                stroke={layerColor}
+                strokeWidth={1}
+              />
+            );
+
+          case "CIRCLE":
+            return (
+              <Circle
+                key={entity.handle}
+                x={safeNum(entity.center?.x)}
+                y={safeNum(entity.center?.y)}
+                radius={safeNum(entity.radius)}
+                stroke={layerColor}
+                strokeWidth={1}
+              />
+            );
+
+          case "ARC":
+            return (
+              <Arc
+                key={entity.handle}
+                x={safeNum(entity.center?.x)}
+                y={safeNum(entity.center?.y)}
+                innerRadius={safeNum(entity.radius)}
+                outerRadius={safeNum(entity.radius)}
+                angle={safeNum(entity.endAngle) - safeNum(entity.startAngle)}
+                rotation={safeNum(entity.startAngle)}
+                stroke={layerColor}
+                strokeWidth={1}
+              />
+            );
+
+          case "TEXT":
+          case "MTEXT":
+            return (
+              <Text
+                key={entity.handle}
+                x={safeNum(entity.position?.x)}
+                y={safeNum(entity.position?.y)}
+                text={entity.text ?? ""}
+                fontSize={safeNum(entity.height, 12)}
+                fill={layerColor}
+                rotation={safeNum(entity.rotation)}
+                offsetY={safeNum(entity.height, 12) / 2}
+              />
+            );
+
+          case "ELLIPSE":
+            return (
+              <Ellipse
+                key={entity.handle}
+                x={safeNum(entity.center?.x)}
+                y={safeNum(entity.center?.y)}
+                radiusX={safeNum(entity.majorAxis?.x)}
+                radiusY={safeNum(entity.majorAxis?.y)}
+                stroke={layerColor}
+              />
+            );
+
+          case "POINT":
+            return (
+              <Circle
+                key={entity.handle}
+                x={safeNum(entity.position?.x)}
+                y={safeNum(entity.position?.y)}
+                radius={1.5}
+                fill={layerColor}
+              />
+            );
+
+          case "POLYLINE":
+          case "LWPOLYLINE":
+            return (
+              <Line
+                key={entity.handle}
+                points={
+                  entity.vertices?.flatMap((v) => [
+                    safeNum(v.x),
+                    safeNum(v.y),
+                  ]) || []
+                }
+                stroke={layerColor}
+                strokeWidth={1}
+                closed={!!entity.closed}
+              />
+            );
+
+          case "SOLID":
+          case "TRACE":
+            return (
+              <Line
+                key={entity.handle}
+                points={
+                  entity.points?.flatMap((p) => [safeNum(p.x), safeNum(p.y)]) ||
+                  []
+                }
+                fill={layerColor}
+                closed
+              />
+            );
+
+          case "SPLINE":
+            return (
+              <Line
+                key={entity.handle}
+                points={
+                  entity.controlPoints?.flatMap((p) => [
+                    safeNum(p.x),
+                    safeNum(p.y),
+                  ]) || []
+                }
+                stroke={layerColor}
+                strokeWidth={1}
+                tension={0.5}
+              />
+            );
+
+          case "XLINE":
+          case "RAY":
+          case "DIMENSION":
+          case "LEADER":
+            return (
+              <Line
+                key={entity.handle}
+                points={
+                  entity.vertices?.flatMap((v) => [
+                    safeNum(v.x),
+                    safeNum(v.y),
+                  ]) || []
+                }
+                stroke={layerColor}
+                strokeWidth={1}
+              />
+            );
+
+          case "HATCH":
+            return entity.polylines?.map((poly, index) => (
+              <Line
+                key={`${entity.handle}-${index}`}
+                points={
+                  poly?.vertices?.flatMap((v) => [
+                    safeNum(v.x),
+                    safeNum(v.y),
+                  ]) || []
+                }
+                stroke={layerColor}
+                strokeWidth={1}
+                closed={poly.closed}
+              />
+            ));
+
+          default:
+            return null;
+        }
+      })}
     </Group>
   );
-};
-
-export default EntityRender;
+}

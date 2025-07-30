@@ -15,9 +15,12 @@ import {
   setFloorHeight,
   setFloorArea,
   setFloorVolume,
+  setFloorDxf,
 } from "../../../redux/features/app/floorSlice";
+import { useGetDxfEntitiesMutation } from "../../../redux/features/api/api";
 
 const FloorEditorSidebar = () => {
+  const [parseDxf] = useGetDxfEntitiesMutation();
   const [updated, setUpdated] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const floorLength = useSelector((state) => state.floor.floor_length);
@@ -25,7 +28,24 @@ const FloorEditorSidebar = () => {
   const floorHeight = useSelector((state) => state.floor.floor_height);
   const floorArea = useSelector((state) => state.floor.floor_area);
   const floorVolume = useSelector((state) => state.floor.floor_volume);
+  const [selectedFile, setSelectedFile] = useState(null);
   const dispatch = useDispatch();
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (file && file.name.endsWith(".dxf")) {
+      setSelectedFile(file);
+    }
+    const form = new FormData();
+    form.append("dxf_file", file);
+    try {
+      const response = await parseDxf(form).unwrap();
+      console.log("DXF Entities:", response);
+      dispatch(setFloorDxf(response));
+    } catch (error) {
+      console.error("Error parsing DXF file:", error);
+    }
+  };
   return (
     <div className="fixed bg-white w-[450px] h-[87.9vh] z-50 border-r border-gray-300">
       <div className="mt-6 mx-4 flex flex-col gap-4">
@@ -52,8 +72,22 @@ const FloorEditorSidebar = () => {
             <Info />
           </div>
         </div>
-        <div className="flex gap-2 justify-center items-center bg-gray-200 p-2 text-gray-500 font-semibold rounded hover:bg-blue-500 hover:text-white cursor-pointer">
-          <div>Upload a drawing</div>
+        <div
+          className={`flex gap-2 justify-center items-center bg-gray-200 p-2 text-gray-500 font-semibold rounded ${
+            !selectedFile && "hover:bg-blue-500 hover:text-white"
+          }  cursor-pointer`}
+        >
+          {/* <div>Upload a drawing</div> */}
+          {selectedFile ? selectedFile.name : "Upload file"}
+          {!selectedFile && (
+            <input
+              type="file"
+              accept=".dxf"
+              onChange={handleFileChange}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+          )}
+
           <CloudUpload />
         </div>
         <div>

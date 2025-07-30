@@ -1,6 +1,6 @@
 import React from "react";
 
-const HVACICON = ({ className }) => {
+const HvacIcon = ({ className }) => {
   return (
     <svg
       className={className}
@@ -28,4 +28,4 @@ const HVACICON = ({ className }) => {
   );
 };
 
-export default HVACICON;
+export default HvacIcon;
