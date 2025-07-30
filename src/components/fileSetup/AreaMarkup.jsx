@@ -36,19 +36,28 @@
 // export default AreaMarkup;
 
 import { useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useDispatch } from "react-redux";
 import AreaMarkupSidebar from "./AreaMarkupSideBar";
 import EntityRenderer from "../../drawing/EntityRender";
 import RoomDrawer from "./RoomDrawer";
-import RoomEditor from "./RoomEditor";
+import RoomEditorWithZoom from "./RoomEditorWithZoom";
 import { useGetProjectListByIdQuery } from "../../redux/features/api/api";
+import { resetRooms } from "../../redux/features/app/roomSlice";
 
 const AreaMarkup = () => {
   const { projectId } = useParams();
+  const dispatch = useDispatch();
   const { data, isLoading, isError } = useGetProjectListByIdQuery(projectId);
 
   const entities = data?.dxf_entities || [];
   const blocks = data?.dxf_blocks || {};
   const layers = data?.dxf_layers || {};
+
+  // Reset rooms when component mounts
+  useEffect(() => {
+    dispatch(resetRooms());
+  }, [dispatch]);
 
   if (isLoading) return <div>Loading...</div>;
   if (isError) return <div>Error loading project.</div>;
@@ -65,18 +74,7 @@ const AreaMarkup = () => {
         className="flex-1 h-full"
         // style={{ position: "relative", width: 1400, height: 710 }}
       >
-        {hasEntities ? (
-          <>
-            <EntityRenderer
-              entities={entities}
-              blocks={blocks}
-              layers={layers}
-            />
-            <RoomDrawer />
-          </>
-        ) : (
-          <RoomEditor />
-        )}
+        <RoomEditorWithZoom />
       </div>
     </div>
   );

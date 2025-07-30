@@ -4,10 +4,18 @@
 //   name: "rooms",
 //   initialState: [],
 //   reducers: {
-//     // 1st reducer: Save room id and area when room is created
+//     // 1st reducer: Save full room details when room is created
 //     addRoom: (state, action) => {
-//       const { id, area } = action.payload;
-//       state.push({ id, area, name: "" }); // initialize with empty name
+//       const { id, area, x, y, width, height } = action.payload;
+//       state.push({
+//         id,
+//         area,
+//         x,
+//         y,
+//         width,
+//         height,
+//         name: "", // initialize with empty name
+//       });
 //     },
 
 //     // 2nd reducer: Update the room name by matching room id
@@ -19,14 +27,51 @@
 //       }
 //     },
 
-//     // 3rd reducer: Reset all rooms
+//     // ✅ New: Update room position
+//     updateRoomPosition: (state, action) => {
+//       const { id, x, y } = action.payload;
+//       const room = state.find((r) => r.id === id);
+//       if (room) {
+//         room.x = x;
+//         room.y = y;
+//       }
+//     },
+
+//     // redux/features/app/roomSlice.js
+//     updateRoomArea(state, action) {
+//       const { id, area } = action.payload;
+//       const room = state.find((r) => r.id === id);
+//       if (room) {
+//         room.area = area;
+//       }
+//     },
+
+//     // ✅ New: Update room dimensions (width and height)
+//     updateRoomDimensions: (state, action) => {
+//       const { id, width, height } = action.payload;
+//       const room = state.find((r) => r.id === id);
+//       if (room) {
+//         room.width = width;
+//         room.height = height;
+//       }
+//     },
+
+//     // 4th reducer: Reset all rooms
 //     resetRooms: () => {
 //       return [];
 //     },
 //   },
 // });
 
-// export const { addRoom, updateRoomName, resetRooms } = roomsSlice.actions;
+// export const {
+//   addRoom,
+//   updateRoomName,
+//   updateRoomPosition,
+//   updateRoomArea,
+//   updateRoomDimensions,
+//   resetRooms,
+// } = roomsSlice.actions;
+
 // export default roomsSlice.reducer;
 
 import { createSlice } from "@reduxjs/toolkit";
@@ -35,21 +80,22 @@ const roomsSlice = createSlice({
   name: "rooms",
   initialState: [],
   reducers: {
-    // 1st reducer: Save full room details when room is created
+    // Add full room details when created
     addRoom: (state, action) => {
-      const { id, area, x, y, width, height } = action.payload;
+      const { id, x, y, width, height } = action.payload;
+      const area = width * height;
       state.push({
         id,
-        area,
+        name: "",
         x,
         y,
         width,
         height,
-        name: "", // initialize with empty name
+        area,
       });
     },
 
-    // 2nd reducer: Update the room name by matching room id
+    // Update room name
     updateRoomName: (state, action) => {
       const { id, name } = action.payload;
       const room = state.find((r) => r.id === id);
@@ -58,7 +104,7 @@ const roomsSlice = createSlice({
       }
     },
 
-    // ✅ New: Update room position
+    // Update position
     updateRoomPosition: (state, action) => {
       const { id, x, y } = action.payload;
       const room = state.find((r) => r.id === id);
@@ -68,8 +114,19 @@ const roomsSlice = createSlice({
       }
     },
 
-    // redux/features/app/roomSlice.js
-    updateRoomArea(state, action) {
+    // Update dimensions and recalculate area
+    updateRoomDimensions: (state, action) => {
+      const { id, width, height } = action.payload;
+      const room = state.find((r) => r.id === id);
+      if (room) {
+        room.width = width;
+        room.height = height;
+        room.area = width * height;
+      }
+    },
+
+    // Separate area update (optional if needed independently)
+    updateRoomArea: (state, action) => {
       const { id, area } = action.payload;
       const room = state.find((r) => r.id === id);
       if (room) {
@@ -77,7 +134,7 @@ const roomsSlice = createSlice({
       }
     },
 
-    // 4th reducer: Reset all rooms
+    // Reset all rooms
     resetRooms: () => {
       return [];
     },
@@ -88,6 +145,7 @@ export const {
   addRoom,
   updateRoomName,
   updateRoomPosition,
+  updateRoomDimensions,
   updateRoomArea,
   resetRooms,
 } = roomsSlice.actions;

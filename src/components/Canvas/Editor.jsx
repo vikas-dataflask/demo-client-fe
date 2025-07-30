@@ -7,7 +7,7 @@ import {
   setFloorHeight,
   setFloorArea,
   setFloorVolume,
-  setFloorBounds,
+  setFloorRect,
 } from "../../redux/features/app/floorSlice";
 import EntityRender from "../../drawing/EntityRenderer";
 
@@ -149,20 +149,20 @@ export default function Editor() {
     const area = length * width;
     const volume = area * height;
 
+    // Store the floor rectangle data
+    const floorRect = {
+      x: floor.width < 0 ? floor.x + floor.width : floor.x,
+      y: floor.height < 0 ? floor.y + floor.height : floor.y,
+      width: Math.abs(floor.width),
+      height: Math.abs(floor.height),
+    };
+
     dispatch(setFloorLength(length.toFixed(2)));
     dispatch(setFloorWidth(width.toFixed(2)));
     dispatch(setFloorHeight(height));
     dispatch(setFloorArea(area.toFixed(2)));
     dispatch(setFloorVolume(volume.toFixed(2)));
-
-    dispatch(
-      setFloorBounds({
-        x: floor.x,
-        y: floor.y,
-        width: floor.width,
-        height: floor.height,
-      })
-    );
+    dispatch(setFloorRect(floorRect));
   };
   useEffect(() => {
     if (rectRef.current && trRef.current) {
@@ -235,6 +235,15 @@ export default function Editor() {
                   dispatch(setFloorWidth(newWidthUnits.toFixed(2)));
                   dispatch(setFloorArea(area.toFixed(2)));
                   dispatch(setFloorVolume(volume.toFixed(2)));
+
+                  // Update floor rectangle data
+                  const updatedFloorRect = {
+                    x: node.x(),
+                    y: node.y(),
+                    width: newWidth,
+                    height: newHeight,
+                  };
+                  dispatch(setFloorRect(updatedFloorRect));
                 }}
                 onDragEnd={(e) => {
                   setFloor((prev) => ({
@@ -242,6 +251,15 @@ export default function Editor() {
                     x: e.target.x(),
                     y: e.target.y(),
                   }));
+
+                  // Update floor rectangle data on drag
+                  const updatedFloorRect = {
+                    x: e.target.x(),
+                    y: e.target.y(),
+                    width: floor.width,
+                    height: floor.height,
+                  };
+                  dispatch(setFloorRect(updatedFloorRect));
                 }}
               />
               <Transformer
