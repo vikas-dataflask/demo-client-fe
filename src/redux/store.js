@@ -22,6 +22,8 @@ import dialuxReducer from "./features/app/dialuxSlice";
 import lightingReducer from "./features/app/lightingSlice";
 import powerReducer from "./features/app/powerSlice";
 import { backofficeApi } from "./features/api/backofficeApi";
+import editorReducer from "./features/app/editorSlice";
+import floorReducer from "./features/app/floorSlice";
 
 const userFromStorage = JSON.parse(localStorage.getItem("user"));
 
@@ -41,6 +43,8 @@ const rootReducer = combineReducers({
   dialux: dialuxReducer,
   lighting: lightingReducer,
   power: powerReducer,
+  editor: editorReducer,
+  floor: floorReducer,
 
   [apiSlice.reducerPath]: apiSlice.reducer,
   [backofficeApi.reducerPath]: backofficeApi.reducer,

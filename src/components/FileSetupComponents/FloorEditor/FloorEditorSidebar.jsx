@@ -1,0 +1,128 @@
+import {
+  CloudUpload,
+  Info,
+  LaptopMinimal,
+  LaptopMinimalCheck,
+  Plus,
+} from "lucide-react";
+import { useState } from "react";
+
+import { useDispatch, useSelector } from "react-redux";
+import {
+  setScale,
+  setFloorLength,
+  setFloorWidth,
+  setFloorHeight,
+  setFloorArea,
+  setFloorVolume,
+} from "../../../redux/features/app/floorSlice";
+
+const FloorEditorSidebar = () => {
+  const [updated, setUpdated] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const floorLength = useSelector((state) => state.floor.floor_length);
+  const floorWidth = useSelector((state) => state.floor.floor_width);
+  const floorHeight = useSelector((state) => state.floor.floor_height);
+  const floorArea = useSelector((state) => state.floor.floor_area);
+  const floorVolume = useSelector((state) => state.floor.floor_volume);
+  const dispatch = useDispatch();
+  return (
+    <div className="fixed bg-white w-[450px] h-[87.9vh] z-50 border-r border-gray-300">
+      <div className="mt-6 mx-4 flex flex-col gap-4">
+        <div className="border-b border-gray-300 pb-4 flex justify-between items-center">
+          <div>
+            <div className="font-bold text-lg">Floor Editor</div>
+            {updated ? (
+              <div className="flex items-center gap-2">
+                <LaptopMinimalCheck className="text-green-500 h-4 w-4" />
+                <div className="text-xs font-semibold text-green-500">
+                  Updated Now
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <LaptopMinimal className="text-red-500 h-4 w-4" />
+                <div className="text-xs font-semibold text-red-500">
+                  Waiting for Input
+                </div>
+              </div>
+            )}
+          </div>
+          <div>
+            <Info />
+          </div>
+        </div>
+        <div className="flex gap-2 justify-center items-center bg-gray-200 p-2 text-gray-500 font-semibold rounded hover:bg-blue-500 hover:text-white cursor-pointer">
+          <div>Upload a drawing</div>
+          <CloudUpload />
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 font-semibold">Scale</div>
+          <div>
+            <select
+              className="w-full bg-gray-100 border border-gray-300 text-sm text-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-0"
+              onChange={(e) => dispatch(setScale(e.target.value))}
+            >
+              <option>m</option>
+              <option>mm</option>
+              <option>cm</option>
+              <option>ft</option>
+              <option>inch</option>
+              <option>sq yd</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4 border p-4 rounded border-gray-300">
+          <div className="">
+            <div className="text-xs text-gray-500 font-semibold">Length</div>
+            <div className="bg-gray-100 border border-gray-300 p-2 rounded">
+              {floorLength}
+            </div>
+          </div>
+          <div className="">
+            <div className="text-xs text-gray-500 font-semibold">Width</div>
+            <div className="bg-gray-100 border border-gray-300 p-2 rounded">
+              {floorWidth}
+            </div>
+          </div>
+          <div className="">
+            <div className="text-xs text-gray-500 font-semibold">Height</div>
+            <input
+              type="number"
+              className="w-full bg-gray-100 border border-gray-300 p-2 rounded outline-none focus:ring-1 focus:ring-blue-500"
+              value={floorHeight}
+              onChange={(e) => {
+                const newHeight = parseFloat(e.target.value || 0);
+                dispatch(setFloorHeight(newHeight));
+
+                // Optional: Recalculate volume and area if length & width exist
+                const length = parseFloat(floorLength || 0);
+                const width = parseFloat(floorWidth || 0);
+                const area = length * width;
+                const volume = area * newHeight;
+
+                dispatch(setFloorArea(area.toFixed(2)));
+                dispatch(setFloorVolume(volume.toFixed(2)));
+              }}
+            />
+          </div>
+
+          <div className="">
+            <div className="text-xs text-gray-500 font-semibold">Area</div>
+            <div className="bg-gray-100 border border-gray-300 p-2 rounded">
+              {floorArea}
+            </div>
+          </div>
+          <div className="">
+            <div className="text-xs text-gray-500 font-semibold">Volume</div>
+            <div className="bg-gray-100 border border-gray-300 p-1 rounded">
+              {floorVolume}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FloorEditorSidebar;

@@ -1,47 +1,34 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
-// Content Components
-
-import Layout from "../components/ProjectLayout";
-
-import DrawingFile from "../components/fileSetup/DrawingFile";
-import AreaMarkup from "../components/fileSetup/AreaMarkup";
-import DoorMarkup from "../components/fileSetup/DoorMarkup";
-import AssignMaterial from "../components/fileSetup/AssignMaterial";
-import SidebarFilesetup from "../components/fileSetup/SidebarFilesetup";
-// import FloorPlanEditor from "../drawing/FloorPlanEditor";
+import FloorEditor from "../components/FileSetupComponents/FloorEditor/FloorEditor";
+import EditorLayout from "../components/SharedComponents/EditorLayout";
+import FileSetupSidebar from "../components/FileSetupComponents/FileSetupSidebar";
 
 export default function FileSetupPage() {
-  const [activeSection, setActiveSection] = useState("drawing-file"); // Default
+  const [activeSection, setActiveSection] = useState("drawing-file");
+  const [open, setOpen] = useState(true);
 
   const renderContent = () => {
     switch (activeSection) {
       case "drawing-file":
-        return <DrawingFile />;
-      case "area-markup":
-        return <AreaMarkup />;
-      case "door-markup":
-        return <DoorMarkup />;
-      case "assign-material":
-        return <AssignMaterial />;
+        return <FloorEditor open={open} />;
 
       default:
-        return <DrawingFile />;
+        return <FloorEditor open={open} />;
     }
   };
 
   return (
-    <div className="bg-[#f8f9fb]  flex flex-col">
-      <Layout>
-        <div className="flex overflow-hidden">
-          <SidebarFilesetup
-            activeSection={activeSection}
-            setActiveSection={setActiveSection}
-          />
-          <div className="flex overflow-y-auto">{renderContent()}</div>
-        </div>
-        <div>{/* <FloorPlanEditor /> */}</div>
-      </Layout>
-    </div>
+    <EditorLayout>
+      <div className="flex overflow-hidden">
+        <FileSetupSidebar
+          activeSection={activeSection}
+          setActiveSection={setActiveSection}
+          setOpen={setOpen}
+          open={open}
+        />
+        <div className="flex overflow-y-auto">{renderContent()}</div>
+      </div>
+    </EditorLayout>
   );
 }
