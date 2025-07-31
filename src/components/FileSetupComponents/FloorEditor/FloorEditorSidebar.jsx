@@ -5,6 +5,7 @@ import {
   LaptopMinimalCheck,
   Plus,
   FileText,
+  FileText,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -25,11 +26,13 @@ const FloorEditorSidebar = () => {
   const [updated, setUpdated] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const floorLength = useSelector((state) => state.floor.floor_length);
   const floorWidth = useSelector((state) => state.floor.floor_width);
   const floorHeight = useSelector((state) => state.floor.floor_height);
   const floorArea = useSelector((state) => state.floor.floor_area);
   const floorVolume = useSelector((state) => state.floor.floor_volume);
+  const floorDxf = useSelector((state) => state.floor.floor_dxf);
   const floorDxf = useSelector((state) => state.floor.floor_dxf);
   const [selectedFile, setSelectedFile] = useState(null);
   const dispatch = useDispatch();
@@ -38,6 +41,7 @@ const FloorEditorSidebar = () => {
     const file = e.target.files[0];
     if (file && file.name.endsWith(".dxf")) {
       setSelectedFile(file);
+      setIsUploading(true);
       setIsUploading(true);
     }
     const form = new FormData();
@@ -79,8 +83,12 @@ const FloorEditorSidebar = () => {
     } catch (error) {
       console.error("Error parsing DXF file:", error);
       setIsUploading(false);
+      setIsUploading(false);
     }
   };
+
+  const hasDxfEntities = floorDxf && floorDxf.entities && floorDxf.entities.length > 0;
+
   return (
     <div className="fixed bg-white w-[450px] h-[87.9vh] z-50 border-r border-gray-300">
       <div className="mt-6 mx-4 flex flex-col gap-4">
@@ -171,6 +179,51 @@ const FloorEditorSidebar = () => {
 
           <CloudUpload />
         </div> */}
+        </div>
+
+        {/* DXF Upload Section */}
+        <div className="border-b border-gray-300 pb-4">
+          <div className="text-sm font-semibold text-gray-700 mb-2">DXF Drawing</div>
+          <div
+            className={`flex gap-2 justify-center items-center bg-gray-200 p-2 text-gray-500 font-semibold rounded ${
+              !selectedFile && !isUploading && "hover:bg-blue-500 hover:text-white"
+            } cursor-pointer relative`}
+          >
+            {isUploading ? (
+              <>
+                <div>Uploading...</div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+              </>
+            ) : selectedFile ? (
+              <>
+                <div>{selectedFile.name}</div>
+                <FileText className="h-4 w-4" />
+              </>
+            ) : (
+              <>
+                <div>Upload DXF file</div>
+                <CloudUpload className="h-4 w-4" />
+              </>
+            )}
+            
+            {!isUploading && (
+              <input
+                type="file"
+                accept=".dxf"
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            )}
+          </div>
+          
+          {hasDxfEntities && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
+              <FileText className="h-3 w-3" />
+              <span>{floorDxf.entities.length} entities loaded</span>
+            </div>
+          )}
+        </div>
+
         <div>
           <div className="text-xs text-gray-500 font-semibold">Scale</div>
           <div>
@@ -236,6 +289,51 @@ const FloorEditorSidebar = () => {
             </div>
           </div>
         </div>
+
+        {/* Instructions */}
+        {hasDxfEntities && (
+          <div className="text-xs text-gray-600 bg-blue-50 p-3 rounded border border-blue-200">
+            <div className="font-semibold mb-1">Instructions:</div>
+            <div>1. Draw a floor rectangle on the canvas</div>
+            <div>2. The DXF entities will automatically scale to fit within the floor bounds</div>
+            <div>3. Adjust the floor size to change the scale of the drawing</div>
+          </div>
+        )}
+
+        {/* Test button */}
+        <button
+          onClick={() => {
+            const testData = {
+              entities: [
+                {
+                  handle: "test1",
+                  type: "LINE",
+                  layer: "0",
+                  vertices: [
+                    { x: 0, y: 0 },
+                    { x: 100, y: 100 }
+                  ]
+                },
+                {
+                  handle: "test2",
+                  type: "CIRCLE",
+                  layer: "0",
+                  center: { x: 50, y: 50 },
+                  radius: 25
+                }
+              ],
+              layers: [
+                { name: "0", color: "black" }
+              ],
+              blocks: {}
+            };
+            console.log("Setting test DXF data:", testData);
+            dispatch(setFloorDxf(testData));
+          }}
+          className="bg-red-500 text-white p-2 rounded text-sm"
+        >
+          Test: Set Sample DXF Data
+        </button>
       </div>
     </div>
   );

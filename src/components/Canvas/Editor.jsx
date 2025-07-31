@@ -23,6 +23,14 @@ export default function Editor() {
   const blocks = data?.dxf_blocks || {};
   const layers = data?.dxf_layers || {};
 
+  // Debug logging
+  console.log("Editor Debug:", {
+    hasDxfData: !!data,
+    entitiesCount: entities.length,
+    layersCount: layers.length,
+    blocksCount: Object.keys(blocks).length,
+  });
+
   const [scale, setScaleState] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -120,24 +128,6 @@ export default function Editor() {
     }));
   };
 
-  // const handleMouseUp = () => {
-  //   if (!isDrawing) return;
-  //   setIsDrawing(false);
-  //   setFloorMode(false);
-
-  //   const length = Math.abs(floor.width / GRID_SIZE);
-  //   const width = Math.abs(floor.height / GRID_SIZE);
-  //   const height = heightFromStore;
-  //   const area = length * width;
-  //   const volume = area * height;
-
-  //   dispatch(setFloorLength(length.toFixed(2)));
-  //   dispatch(setFloorWidth(width.toFixed(2)));
-  //   dispatch(setFloorHeight(height));
-  //   dispatch(setFloorArea(area.toFixed(2)));
-  //   dispatch(setFloorVolume(volume.toFixed(2)));
-  // };
-
   const handleMouseUp = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
@@ -164,6 +154,7 @@ export default function Editor() {
     dispatch(setFloorVolume(volume.toFixed(2)));
     dispatch(setFloorRect(floorRect));
   };
+
   useEffect(() => {
     if (rectRef.current && trRef.current) {
       trRef.current.nodes([rectRef.current]);
@@ -203,9 +194,9 @@ export default function Editor() {
                 y={floor.y}
                 width={floor.width}
                 height={floor.height}
-                fill="rgba(0, 150, 255, 0.3)"
-                stroke="blue"
-                strokeWidth={2}
+                fill="rgba(0, 150, 255, 0.1)"
+                stroke="#1e40af"
+                strokeWidth={3}
                 draggable
                 onTransformEnd={() => {
                   const node = rectRef.current;
@@ -236,6 +227,15 @@ export default function Editor() {
                   dispatch(setFloorArea(area.toFixed(2)));
                   dispatch(setFloorVolume(volume.toFixed(2)));
 
+                  dispatch(
+                    setFloorBounds({
+                      x: node.x(),
+                      y: node.y(),
+                      width: newWidth,
+                      height: newHeight,
+                    })
+                  );
+
                   // Update floor rectangle data
                   const updatedFloorRect = {
                     x: node.x(),
@@ -251,6 +251,15 @@ export default function Editor() {
                     x: e.target.x(),
                     y: e.target.y(),
                   }));
+
+                  dispatch(
+                    setFloorBounds({
+                      x: e.target.x(),
+                      y: e.target.y(),
+                      width: floor.width,
+                      height: floor.height,
+                    })
+                  );
 
                   // Update floor rectangle data on drag
                   const updatedFloorRect = {
@@ -272,7 +281,9 @@ export default function Editor() {
             </>
           )}
         </Layer>
+
         <Layer>
+          <EntityRender />
           <EntityRender />
         </Layer>
       </Stage>
