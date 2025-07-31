@@ -273,7 +273,7 @@ export default function Editor() {
           )}
         </Layer>
         <Layer>
-          <EntityRender entities={entities} blocks={blocks} layers={layers} />
+          <EntityRender />
         </Layer>
       </Stage>
     </div>

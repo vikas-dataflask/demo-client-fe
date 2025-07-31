@@ -4,6 +4,7 @@ import {
   LaptopMinimal,
   LaptopMinimalCheck,
   Plus,
+  FileText,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -23,11 +24,13 @@ const FloorEditorSidebar = () => {
   const [parseDxf] = useGetDxfEntitiesMutation();
   const [updated, setUpdated] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const floorLength = useSelector((state) => state.floor.floor_length);
   const floorWidth = useSelector((state) => state.floor.floor_width);
   const floorHeight = useSelector((state) => state.floor.floor_height);
   const floorArea = useSelector((state) => state.floor.floor_area);
   const floorVolume = useSelector((state) => state.floor.floor_volume);
+  const floorDxf = useSelector((state) => state.floor.floor_dxf);
   const [selectedFile, setSelectedFile] = useState(null);
   const dispatch = useDispatch();
 
@@ -35,15 +38,47 @@ const FloorEditorSidebar = () => {
     const file = e.target.files[0];
     if (file && file.name.endsWith(".dxf")) {
       setSelectedFile(file);
+      setIsUploading(true);
     }
     const form = new FormData();
     form.append("dxf_file", file);
     try {
       const response = await parseDxf(form).unwrap();
       console.log("DXF Entities:", response);
-      dispatch(setFloorDxf(response));
+      console.log("DXF Response structure:", {
+        hasResponse: !!response,
+        keys: response ? Object.keys(response) : [],
+        dxfEntities: response?.dxf_entities,
+        dxfEntitiesLength: response?.dxf_entities?.length,
+        dxfLayers: response?.dxf_layers,
+        dxfBlocks: response?.dxf_blocks,
+      });
+
+      // Extract the actual DXF data from the response
+      const dxfData = response?.dxf || response;
+      console.log("Extracted DXF data:", dxfData);
+      console.log("Extracted DXF data structure:", {
+        hasDxfData: !!dxfData,
+        keys: dxfData ? Object.keys(dxfData) : [],
+        dxfEntities: dxfData?.dxf_entities,
+        dxfEntitiesLength: dxfData?.dxf_entities?.length,
+        dxfLayers: dxfData?.dxf_layers,
+        dxfLayersLength: dxfData?.dxf_layers?.length,
+        dxfBlocks: dxfData?.dxf_blocks,
+        dxfBlocksKeys: dxfData?.dxf_blocks
+          ? Object.keys(dxfData.dxf_blocks)
+          : [],
+        fullDxfData: JSON.stringify(dxfData, null, 2),
+      });
+
+      dispatch(setFloorDxf(dxfData));
+      console.log("Dispatched setFloorDxf with:", dxfData);
+
+      setIsUploading(false);
+      setUpdated(true);
     } catch (error) {
       console.error("Error parsing DXF file:", error);
+      setIsUploading(false);
     }
   };
   return (
@@ -72,12 +107,58 @@ const FloorEditorSidebar = () => {
             <Info />
           </div>
         </div>
-        <div
+        {/* DXF Upload Section */}
+        <div className="border-b border-gray-300 pb-4">
+          <div className="text-sm font-semibold text-gray-700 mb-2">
+            DXF Drawing
+          </div>
+          <div
+            className={`flex gap-2 justify-center items-center bg-gray-200 p-2 text-gray-500 font-semibold rounded ${
+              !selectedFile &&
+              !isUploading &&
+              "hover:bg-blue-500 hover:text-white"
+            } cursor-pointer relative`}
+          >
+            {isUploading ? (
+              <>
+                <div>Uploading...</div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+              </>
+            ) : selectedFile ? (
+              <>
+                <div>{selectedFile.name}</div>
+                <FileText className="h-4 w-4" />
+              </>
+            ) : (
+              <>
+                <div>Upload DXF file</div>
+                <CloudUpload className="h-4 w-4" />
+              </>
+            )}
+
+            {!isUploading && (
+              <input
+                type="file"
+                accept=".dxf"
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            )}
+          </div>
+
+          {hasDxfEntities && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
+              <FileText className="h-3 w-3" />
+              <span>{floorDxf.entities.length} entities loaded</span>
+            </div>
+          )}
+        </div>
+        {/* <div
           className={`flex gap-2 justify-center items-center bg-gray-200 p-2 text-gray-500 font-semibold rounded ${
             !selectedFile && "hover:bg-blue-500 hover:text-white"
           }  cursor-pointer`}
-        >
-          {/* <div>Upload a drawing</div> */}
+        > */}
+        {/* <div>Upload a drawing</div>
           {selectedFile ? selectedFile.name : "Upload file"}
           {!selectedFile && (
             <input
@@ -89,7 +170,7 @@ const FloorEditorSidebar = () => {
           )}
 
           <CloudUpload />
-        </div>
+        </div> */}
         <div>
           <div className="text-xs text-gray-500 font-semibold">Scale</div>
           <div>
@@ -106,6 +187,7 @@ const FloorEditorSidebar = () => {
             </select>
           </div>
         </div>
+        w{" "}
         <div className="flex flex-col gap-4 border p-4 rounded border-gray-300">
           <div className="">
             <div className="text-xs text-gray-500 font-semibold">Length</div>
