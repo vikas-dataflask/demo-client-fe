@@ -24,6 +24,7 @@ import powerReducer from "./features/app/powerSlice";
 import { backofficeApi } from "./features/api/backofficeApi";
 import editorReducer from "./features/app/editorSlice";
 import floorReducer from "./features/app/floorSlice";
+import wallReducer from "./features/app/wallSlice";
 
 const userFromStorage = JSON.parse(localStorage.getItem("user"));
 
@@ -45,6 +46,7 @@ const rootReducer = combineReducers({
   power: powerReducer,
   editor: editorReducer,
   floor: floorReducer,
+  walls: wallReducer,
 
   [apiSlice.reducerPath]: apiSlice.reducer,
   [backofficeApi.reducerPath]: backofficeApi.reducer,

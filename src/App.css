@@ -24,3 +24,90 @@
   transform: translateY(-5px) scale(0.95);
   transition: opacity 150ms ease-in, transform 150ms ease-in;
 }
+
+/* Zoom Slider Styles */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb {
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider:focus {
+  outline: none;
+}
+
+.slider:hover::-webkit-slider-thumb {
+  background: #2563eb;
+}
+
+.slider:hover::-moz-range-thumb {
+  background: #2563eb;
+}
+
+/* Zoom Controls Styles */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoom-controls button {
+  transition: all 0.2s ease;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoom-controls button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.zoom-controls button:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Canvas Viewport Styles */
+.canvas-wrapper {
+  width: 100%;
+  height: calc(100vh - 40px);
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: #f8f9fa;
+  padding: 20px;
+}
+
+.canvas-viewport {
+  width: 10000px;
+  height: 6000px;
+  position: relative;
+  background: #f8f9fa;
+}
+
+.canvas-container {
+  width: 10000px;
+  height: 6000px;
+  position: relative;
+  background: white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}

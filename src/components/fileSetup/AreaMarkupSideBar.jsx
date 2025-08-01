@@ -8,14 +8,55 @@ import CircleIcon from "../../icons/CircleIcon";
 import PolygonalIcon from "../../icons/PolygonalIcon";
 import RightModal from "./RightModal";
 
+const GRID_SIZE = 30; // Match the scale system from RoomEditorWithZoom.jsx
+
 const AreaMarkupSidebar = () => {
   const [selectedShape, setSelectedShape] = useState("square");
-  const [buildingName, setBuildingName] = useState("Building 1");
+  // const [buildingName, setBuildingName] = useState("Building 1");
   const [storeys, setStoreys] = useState("10");
   const [height, setHeight] = useState("30");
   const [unit, setUnit] = useState("Unit");
+  const [selectedFloorId, setSelectedFloorId] = useState("");
 
   const rooms = useSelector((state) => state.rooms);
+  const floors = useSelector((state) => state.floor.floors);
+  const selectedScale = useSelector((state) => state.project.scale);
+
+  // Convert pixels to logical units (meters)
+  const convertToLogicalUnits = (pixels) => {
+    return pixels / GRID_SIZE;
+  };
+
+  // Convert area to the selected scale
+  const convertArea = (pixelArea) => {
+    const areaInLogicalUnits = pixelArea / (GRID_SIZE * GRID_SIZE);
+    const areaInSquareMeters = areaInLogicalUnits;
+
+    switch (selectedScale) {
+      case "Inches":
+        return areaInSquareMeters * 1550.0031;
+      case "Feet":
+        return areaInSquareMeters * 10.7639;
+      case "Square Yards":
+        return areaInSquareMeters * 1.19599;
+      default:
+        return areaInSquareMeters; // Meters
+    }
+  };
+
+  // Get the appropriate unit label based on selected scale
+  const getUnitLabel = () => {
+    switch (selectedScale) {
+      case "Inches":
+        return "in";
+      case "Feet":
+        return "ft";
+      case "Square Yards":
+        return "yd";
+      default:
+        return "m";
+    }
+  };
 
   // State for modal
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -51,17 +92,23 @@ const AreaMarkupSidebar = () => {
       <hr className="my-[16px] border-gray-200" />
 
       {/* Add building */}
-      <div className="flex justify-between items-center mb-[8px]">
-        <p className="text-[#333333] text-[13px]">Add new building</p>
-        <button className="p-[6px] bg-gray-200 rounded-md hover:bg-gray-200">
-          <PlusIcon className="w-[14px] h-[14px] text-gray-700" />
-        </button>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700">
+          Select Floor
+        </label>
+        <select
+          className="mt-1 block w-full h-[35px] rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          value={selectedFloorId}
+          onChange={(e) => setSelectedFloorId(e.target.value)}
+        >
+          <option value="">-- Select Floor --</option>
+          {floors.map((floor) => (
+            <option key={floor.id} value={floor.id}>
+              {floor.name}
+            </option>
+          ))}
+        </select>
       </div>
-      <input
-        className="w-full border border-gray-300 rounded-[8px] px-[10px] py-[6px] bg-gray-200 text-gray-500 mb-[16px] text-[13px]"
-        value={buildingName}
-        onChange={(e) => setBuildingName(e.target.value)}
-      />
 
       {/* Draw Building Rooms */}
       <p className="text-[#333333] text-[13px] mb-[6px]">Draw Building rooms</p>
@@ -100,14 +147,6 @@ const AreaMarkupSidebar = () => {
 
       <hr className="my-[16px] border-gray-200" />
 
-      {/* Storeys */}
-      <p className="text-[#333333] text-[13px] mb-[6px]">No. of storeys</p>
-      <input
-        className="w-full border border-gray-300 rounded-[8px] px-[10px] py-[6px] bg-gray-200 mb-[16px] text-[13px] text-gray-500"
-        value={storeys}
-        onChange={(e) => setStoreys(e.target.value)}
-      />
-
       {/* Height */}
       <p className="text-[#333333] text-[13px] mb-[6px]">Building height</p>
       <div className="flex gap-[8px] mb-[16px]">
@@ -130,15 +169,46 @@ const AreaMarkupSidebar = () => {
       {/* Rooms */}
       <p className="text-[#333333] text-[13px] mb-[6px]">Rooms created</p>
       <div className="space-y-[8px]">
-        {rooms.map((room, index) => (
-          <div
-            key={index}
-            onClick={() => handleRoomClick(room)}
-            className="cursor-pointer flex items-center border border-gray-300 rounded-[8px] px-[10px] py-[6px] bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
-          >
-            <span className="text-[13px] font-medium">{room.name}</span>
-          </div>
-        ))}
+        {rooms.map((room, index) => {
+          const widthInMeters = convertToLogicalUnits(room.width);
+          const heightInMeters = convertToLogicalUnits(room.height);
+          const areaInUnits = convertArea(room.width * room.height);
+          const unitLabel = getUnitLabel();
+
+          return (
+            <div
+              key={index}
+              onClick={() => handleRoomClick(room)}
+              className="cursor-pointer flex items-center border border-gray-300 rounded-[8px] px-[10px] py-[6px] bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+            >
+              <div className="text-sm text-gray-700">
+                <p>
+                  <span className="font-medium">Name:</span>{" "}
+                  {room.name || "Unnamed Room"}
+                </p>
+                <p>
+                  <span className="font-medium">Area:</span>{" "}
+                  {areaInUnits.toFixed(2)}{" "}
+                  {selectedScale === "Inches"
+                    ? "in²"
+                    : selectedScale === "Feet"
+                    ? "ft²"
+                    : selectedScale === "Square Yards"
+                    ? "yd²"
+                    : "m²"}
+                </p>
+                <p>
+                  <span className="font-medium">Width:</span>{" "}
+                  {widthInMeters.toFixed(2)} {unitLabel}
+                </p>
+                <p>
+                  <span className="font-medium">Length:</span>{" "}
+                  {heightInMeters.toFixed(2)} {unitLabel}
+                </p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* RightModal component */}

@@ -5,6 +5,8 @@ import EditorLayout from "../components/SharedComponents/EditorLayout";
 import FileSetupSidebar from "../components/FileSetupComponents/FileSetupSidebar";
 import RoomEditor from "../components/FileSetupComponents/RoomEditor/roomEditor";
 import AreaMarkup from "../components/fileSetup/AreaMarkup";
+import DoorMarkup from "../components/fileSetup/DoorMarkup";
+import AssignMaterial from "../components/fileSetup/AssignMaterial";
 
 export default function FileSetupPage() {
   const [activeSection, setActiveSection] = useState("drawing-file");
@@ -16,6 +18,10 @@ export default function FileSetupPage() {
         return <FloorEditor open={open} />;
       case "area-markup":
         return <AreaMarkup />;
+      case "door-markup":
+        return <DoorMarkup />;
+      case "assign-material":
+        return <AssignMaterial />;
 
       default:
         return <FloorEditor open={open} />;

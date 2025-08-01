@@ -256,7 +256,7 @@ const RoomEditorWithZoom = () => {
       y: newRoom.height < 0 ? newRoom.y + newRoom.height : newRoom.y,
       width,
       height,
-      area: convertArea(width * height), // scaled area
+      area: width * height, // Store raw pixel area, conversion happens in display
     };
 
     const overlaps = rooms.some((room) => isOverlapping(finalRoom, room));

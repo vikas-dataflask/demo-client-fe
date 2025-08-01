@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { updateRoomName, updateRoomDimensions } from "../../redux/features/app/roomSlice";
+import {
+  updateRoomName,
+  updateRoomDimensions,
+} from "../../redux/features/app/roomSlice";
 
 const GRID_SIZE = 30; // Match the scale system from RoomEditorWithZoom.jsx
 
@@ -8,10 +11,13 @@ const CentralModal = ({ room, onClose }) => {
   const [roomName, setRoomName] = useState("");
   const [widthMeters, setWidthMeters] = useState("");
   const [heightMeters, setHeightMeters] = useState("");
+  const [roomType, setRoomType] = useState("");
+  const [wallThickness, setWallThickness] = useState("0.2");
+  const [fallCeiling, setFallCeiling] = useState("");
   const [isWidthEditing, setIsWidthEditing] = useState(false);
   const [isHeightEditing, setIsHeightEditing] = useState(false);
   const dispatch = useDispatch();
-  
+
   const selectedScale = useSelector((state) => state.project.scale);
 
   // Convert pixels to logical units (meters)
@@ -77,11 +83,13 @@ const CentralModal = ({ room, onClose }) => {
     const newWidthMeters = parseFloat(widthMeters) || 0;
     if (newWidthMeters > 0) {
       const newWidthPixels = convertToPixels(newWidthMeters);
-      dispatch(updateRoomDimensions({ 
-        id: room.id, 
-        width: newWidthPixels, 
-        height: room.height 
-      }));
+      dispatch(
+        updateRoomDimensions({
+          id: room.id,
+          width: newWidthPixels,
+          height: room.height,
+        })
+      );
     } else {
       // Reset to current value if invalid
       setWidthMeters(convertToLogicalUnits(room.width).toFixed(2));
@@ -93,11 +101,13 @@ const CentralModal = ({ room, onClose }) => {
     const newHeightMeters = parseFloat(heightMeters) || 0;
     if (newHeightMeters > 0) {
       const newHeightPixels = convertToPixels(newHeightMeters);
-      dispatch(updateRoomDimensions({ 
-        id: room.id, 
-        width: room.width, 
-        height: newHeightPixels 
-      }));
+      dispatch(
+        updateRoomDimensions({
+          id: room.id,
+          width: room.width,
+          height: newHeightPixels,
+        })
+      );
     } else {
       // Reset to current value if invalid
       setHeightMeters(convertToLogicalUnits(room.height).toFixed(2));
@@ -144,7 +154,9 @@ const CentralModal = ({ room, onClose }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Width ({unitLabel})</label>
+              <label className="block text-sm font-medium mb-1">
+                Width ({unitLabel})
+              </label>
               <input
                 type="number"
                 step="0.01"
@@ -157,7 +169,9 @@ const CentralModal = ({ room, onClose }) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Height ({unitLabel})</label>
+              <label className="block text-sm font-medium mb-1">
+                Height ({unitLabel})
+              </label>
               <input
                 type="number"
                 step="0.01"
@@ -171,12 +185,83 @@ const CentralModal = ({ room, onClose }) => {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Room Type
+              </label>
+              <select
+                className="w-full bg-gray-100 border border-gray-300 text-sm text-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-0"
+                // value={displayUnit}
+                // onChange={}
+              >
+                <option value="m"></option>
+                <option value="mm"></option>
+                <option value="cm"></option>
+                <option value="ft"></option>
+                <option value="inch"></option>
+                <option value="sq yd"></option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Wall Thickness ({unitLabel})
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.1"
+                value={wallThickness}
+                onChange={handleHeightChange}
+                onFocus={handleHeightFocus}
+                onBlur={handleHeightBlur}
+                className="w-full border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium mb-1">
+                <input
+                  type="checkbox"
+                  checked={fallCeiling !== ""}
+                  onChange={
+                    (e) => setFallCeiling(e.target.checked ? "0.3" : "") // default value or reset
+                  }
+                  className="form-checkbox text-blue-600"
+                />
+                Fall Ceiling
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.1"
+                value={fallCeiling}
+                onChange={(e) => setFallCeiling(e.target.value)}
+                disabled={fallCeiling === ""}
+                className={`w-full border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-400 ${
+                  fallCeiling === "" ? "bg-gray-100 text-gray-400" : ""
+                }`}
+                placeholder="e.g. 0.3"
+              />
+            </div>
+          </div>
+
           <div className="bg-gray-50 p-3 rounded-lg">
             <p className="text-sm text-gray-600">
-              <strong>Area:</strong> {currentArea.toFixed(2)} {selectedScale === "Inches" ? "in²" : selectedScale === "Feet" ? "ft²" : selectedScale === "Square Yards" ? "yd²" : "m²"}
+              <strong>Area:</strong> {currentArea.toFixed(2)}{" "}
+              {selectedScale === "Inches"
+                ? "in²"
+                : selectedScale === "Feet"
+                ? "ft²"
+                : selectedScale === "Square Yards"
+                ? "yd²"
+                : "m²"}
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Changes to width and height will update the room size when you finish editing (click outside or press Enter)
+              Changes to width and height will update the room size when you
+              finish editing (click outside or press Enter)
             </p>
           </div>
 

@@ -82,8 +82,7 @@ const roomsSlice = createSlice({
   reducers: {
     // Add full room details when created
     addRoom: (state, action) => {
-      const { id, x, y, width, height } = action.payload;
-      const area = width * height;
+      const { id, x, y, width, height, area } = action.payload;
       state.push({
         id,
         name: "",
@@ -91,7 +90,7 @@ const roomsSlice = createSlice({
         y,
         width,
         height,
-        area,
+        area: area || width * height, // Use provided area or calculate from dimensions
       });
     },
 
@@ -121,7 +120,7 @@ const roomsSlice = createSlice({
       if (room) {
         room.width = width;
         room.height = height;
-        room.area = width * height;
+        room.area = width * height; // Store raw pixel area
       }
     },
 
