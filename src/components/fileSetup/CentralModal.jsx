@@ -5,7 +5,7 @@ import {
   updateRoomDimensions,
 } from "../../redux/features/app/roomSlice";
 
-const GRID_SIZE = 30; // Match the scale system from RoomEditorWithZoom.jsx
+const GRID_SIZE = 100; // Match the scale system from RoomEditor.jsx (100px = 1m)
 
 const CentralModal = ({ room, onClose }) => {
   const [roomName, setRoomName] = useState("");
@@ -63,10 +63,31 @@ const CentralModal = ({ room, onClose }) => {
 
   useEffect(() => {
     if (room) {
+      console.log("🔍 CentralModal: Room data received:", {
+        id: room.id,
+        name: room.name,
+        width: room.width,
+        height: room.height,
+        area: room.area,
+        widthType: typeof room.width,
+        heightType: typeof room.height
+      });
+      
       setRoomName(room.name || "");
       // Convert pixel dimensions to logical units for display
-      setWidthMeters(convertToLogicalUnits(room.width).toFixed(2));
-      setHeightMeters(convertToLogicalUnits(room.height).toFixed(2));
+      const widthInMeters = convertToLogicalUnits(room.width);
+      const heightInMeters = convertToLogicalUnits(room.height);
+      
+      console.log("🔍 CentralModal: Converting dimensions:", {
+        widthPixels: room.width,
+        heightPixels: room.height,
+        widthMeters: widthInMeters,
+        heightMeters: heightInMeters,
+        GRID_SIZE
+      });
+      
+      setWidthMeters(widthInMeters.toFixed(2));
+      setHeightMeters(heightInMeters.toFixed(2));
     }
   }, [room]);
 
@@ -83,6 +104,12 @@ const CentralModal = ({ room, onClose }) => {
     const newWidthMeters = parseFloat(widthMeters) || 0;
     if (newWidthMeters > 0) {
       const newWidthPixels = convertToPixels(newWidthMeters);
+      console.log("🔍 CentralModal: Updating width:", {
+        newWidthMeters,
+        newWidthPixels,
+        roomId: room.id,
+        GRID_SIZE
+      });
       dispatch(
         updateRoomDimensions({
           id: room.id,
@@ -101,6 +128,12 @@ const CentralModal = ({ room, onClose }) => {
     const newHeightMeters = parseFloat(heightMeters) || 0;
     if (newHeightMeters > 0) {
       const newHeightPixels = convertToPixels(newHeightMeters);
+      console.log("🔍 CentralModal: Updating height:", {
+        newHeightMeters,
+        newHeightPixels,
+        roomId: room.id,
+        GRID_SIZE
+      });
       dispatch(
         updateRoomDimensions({
           id: room.id,

@@ -361,7 +361,7 @@ const Chiller = () => {
   return (
     <div className="flex h-[90vh]">
       {/* Left Sidebar */}
-      <div className="flex-1 bg-white border-r border-gray-300 text-sm font-medium flex flex-col h-full">
+      <div className="flex-1 w-[440px] bg-white border-r border-gray-300 text-sm font-medium flex flex-col h-full">
         {/* Header */}
         <div className="p-4 pb-0 border-b border-gray-200">
           <div className="flex justify-between items-start">
@@ -894,30 +894,7 @@ const Chiller = () => {
                 {isLoading ? "Calculating..." : "Calculate Pressure Drop"}
               </button>
 
-              {/* Manual Update Button */}
-              {savedData?.data && (
-                <button
-                  onClick={() => {
-                    const inputData = {
-                      ...formData,
-                      fittings: fittingLosses, // already includes selectedFittings and selectedFittingsQuantities
-                      fittingVelocity: parseFloat(fittingVelocity) || 0,
-                      airDensity: parseFloat(airDensity) || 0,
-                      fluidProperties: fluidProps?.data
-                        ? {
-                            density: fluidProps.data.fluidDensity,
-                            viscosity: fluidProps.data.fluidViscosity,
-                          }
-                        : undefined,
-                    };
-                    handleSaveOrUpdate(inputData, result);
-                  }}
-                  disabled={saveLoading || updateLoading}
-                  className="mt-3 w-full px-6 py-3 text-lg font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                >
-                  {saveLoading || updateLoading ? "Saving..." : "Update Data"}
-                </button>
-              )}
+              
             </form>
           </div>
         </div>

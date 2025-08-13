@@ -30,8 +30,6 @@ const colorMap = {
 const isValidNumber = (n) => typeof n === "number" && !isNaN(n);
 
 const EntityRenderer = ({ entities = [], blocks = {}, layers = {} }) => {
-  const stageWidth = window.innerWidth - 300; // adjust for sidebar
-  const stageHeight = window.innerHeight - 100; // adjust for nav/header
 
   useEffect(() => {
     localStorage.setItem("entities", JSON.stringify(entities));
@@ -91,15 +89,8 @@ const EntityRenderer = ({ entities = [], blocks = {}, layers = {} }) => {
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
 
-  const drawingWidth = maxX - minX || 1;
-  const drawingHeight = maxY - minY || 1;
-
-  const scaleX = stageWidth / drawingWidth;
-  const scaleY = stageHeight / drawingHeight;
-  const scale = Math.min(scaleX, scaleY) * 2; // Add some padding
-
-  const offsetX = -(minX + drawingWidth / 2);
-  const offsetY = -(minY + drawingHeight / 2);
+  const offsetX = -(minX + maxX) / 2;
+  const offsetY = -(minY + maxY) / 2;
 
   const getColor = (entity) => {
     let colorNumber = entity.colorNumber;
@@ -274,23 +265,27 @@ const EntityRenderer = ({ entities = [], blocks = {}, layers = {} }) => {
       }
       case "HATCH": {
         if (!entity.paths) return null;
-        return entity.paths.map((path, i) => {
-          const pts = (path.edges || []).flatMap((edge) => {
-            if (edge.vertices)
-              return edge.vertices.map((v) => [v.x, -v.y]).flat();
-            return [];
-          });
-          return (
-            <Line
-              key={`${key}_${i}`}
-              points={pts}
-              closed
-              fill={stroke}
-              stroke={stroke}
-              opacity={0.6}
-            />
-          );
-        });
+        return (
+          <React.Fragment key={key}>
+            {entity.paths.map((path, i) => {
+              const pts = (path.edges || []).flatMap((edge) => {
+                if (edge.vertices)
+                  return edge.vertices.map((v) => [v.x, -v.y]).flat();
+                return [];
+              });
+              return (
+                <Line
+                  key={`${key}_${i}`}
+                  points={pts}
+                  closed
+                  fill={stroke}
+                  stroke={stroke}
+                  opacity={0.6}
+                />
+              );
+            })}
+          </React.Fragment>
+        );
       }
       case "DIMENSION": {
         const { textMidpoint, text, start, end } = entity;
@@ -348,18 +343,9 @@ const EntityRenderer = ({ entities = [], blocks = {}, layers = {} }) => {
   };
 
   return (
-    <Stage width={1300} height={700}>
-      <Layer
-        scaleX={scale}
-        scaleY={scale} // Flip Y axis
-        x={stageWidth / 2 - 400}
-        y={stageHeight / 2}
-      >
-        <Group offsetX={offsetX} offsetY={offsetY}>
-          {entities.map((e, i) => renderEntity(e, `ent_${i}`))}
-        </Group>
-      </Layer>
-    </Stage>
+    <Group offsetX={offsetX} offsetY={offsetY}>
+      {entities.map((e, i) => renderEntity(e, `ent_${i}`))}
+    </Group>
   );
 };
 

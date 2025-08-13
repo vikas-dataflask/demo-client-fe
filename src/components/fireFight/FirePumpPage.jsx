@@ -99,7 +99,7 @@ const FirePumpPage = ({ setData }) => {
   return (
     <div className="flex h-[92vh]">
       {/* Left Form Section */}
-      <div className="flex-1 bg-white border-r border-gray-300 text-sm font-medium flex flex-col">
+      <div className="flex-1 w-[440px] bg-white border-r border-gray-300 text-sm font-medium flex flex-col">
         <div className="p-4 pb-0 border-b border-gray-200">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
@@ -280,7 +280,7 @@ const FirePumpPage = ({ setData }) => {
                       Flow Rate
                     </div>
                     <div className="text-2xl font-bold text-blue-800">
-                      {result[0].flowrate_lpm} L/min
+                      {Array.isArray(result) && result[0] ? result[0].flowrate_lpm : result?.flowrate_lpm || 'N/A'} L/min
                     </div>
                   </div>
                   <div className="bg-green-50 p-4 rounded-md">
@@ -288,7 +288,7 @@ const FirePumpPage = ({ setData }) => {
                       Total Head
                     </div>
                     <div className="text-lg font-semibold text-green-800">
-                      {result[0].total_head} m
+                      {Array.isArray(result) && result[0] ? result[0].total_head : result?.total_head || 'N/A'} m
                     </div>
                   </div>
                 </div>
@@ -305,14 +305,14 @@ const FirePumpPage = ({ setData }) => {
                       Efficiency:
                     </span>
                     <span className="text-gray-800">
-                      {result[0].efficiency}%
+                      {Array.isArray(result) && result[0] ? result[0].efficiency : result?.efficiency || 'N/A'}%
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-600">Power:</span>
                     <span className="text-gray-800">
-                      {result[0].pump_capacity_kw} kW (
-                      {result[0].pump_capacity_hp} HP)
+                      {Array.isArray(result) && result[0] ? result[0].pump_capacity_kw : result?.pump_capacity_kw || 'N/A'} kW (
+                      {Array.isArray(result) && result[0] ? result[0].pump_capacity_hp : result?.pump_capacity_hp || 'N/A'} HP)
                     </span>
                   </div>
                 </div>
@@ -329,7 +329,7 @@ const FirePumpPage = ({ setData }) => {
                       Pipe Material:
                     </span>
                     <span className="text-gray-800">
-                      {result[0].pipe_material}
+                      {Array.isArray(result) && result[0] ? result[0].pipe_material : result?.pipe_material || 'N/A'}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -337,7 +337,7 @@ const FirePumpPage = ({ setData }) => {
                       Pipe Diameter:
                     </span>
                     <span className="text-gray-800">
-                      {result[0].pipe_dia} mm
+                      {Array.isArray(result) && result[0] ? result[0].pipe_dia : result?.pipe_dia || 'N/A'} mm
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -345,7 +345,7 @@ const FirePumpPage = ({ setData }) => {
                       Friction Coefficient:
                     </span>
                     <span className="text-gray-800">
-                      {result[0].friction_loss_coefficient}
+                      {Array.isArray(result) && result[0] ? result[0].friction_loss_coefficient : result?.friction_loss_coefficient || 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -362,7 +362,7 @@ const FirePumpPage = ({ setData }) => {
                       Flow Rate
                     </div>
                     <div className="text-xl font-bold text-green-800">
-                      {result[0].flowrate_lpm} L/min
+                      {Array.isArray(result) && result[0] ? result[0].flowrate_lpm : result?.flowrate_lpm || 'N/A'} L/min
                     </div>
                   </div>
                   <div className="bg-blue-50 p-4 rounded-md">
@@ -370,7 +370,7 @@ const FirePumpPage = ({ setData }) => {
                       Power Required
                     </div>
                     <div className="text-xl font-bold text-blue-800">
-                      {result[0].pump_capacity_kw} kW
+                      {Array.isArray(result) && result[0] ? result[0].pump_capacity_kw : result?.pump_capacity_kw || 'N/A'} kW
                     </div>
                   </div>
                 </div>

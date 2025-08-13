@@ -161,7 +161,7 @@ const CoordinateDisplay = ({
         <span>{formatted.y}</span>
       </div>
       
-      {process.env.NODE_ENV === 'development' && (
+              {import.meta.env.DEV && (
         <>
           <div style={{ 
             height: '1px', 

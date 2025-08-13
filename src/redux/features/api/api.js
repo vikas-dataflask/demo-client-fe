@@ -27,7 +27,7 @@ export const apiSlice = createApi({
   endpoints: (builder) => ({
     signup: builder.mutation({
       query: (newUser) => ({
-        url: "api/auth/signup",
+        url: "auth/signup",
         method: "POST",
         body: newUser,
       }),
@@ -36,7 +36,7 @@ export const apiSlice = createApi({
 
     login: builder.mutation({
       query: (User) => ({
-        url: `api/auth/login`,
+        url: `auth/login`,
         method: "POST",
         body: User,
       }),
@@ -45,7 +45,7 @@ export const apiSlice = createApi({
 
     addProject: builder.mutation({
       query: (formData) => ({
-        url: "api/project",
+        url: "project",
         method: "POST",
         body: formData,
       }),
@@ -54,7 +54,7 @@ export const apiSlice = createApi({
 
     getProjectList: builder.query({
       query: (id) => ({
-        url: "api/project",
+        url: "project",
         method: "GET",
       }),
       providesTags: ["Project", "QE"],
@@ -62,7 +62,7 @@ export const apiSlice = createApi({
 
     deleteProject: builder.mutation({
       query: (id) => ({
-        url: `api/project/${id}`,
+        url: `project/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Project"],
@@ -70,25 +70,25 @@ export const apiSlice = createApi({
 
     getProjectListById: builder.query({
       query: (id) => ({
-        url: `api/project/${id}`,
+        url: `project/${id}`,
         method: "GET",
       }),
     }),
     addFireHL: builder.mutation({
       query: (body) => ({
-        url: `api/fire-head-loss`,
+        url: `fire-head-loss`,
         method: "POST",
         body,
       }),
       invalidatesTags: ["FireHeadLoss"],
     }),
     getFireHLByProject: builder.query({
-      query: (project_id) => `api/fire-head-loss/${project_id}`,
+      query: (project_id) => `fire-head-loss/${project_id}`,
       providesTags: ["FireHeadLoss"],
     }),
     // addFirePump: builder.mutation({
     //   query: (body) => ({
-    //     url: `api/firepump`,
+    //     url: `firepump`,
     //     method: "POST",
     //     body,
     //   }),
@@ -96,7 +96,7 @@ export const apiSlice = createApi({
     // }),
     addHeatLoad: builder.mutation({
       query: (body) => ({
-        url: `api/heatload`,
+        url: `heatload`,
         method: "POST",
         body,
       }),
@@ -104,7 +104,7 @@ export const apiSlice = createApi({
     }),
     addVentilation: builder.mutation({
       query: (body) => ({
-        url: `api/ventilation`,
+        url: `ventilation`,
         method: "POST",
         body,
       }),
@@ -113,7 +113,7 @@ export const apiSlice = createApi({
     // New ventilation data management endpoints
     saveVentilationData: builder.mutation({
       query: (body) => ({
-        url: `api/ventilation/save`,
+        url: `ventilation/save`,
         method: "POST",
         body,
       }),
@@ -121,7 +121,7 @@ export const apiSlice = createApi({
     }),
     getVentilationData: builder.query({
       query: ({ project_id, room }) => ({
-        url: `api/ventilation/${project_id}/${room}`,
+        url: `ventilation/${project_id}/${room}`,
         method: "GET",
       }),
       providesTags: (result, error, { project_id, room }) => [
@@ -130,7 +130,7 @@ export const apiSlice = createApi({
     }),
     updateVentilationData: builder.mutation({
       query: ({ project_id, room, input_data }) => ({
-        url: `api/ventilation/${project_id}/${room}`,
+        url: `ventilation/${project_id}/${room}`,
         method: "PUT",
         body: { input_data },
       }),
@@ -141,7 +141,7 @@ export const apiSlice = createApi({
     // New duct sizing data management endpoints
     saveDuctSizingData: builder.mutation({
       query: (body) => ({
-        url: `api/duct-sizing/save`,
+        url: `duct-sizing/save`,
         method: "POST",
         body,
       }),
@@ -149,7 +149,7 @@ export const apiSlice = createApi({
     }),
     getDuctSizingData: builder.query({
       query: ({ project_id, room }) => ({
-        url: `api/duct-sizing/${project_id}/${room}`,
+        url: `duct-sizing/${project_id}/${room}`,
         method: "GET",
       }),
       providesTags: (result, error, { project_id, room }) => [
@@ -158,7 +158,7 @@ export const apiSlice = createApi({
     }),
     updateDuctSizingData: builder.mutation({
       query: ({ project_id, room, input_data }) => ({
-        url: `api/duct-sizing/${project_id}/${room}`,
+        url: `duct-sizing/${project_id}/${room}`,
         method: "PUT",
         body: { input_data },
       }),
@@ -169,7 +169,7 @@ export const apiSlice = createApi({
     // New AHU pressure drop data management endpoints
     saveAhuPressureDropData: builder.mutation({
       query: (body) => ({
-        url: `api/ahu-pressure-drop/save`,
+        url: `ahu-pressure-drop/save`,
         method: "POST",
         body,
       }),
@@ -177,7 +177,7 @@ export const apiSlice = createApi({
     }),
     getAhuPressureDropData: builder.query({
       query: ({ project_id }) => ({
-        url: `api/ahu-pressure-drop/${project_id}`,
+        url: `ahu-pressure-drop/${project_id}`,
         method: "GET",
       }),
       providesTags: (result, error, { project_id }) => [
@@ -186,7 +186,7 @@ export const apiSlice = createApi({
     }),
     updateAhuPressureDropData: builder.mutation({
       query: ({ project_id, input_data }) => ({
-        url: `api/ahu-pressure-drop/${project_id}`,
+        url: `ahu-pressure-drop/${project_id}`,
         method: "PUT",
         body: { input_data },
       }),
@@ -197,7 +197,7 @@ export const apiSlice = createApi({
     // Calculate total system pressure drop for multiple equipment
     calculateTotalSystemPressureDrop: builder.mutation({
       query: (body) => ({
-        url: `api/ahu-pressure-drop/calculate-total-system`,
+        url: `ahu-pressure-drop/calculate-total-system`,
         method: "POST",
         body,
       }),
@@ -206,7 +206,7 @@ export const apiSlice = createApi({
     // New Chiller pressure drop data management endpoints
     saveChillerPressureDropData: builder.mutation({
       query: (body) => ({
-        url: `api/chiller-pressure-drop/save`,
+        url: `chiller-pressure-drop/save`,
         method: "POST",
         body,
       }),
@@ -214,7 +214,7 @@ export const apiSlice = createApi({
     }),
     getChillerPressureDropData: builder.query({
       query: ({ project_id, room }) => ({
-        url: `api/chiller-pressure-drop/${project_id}/${room}`,
+        url: `chiller-pressure-drop/${project_id}/${room}`,
         method: "GET",
       }),
       providesTags: (result, error, { project_id, room }) => [
@@ -223,7 +223,7 @@ export const apiSlice = createApi({
     }),
     updateChillerPressureDropData: builder.mutation({
       query: ({ project_id, room, input_data, result_data }) => ({
-        url: `api/chiller-pressure-drop/${project_id}/${room}`,
+        url: `chiller-pressure-drop/${project_id}/${room}`,
         method: "PUT",
         body: { input_data, result_data },
       }),
@@ -234,7 +234,7 @@ export const apiSlice = createApi({
     // New Condenser data management endpoints
     saveCondenserData: builder.mutation({
       query: (body) => ({
-        url: `api/condenser/save`,
+        url: `condenser/save`,
         method: "POST",
         body,
       }),
@@ -242,7 +242,7 @@ export const apiSlice = createApi({
     }),
     getCondenserData: builder.query({
       query: ({ project_id }) => ({
-        url: `api/condenser/${project_id}`,
+        url: `condenser/${project_id}`,
         method: "GET",
       }),
       providesTags: (result, error, { project_id }) => [
@@ -251,7 +251,7 @@ export const apiSlice = createApi({
     }),
     updateCondenserData: builder.mutation({
       query: ({ project_id, input_data, result_data }) => ({
-        url: `api/condenser/${project_id}`,
+        url: `condenser/${project_id}`,
         method: "PUT",
         body: { input_data, result_data },
       }),
@@ -261,7 +261,7 @@ export const apiSlice = createApi({
     }),
     calculateDuctSize: builder.mutation({
       query: (body) => ({
-        url: `api/duct/size`, // Full path relative to your `/api` baseUrl
+        url: `duct/size`, // Full path relative to your `/api` baseUrl
         method: "POST",
         body,
       }),
@@ -269,7 +269,7 @@ export const apiSlice = createApi({
     }),
     calculateGrilleSize: builder.mutation({
       query: (body) => ({
-        url: `api/hvac/size`,
+        url: `hvac/size`,
         method: "POST",
         body,
       }),
@@ -279,7 +279,7 @@ export const apiSlice = createApi({
     // AHU calculation endpoint (legacy - kept for compatibility)
     calculateAHU: builder.mutation({
       query: (body) => ({
-        url: `api/ahu`, // Full path relative to your `/api` baseUrl
+        url: `ahu`, // Full path relative to your `/api` baseUrl
         method: "POST",
         body,
       }),
@@ -288,7 +288,7 @@ export const apiSlice = createApi({
     // New Chiller calculation mutation
     calculateChiller: builder.mutation({
       query: (body) => ({
-        url: `api/chiller`, // New endpoint for Chiller
+        url: `chiller`, // New endpoint for Chiller
         method: "POST",
         body,
       }),
@@ -297,7 +297,7 @@ export const apiSlice = createApi({
     // Chiller Pressure Drop calculations
     calculateChillerPressureDrop: builder.mutation({
       query: (body) => ({
-        url: `api/hvac/chiller-pressure-drop`,
+        url: `hvac/chiller-pressure-drop`,
         method: "POST",
         body,
       }),
@@ -305,14 +305,14 @@ export const apiSlice = createApi({
     }),
     getFluidProperties: builder.query({
       query: ({ fluidType, temperatureC }) => ({
-        url: `api/hvac/fluid-properties?fluidType=${fluidType}&temperatureC=${temperatureC}`,
+        url: `hvac/fluid-properties?fluidType=${fluidType}&temperatureC=${temperatureC}`,
         method: "GET",
       }),
       providesTags: ["Chiller"],
     }),
     getFluidTypes: builder.query({
       query: () => ({
-        url: `api/hvac/fluid-types`,
+        url: `hvac/fluid-types`,
         method: "GET",
       }),
       providesTags: ["Chiller"],
@@ -320,16 +320,32 @@ export const apiSlice = createApi({
     calculateCondenser: builder.mutation({
       // New: Condenser Mutation
       query: (body) => ({
-        url: `api/condenser`,
+        url: `condenser`,
         method: "POST",
         body,
       }),
       invalidatesTags: ["Condenser"], // Add a new tag for Chiller
     }),
 
+    // Fitting losses calculation endpoint
+    calculateFittingLosses: builder.mutation({
+      query: (body) => ({
+        url: `hvac/fitting-losses`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["FittingLosses"],
+    }),
+
+    // Standard fittings query endpoint
+    getStandardFittings: builder.query({
+      query: () => `hvac/standard-fittings`,
+      providesTags: ["StandardFittings"],
+    }),
+
     addWaterDemand: builder.mutation({
       query: (body) => ({
-        url: `api/water-demand/calculate`,
+        url: `water-demand/calculate`,
         method: "POST",
         body,
       }),
@@ -337,7 +353,7 @@ export const apiSlice = createApi({
     }),
     addBuildingWaterDemand: builder.mutation({
       query: (body) => ({
-        url: `api/water-demand/calculate-building`,
+        url: `water-demand/calculate-building`,
         method: "POST",
         body,
       }),
@@ -345,21 +361,21 @@ export const apiSlice = createApi({
     }),
     getBuildingType: builder.mutation({
       query: () => ({
-        url: "/api/water-demand/building-types",
+        url: "/water-demand/building-types",
         method: "GET",
       }),
       invalidatesTags: ["WaterDemand"],
     }),
     getBuildingList: builder.mutation({
       query: () => ({
-        url: "/api/water-demand/building-list",
+        url: "/water-demand/building-list",
         method: "GET",
       }),
       invalidatesTags: ["WaterDemand"],
     }),
     addWaterSupplyPipes: builder.mutation({
       query: (body) => ({
-        url: `api/watersupplypipes`,
+        url: `watersupplypipes`,
         method: "POST",
         body,
       }),
@@ -367,7 +383,7 @@ export const apiSlice = createApi({
     }),
     addDrainagePipes: builder.mutation({
       query: (body) => ({
-        url: `api/drainagepipes`,
+        url: `drainagepipes`,
         method: "POST",
         body,
       }),
@@ -375,7 +391,7 @@ export const apiSlice = createApi({
     }),
     // addPlumbingHL: builder.mutation({
     //   query: (body) => ({
-    //     url: `api/plumbingheadloss`,
+    //     url: `plumbingheadloss`,
     //     method: "POST",
     //     body,
     //   }),
@@ -383,7 +399,7 @@ export const apiSlice = createApi({
     // }),
     // addPlumbingPump: builder.mutation({
     //   query: (body) => ({
-    //     url: `api/plumbingpump`,
+    //     url: `plumbingpump`,
     //     method: "POST",
     //     body,
     //   }),
@@ -391,7 +407,7 @@ export const apiSlice = createApi({
     // }),
     addRwhSizing: builder.mutation({
       query: (body) => ({
-        url: `api/rwh/calculate`,
+        url: `rwh/calculate`,
         method: "POST",
         body,
       }),
@@ -399,26 +415,26 @@ export const apiSlice = createApi({
     }),
     saveRwhData: builder.mutation({
       query: (payload) => ({
-        url: "api/rwh",
+        url: "rwh",
         method: "POST",
         body: payload,
       }),
       invalidatesTags: ["RWHData"],
     }),
     getRwhDataByProject: builder.query({
-      query: (projectId) => `api/rwh/${projectId}`,
+      query: (projectId) => `rwh/${projectId}`,
       providesTags: ["RWHData"],
     }),
     deleteRwhData: builder.mutation({
       query: (projectId) => ({
-        url: `api/rwh/${projectId}`,
+        url: `rwh/${projectId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["RWHData"],
     }),
     addRainwaterDropSizing: builder.mutation({
       query: (body) => ({
-        url: `api/rainwaterdropsizing`,
+        url: `rainwaterdropsizing`,
         method: "POST",
         body,
       }),
@@ -426,7 +442,7 @@ export const apiSlice = createApi({
     }),
     addQE: builder.mutation({
       query: (data) => ({
-        url: "api/qe",
+        url: "qe",
         method: "POST",
         body: data,
       }),
@@ -434,21 +450,21 @@ export const apiSlice = createApi({
     }),
     getQEList: builder.query({
       query: (id) => ({
-        url: "api/qe",
+        url: "qe",
         method: "GET",
       }),
       providesTags: ["QE"],
     }),
     deleteQE: builder.mutation({
       query: (id) => ({
-        url: `api/qe/${id}`,
+        url: `qe/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["QE"],
     }),
     getQEListById: builder.query({
       query: (id) => ({
-        url: `api/qe/${id}`,
+        url: `qe/${id}`,
         method: "GET",
       }),
       providesTags: (result, error, id) => [{ type: "QE", id }],
@@ -456,7 +472,7 @@ export const apiSlice = createApi({
     // NEW: Mutation for updating Quantity Extraction data for a specific project
     updateQE: builder.mutation({
       query: ({ projectId, updatedData }) => ({
-        url: `api/qe/${projectId}`, // Assuming you want to update QE for a specific project
+        url: `qe/${projectId}`, // Assuming you want to update QE for a specific project
         method: "PATCH", // Use PUT for updating an existing resource
         body: updatedData,
       }),
@@ -467,14 +483,14 @@ export const apiSlice = createApi({
     }),
     addHeatLoadToDb: builder.mutation({
       query: (payload) => ({
-        url: "/api/heatload/store",
+        url: "/heatload/store",
         method: "POST",
         body: payload,
       }),
     }),
     updateHeatLoadInDb: builder.mutation({
       query: ({ project_id, room, input_data, result_data }) => ({
-        url: `api/heatload/update?project_id=${project_id}&room=${encodeURIComponent(
+        url: `heatload/update?project_id=${project_id}&room=${encodeURIComponent(
           room
         )}`,
         method: "PUT",
@@ -483,61 +499,61 @@ export const apiSlice = createApi({
     }),
     getHeatLoadAutofill: builder.query({
       query: ({ project_id, room }) =>
-        `api/heatload/autofill?project_id=${project_id}&room=${encodeURIComponent(
+        `heatload/autofill?project_id=${project_id}&room=${encodeURIComponent(
           room
         )}`,
     }),
     addFirePump: builder.mutation({
       query: (data) => ({
-        url: "api/fire/calculate",
+        url: "fire/calculate",
         method: "POST",
         body: data,
       }),
       invalidatesTags: ["FirePump"],
     }),
     getFirePumpByProject: builder.query({
-      query: (project_id) => `api/fire/${project_id}`,
+      query: (project_id) => `fire/${project_id}`,
       providesTags: ["FirePump"],
     }),
     saveWaterSupplyPipe: builder.mutation({
       query: (payload) => ({
-        url: "api/water-supply-pipes",
+        url: "water-supply-pipes",
         method: "POST",
         body: payload,
       }),
       invalidatesTags: ["WaterSupplyPipe"],
     }),
     getWaterSupplyPipe: builder.query({
-      query: (project_id) => `api/water-supply-pipes/${project_id}`,
+      query: (project_id) => `water-supply-pipes/${project_id}`,
       providesTags: ["WaterSupplyPipe"],
     }),
     addPlumbingHL: builder.mutation({
       query: (body) => ({
-        url: `api/plumbing-head-loss`,
+        url: `plumbing-head-loss`,
         method: "POST",
         body,
       }),
       invalidatesTags: ["PlumbingHeadLoss"],
     }),
     getPlumbingHLByProject: builder.query({
-      query: (project_id) => `api/plumbing-head-loss/${project_id}`,
+      query: (project_id) => `plumbing-head-loss/${project_id}`,
       providesTags: ["PlumbingHeadLoss"],
     }),
     addPlumbingPump: builder.mutation({
       query: (data) => ({
-        url: "api/plumbing/calculate",
+        url: "plumbing/calculate",
         method: "POST",
         body: data,
       }),
       invalidatesTags: ["PlimbingPump"],
     }),
     getPlumbingPumpByProject: builder.query({
-      query: (project_id) => `api/plumbing/${project_id}`,
+      query: (project_id) => `plumbing/${project_id}`,
       providesTags: ["PlumbingPump"],
     }),
     saveDrainagePipe: builder.mutation({
       query: (data) => ({
-        url: "api/drainage-pipes/drainage-pipe",
+        url: "drainage-pipes/drainage-pipe",
         method: "POST",
         body: data,
       }),
@@ -546,12 +562,12 @@ export const apiSlice = createApi({
 
     // Get Drainage Pipe by Project ID
     getDrainagePipeByProject: builder.query({
-      query: (projectId) => `api/drainage-pipes/drainage-pipe/${projectId}`,
+      query: (projectId) => `drainage-pipes/drainage-pipe/${projectId}`,
       providesTags: ["DrainagePipe"],
     }),
     saveRainwaterDrop: builder.mutation({
       query: (data) => ({
-        url: "api/rainwater-drops/rainwater-drop",
+        url: "rainwater-drops/rainwater-drop",
         method: "POST",
         body: data,
       }),
@@ -560,21 +576,21 @@ export const apiSlice = createApi({
 
     // Get Rainwater Drop by Project ID
     getRainwaterDropByProject: builder.query({
-      query: (projectId) => `api/rainwater-drops/rainwater-drop/${projectId}`,
+      query: (projectId) => `rainwater-drops/rainwater-drop/${projectId}`,
       providesTags: ["RainwaterDrop"],
     }),
 
     // Add this new endpoint
     deleteProfilePic: builder.mutation({
       query: () => ({
-        url: `api/user/delete-profile-pic`,
+        url: `user/delete-profile-pic`,
         method: "DELETE",
       }),
       invalidatesTags: ["User"],
     }),
     updateUserProfile: builder.mutation({
       query: (updatedProfileData) => ({
-        url: "api/user/profile",
+        url: "user/profile",
         method: "PUT",
         body: updatedProfileData,
       }),
@@ -583,14 +599,14 @@ export const apiSlice = createApi({
     // New endpoint for changing password
     changePassword: builder.mutation({
       query: (passwordData) => ({
-        url: `api/user/change-password`,
+        url: `user/change-password`,
         method: "PUT", // Or POST, depending on your backend preference for this action
         body: passwordData,
       }),
     }),
     uploadProfilePic: builder.mutation({
       query: (formData) => ({
-        url: "api/user/upload-profile-pic",
+        url: "user/upload-profile-pic",
         method: "POST",
         body: formData,
         // RTK Query will automatically set the headers for a FormData body
@@ -599,17 +615,17 @@ export const apiSlice = createApi({
     }),
     saveBreaker: builder.mutation({
       query: (data) => ({
-        url: "api/breaker/save",
+        url: "breaker/save",
         method: "POST",
         body: data,
       }),
     }),
     getBreaker: builder.query({
-      query: (projectId) => `api/breaker/${projectId}`,
+      query: (projectId) => `breaker/${projectId}`,
     }),
     calculateCableSize: builder.mutation({
       query: (data) => ({
-        url: "api/cable-sizing/calculate",
+        url: "cable-sizing/calculate",
         method: "POST",
         body: data,
       }),
@@ -617,110 +633,110 @@ export const apiSlice = createApi({
     }),
     bulkCalculateCableSize: builder.mutation({
       query: (data) => ({
-        url: "api/cable-sizing/bulk-calculate",
+        url: "cable-sizing/bulk-calculate",
         method: "POST",
         body: data,
       }),
       invalidatesTags: ["CableSizing"],
     }),
     getCableSizes: builder.query({
-      query: () => "api/cable-sizing/cable-sizes",
+      query: () => "cable-sizing/cable-sizes",
       providesTags: ["CableSizing"],
     }),
     getMCBRatings: builder.query({
-      query: () => "api/cable-sizing/mcb-ratings",
+      query: () => "cable-sizing/mcb-ratings",
       providesTags: ["CableSizing"],
     }),
     getReferenceData: builder.query({
-      query: () => "api/cable-sizing/reference",
+      query: () => "cable-sizing/reference",
       providesTags: ["CableSizing"],
     }),
     getCalculationHistory: builder.query({
-      query: () => "api/cable-sizing/history", // this route can be implemented later if needed
+      query: () => "cable-sizing/history", // this route can be implemented later if needed
       providesTags: ["CableSizing"],
     }),
     saveCableSizingData: builder.mutation({
       query: (data) => ({
-        url: "api/cable-sizing/save",
+        url: "cable-sizing/save",
         method: "POST",
         body: data,
       }),
       invalidatesTags: ["CableSizing"],
     }),
     getCableSizingByProject: builder.query({
-      query: (projectId) => `api/cable-sizing/${projectId}`,
+      query: (projectId) => `cable-sizing/${projectId}`,
       providesTags: ["CableSizing"],
     }),
     calculateTraySize: builder.mutation({
       query: (data) => ({
-        url: "api/cable-tray/calculate",
+        url: "cable-tray/calculate",
         method: "POST",
         body: data,
       }),
     }),
     saveTrayCalculation: builder.mutation({
       query: (data) => ({
-        url: "api/cable-tray/save",
+        url: "cable-tray/save",
         method: "POST",
         body: data,
       }),
       invalidatesTags: ["CableTray"],
     }),
     getTrayCalculation: builder.query({
-      query: (projectId) => `api/cable-tray/get/${projectId}`,
+      query: (projectId) => `cable-tray/get/${projectId}`,
       providesTags: ["CableTray"],
     }),
     updateTrayCalculation: builder.mutation({
       query: ({ projectId, ...data }) => ({
-        url: `api/cable-tray/update/${projectId}`,
+        url: `cable-tray/update/${projectId}`,
         method: "PUT",
         body: data,
       }),
       invalidatesTags: ["CableTray"],
     }),
     getCableTrayReferenceData: builder.query({
-      query: () => "api/cable-tray/reference",
+      query: () => "cable-tray/reference",
     }),
     getCableTrayCableSizes: builder.query({
-      query: () => "api/cable-tray/cable-sizes",
+      query: () => "cable-tray/cable-sizes",
     }),
     getCableTrayTraySizes: builder.query({
-      query: () => "api/cable-tray/tray-sizes",
+      query: () => "cable-tray/tray-sizes",
     }),
     getCableTrayTrayTypes: builder.query({
-      query: () => "api/cable-tray/tray-types",
+      query: () => "cable-tray/tray-types",
     }),
     addEarthmatCalculation: builder.mutation({
       query: (data) => ({
-        url: "api/earthmat/calculate",
+        url: "earthmat/calculate",
         method: "POST",
         body: data,
       }),
       invalidatesTags: ["Earthmat"],
     }),
     getEarthmatAutofill: builder.query({
-      query: (projectId) => `api/earthmat/autofill/${projectId}`,
+      query: (projectId) => `earthmat/autofill/${projectId}`,
       providesTags: ["Earthmat"],
     }),
     updateEarthmatCalculation: builder.mutation({
       query: ({ id, ...data }) => ({
-        url: `api/earthmat/update/${id}`,
+        url: `earthmat/update/${id}`,
         method: "PUT",
         body: data,
       }),
       invalidatesTags: ["Earthmat"],
     }),
     getEarthmatReference: builder.query({
-      query: () => "api/earthmat/reference",
+      query: () => "earthmat/reference",
       providesTags: ["Earthmat"],
     }),
     getBuildingStandards: builder.query({
-      query: () => "api/water-demand-v2/building-standards",
+      query: () => "water-demand-v2/building-standards",
     }),
     // ✅ Calculate single standard building
     calculateStandardWaterDemand: builder.mutation({
       query: (data) => ({
-        url: "api/water-demand-v2/calculate",
+        url: "water-demand-v2/calculate",
         method: "POST",
         body: data,
       }),
@@ -729,7 +745,7 @@ export const apiSlice = createApi({
     // ✅ Calculate custom building
     calculateCustomBuildingDemand: builder.mutation({
       query: (data) => ({
-        url: "api/water-demand-v2/calculate-custom",
+        url: "water-demand-v2/calculate-custom",
         method: "POST",
         body: data,
       }),
@@ -738,20 +754,20 @@ export const apiSlice = createApi({
     // ✅ Calculate multiple buildings
     calculateAllSelectedBuildings: builder.mutation({
       query: (data) => ({
-        url: "api/water-demand-v2/calculate-multiple",
+        url: "water-demand-v2/calculate-multiple",
         method: "POST",
         body: data,
       }),
     }),
     // ✅ 1. Get Standard Building Types
     getStandardBuildingTypes: builder.query({
-      query: () => `api/water-demand-v2/standards`,
+      query: () => `water-demand-v2/standards`,
     }),
 
     // ✅ 2. Save or Update Water Demand (Calculate + Save)
     saveOrUpdateWaterDemand: builder.mutation({
       query: (data) => ({
-        url: `api/water-demand-v2/save-or-update`,
+        url: `water-demand-v2/save-or-update`,
         method: "POST",
         body: data,
       }),
@@ -760,20 +776,20 @@ export const apiSlice = createApi({
     // ✅ 3. Get Saved Water Demand (Autofill)
     getWaterDemandByProject: builder.query({
       query: ({ projectId, buildingType }) =>
-        `api/water-demand-v2/get?projectId=${projectId}&buildingType=${buildingType}`,
+        `water-demand-v2/get?projectId=${projectId}&buildingType=${buildingType}`,
     }),
 
     // ✅ 4. Calculate Multiple Buildings (No DB Save)
     calculateMultipleWaterDemands: builder.mutation({
       query: (data) => ({
-        url: `api/water-demand-v2/calculate-multiple`,
+        url: `water-demand-v2/calculate-multiple`,
         method: "POST",
         body: data,
       }),
     }),
     getSprinklerLayout: builder.query({
       query: ({ projectId, roomId }) => {
-        let url = `api/sprinkler-layout/?projectId=${projectId}`;
+        let url = `sprinkler-layout/?projectId=${projectId}`;
         if (roomId) url += `&roomId=${roomId}`;
         return url;
       },
@@ -790,7 +806,7 @@ export const apiSlice = createApi({
     }),
     saveOrUpdateSprinklerLayout: builder.mutation({
       query: (payload) => ({
-        url: "api/sprinkler-layout/save",
+        url: "sprinkler-layout/save",
         method: "POST",
         body: payload,
       }),
@@ -798,7 +814,7 @@ export const apiSlice = createApi({
     }),
     getDxfEntities: builder.mutation({
       query: (payload) => ({
-        url: "api/dxf",
+        url: "dxf",
         method: "POST",
         body: payload,
       }),

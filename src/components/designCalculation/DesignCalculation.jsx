@@ -1,19 +1,36 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import { resetRooms } from "../../redux/features/app/roomSlice";
 import {
-  resetFloorPlan,
+  resetRooms,
+  clearProjectData as clearRoomProjectData,
+} from "../../redux/features/app/roomSlice";
+import {
+  // resetFloorPlan,
   resetArea,
 } from "../../redux/features/app/FloorPlanSlice";
 import { clearRoomLights } from "../../redux/features/app/lightingSlice";
+import { clearPower } from "../../redux/features/app/powerSlice";
+import {
+  clearAllFloors,
+  clearProjectData as clearFloorProjectData,
+} from "../../redux/features/app/floorSlice";
+import {
+  clearWalls,
+  clearHighlightedWalls,
+} from "../../redux/features/app/wallSlice";
+import { clearDoors } from "../../redux/features/app/doorSlice";
+import { clearWindows } from "../../redux/features/app/windowSlice";
+import { clearHeatLoadData } from "../../redux/features/app/heatLoadSlice";
+import { clearDxfFloorPlan } from "../../redux/features/app/dxfSlice";
+import { resetDialuxResult } from "../../redux/features/app/dialuxSlice";
+import { resetAreas } from "../../redux/features/app/areaMarkupSlice";
 
 import AddProjectModal from "./AddProjectModal";
 import {
   useGetProjectListQuery,
   useDeleteProjectMutation,
 } from "../../redux/features/api/api";
-import { clearPower } from "../../redux/features/app/powerSlice";
 import DraftSideBar from "../shared/DraftSideBar";
 import UserAvatar from "../shared/UserAvatar";
 
@@ -35,12 +52,38 @@ const DesignCalculation = ({ onOpenSettings }) => {
   const [deleteProject] = useDeleteProjectMutation();
 
   const dispatch = useDispatch();
-  dispatch(resetRooms());
-  dispatch(resetFloorPlan());
-  dispatch(resetArea());
-  dispatch(clearRoomLights());
-  dispatch(clearPower());
-  dispatch(clearRoomLights());
+
+  useEffect(() => {
+    // Only clear Redux stores when component mounts if there's no active project
+    // This prevents clearing rooms when just navigating to this page
+    const hasActiveProject = localStorage.getItem("currentProjectId");
+
+    if (!hasActiveProject) {
+      console.log(
+        "🧹 DesignCalculation: No active project, clearing all stores"
+      );
+      dispatch(resetRooms());
+      // dispatch(resetFloorPlan());
+      dispatch(resetArea());
+      dispatch(clearRoomLights());
+      dispatch(clearPower());
+      dispatch(clearAllFloors());
+      dispatch(clearWalls());
+      dispatch(clearHighlightedWalls());
+      dispatch(clearDoors());
+      dispatch(clearWindows());
+      dispatch(clearHeatLoadData());
+      dispatch(clearDxfFloorPlan());
+      dispatch(resetDialuxResult());
+      dispatch(resetAreas());
+      dispatch(clearRoomProjectData());
+      dispatch(clearFloorProjectData());
+    } else {
+      console.log(
+        "🔒 DesignCalculation: Active project found, preserving room data"
+      );
+    }
+  }, [dispatch]);
 
   useEffect(() => {
     localStorage.removeItem("floorPlan");
@@ -112,8 +155,50 @@ const DesignCalculation = ({ onOpenSettings }) => {
                     </button>
                     <button
                       onClick={() => {
+                        // Clear all data when opening a new project
+                        console.log(
+                          "🧹 DesignCalculation: Opening new project, clearing all stores"
+                        );
+                        dispatch(resetRooms());
+                        // dispatch(resetFloorPlan());
+                        dispatch(resetArea());
+                        dispatch(clearRoomLights());
+                        dispatch(clearPower());
+                        dispatch(clearAllFloors());
+                        dispatch(clearWalls());
+                        dispatch(clearHighlightedWalls());
+                        dispatch(clearDoors());
+                        dispatch(clearWindows());
+                        dispatch(clearHeatLoadData());
+                        dispatch(clearDxfFloorPlan());
+                        dispatch(resetDialuxResult());
+                        dispatch(resetAreas());
+                        dispatch(clearRoomProjectData());
+                        dispatch(clearFloorProjectData());
+
+                        // Clear localStorage
                         localStorage.removeItem("confirmedLightingDbs");
                         localStorage.removeItem("confirmedPowerDbs");
+
+                        // Clear all Redux stores before opening project
+                        dispatch(resetRooms());
+                        // dispatch(resetFloorPlan());
+                        dispatch(resetArea());
+                        dispatch(clearRoomLights());
+                        dispatch(clearPower());
+                        dispatch(clearAllFloors());
+                        dispatch(clearWalls());
+                        dispatch(clearHighlightedWalls());
+                        dispatch(clearDoors());
+                        dispatch(clearWindows());
+                        dispatch(clearHeatLoadData());
+                        dispatch(clearDxfFloorPlan());
+                        dispatch(resetDialuxResult());
+                        dispatch(resetAreas());
+                        dispatch(clearRoomProjectData());
+                        dispatch(clearFloorProjectData());
+
+                        // Navigate to project
                         navigate(`/project/${project._id}/file-setup`);
                       }}
                       className="text-sm font-semibold text-blue-600 bg-blue-100 px-4 py-1 rounded border border-blue-600 hover:bg-blue-200 transition"

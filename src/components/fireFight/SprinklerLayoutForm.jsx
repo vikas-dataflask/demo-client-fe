@@ -823,7 +823,7 @@ const FloorPlanEditor = ({ selectedRoomId, rooms, results }) => {
 
 // ---------------- SprinklerLayoutForm Component ----------------
 const SprinklerLayoutForm = ({ setData, projectId }) => {
-  const rooms = useSelector((state) => state.rooms);
+  const rooms = useSelector((state) => state.rooms?.rooms || []);
 
   // Debug: Log projectId to verify it's being passed correctly
   console.log("SprinklerLayoutForm - projectId:", projectId);

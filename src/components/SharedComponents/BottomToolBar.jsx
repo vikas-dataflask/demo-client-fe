@@ -1,16 +1,43 @@
 import { Box, Grid3X3, Minus, Plus, Ruler } from "lucide-react";
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { setGrid } from "../../redux/features/app/editorSlice";
 
 export default function BottomToolBar({ X, Y }) {
-  const [mode3D, setMode3D] = useState(false);
   const [measurements, setMeasurements] = useState(false);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { projectId } = useParams();
   const grid = useSelector((state) => state.editor.grid);
 
+  // Determine if we're currently in 3D view
+  const is3DView = location.pathname.includes('/3d');
+  
+  // Get the current 2D page path (file-setup, electrical, hvac, etc.)
+  const getCurrent2DPath = () => {
+    const path = location.pathname;
+    if (path.includes('/file-setup')) return 'file-setup';
+    if (path.includes('/electrical')) return 'electrical';
+    if (path.includes('/hvac')) return 'hvac';
+    if (path.includes('/fire-fight')) return 'fire-fight';
+    if (path.includes('/plumbing')) return 'plumbing';
+    return 'file-setup'; // default
+  };
+
   const handle3D = () => {
-    setMode3D(!mode3D);
+    const current2DPath = getCurrent2DPath();
+    
+    if (is3DView) {
+      // Switch to 2D view
+      const basePath = projectId ? `/project/${projectId}` : '';
+      navigate(`${basePath}/${current2DPath}`);
+    } else {
+      // Switch to 3D view
+      const basePath = projectId ? `/project/${projectId}` : '';
+      navigate(`${basePath}/3d`);
+    }
   };
 
   const handleGrid = () => {
@@ -51,12 +78,12 @@ export default function BottomToolBar({ X, Y }) {
         </div>
         <div
           className={`flex items-center gap-1 border-l px-2 cursor-pointer ${
-            mode3D && "bg-blue-700"
+            is3DView && "bg-blue-700"
           }`}
           onClick={() => handle3D()}
         >
           <Box className="h-4 w-4" />
-          <div>View in 3D</div>
+          <div>{is3DView ? "2D View" : "3D View"}</div>
         </div>
       </div>
       <div className="flex gap-2 items-center">

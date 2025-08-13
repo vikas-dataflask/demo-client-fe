@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { useSelector } from "react-redux";
+import { Layer, Rect, Line } from "react-konva";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import PlusIcon from "../../icons/PlusIcon";
-import WallEditor from "./WallEditor";
+import CanvasWrapper from "../Canvas/CanvasWrapper";
 import WallPropertiesPanel from "./WallPropertiesPanel";
 
 const AssignMaterial = () => {
@@ -14,6 +16,14 @@ const AssignMaterial = () => {
   });
   const [selectedWallId, setSelectedWallId] = useState(null);
   const [showWallProperties, setShowWallProperties] = useState(false);
+
+  // Get data from Redux
+  const rooms = useSelector((state) => state.rooms?.rooms || []);
+  const walls = useSelector((state) => state.walls.walls);
+  const floorRect = useSelector((state) => state.floor.floor_rect);
+  const floors = useSelector((state) => state.floor.floors);
+  const currentFloorId = useSelector((state) => state.floor.currentFloorId);
+  const currentFloor = floors.find(f => f.id === currentFloorId);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -168,7 +178,75 @@ const AssignMaterial = () => {
 
       {/* Main Canvas Area */}
       <div className="flex-1 h-[90vh] relative">
-        <WallEditor onWallSelect={handleWallSelect} />
+        <CanvasWrapper>
+          <Layer>
+            {/* Render floor from Editor.jsx */}
+            {floorRect && (
+              <Rect
+                {...floorRect}
+                fill="rgba(200,200,200,0.3)"
+                stroke="black"
+                strokeWidth={2}
+                listening={false}
+              />
+            )}
+
+            {/* Render floor shapes from Editor.jsx */}
+            {currentFloor && currentFloor.shapes && Array.isArray(currentFloor.shapes) && currentFloor.shapes.map((shape, index) => {
+              if (shape.shape === 'rectangle') {
+                return (
+                  <Rect
+                    key={shape.id || index}
+                    x={shape.x}
+                    y={shape.y}
+                    width={shape.width}
+                    height={shape.height}
+                    fill="rgba(0, 150, 255, 0.1)"
+                    stroke="#1e40af"
+                    strokeWidth={3}
+                    listening={false}
+                  />
+                );
+              } else if (shape.shape === 'polygon' && shape.points) {
+                return (
+                  <Line
+                    key={shape.id || index}
+                    points={shape.points.flatMap(point => [point.x, point.y])}
+                    stroke="#1e40af"
+                    strokeWidth={3}
+                    fill="rgba(0, 150, 255, 0.1)"
+                    closed={true}
+                    listening={false}
+                  />
+                );
+              }
+              return null;
+            })}
+
+            {/* Render rooms */}
+            {rooms && Array.isArray(rooms) && rooms.map((room) => (
+              <Rect
+                key={room.id || room._id}
+                {...room}
+                fill="rgba(100, 200, 100, 0.5)"
+                stroke="black"
+                strokeWidth={1}
+                listening={false}
+              />
+            ))}
+
+            {/* Render walls */}
+            {walls && Array.isArray(walls) && walls.map((wall) => (
+              <Line
+                key={wall.id || wall._id}
+                points={[wall.start.x, wall.start.y, wall.end.x, wall.end.y]}
+                stroke={selectedWallId === (wall.id || wall._id) ? "#3b82f6" : "#666"}
+                strokeWidth={selectedWallId === (wall.id || wall._id) ? 3 : 2}
+                listening={false}
+              />
+            ))}
+          </Layer>
+        </CanvasWrapper>
         
         {/* Wall Properties Panel */}
         {showWallProperties && selectedWallId && (

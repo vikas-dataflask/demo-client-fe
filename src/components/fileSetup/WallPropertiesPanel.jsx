@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { updateWall } from '../../redux/features/app/wallSlice';
+import { updateWallAsync } from '../../redux/features/app/wallSlice';
 
 const WallPropertiesPanel = ({ selectedWallId, onClose }) => {
   const dispatch = useDispatch();
   const walls = useSelector((state) => state.walls);
-  const rooms = useSelector((state) => state.rooms);
+  const rooms = useSelector((state) => state.rooms?.rooms || []);
   
   const selectedWall = walls.find(wall => wall.id === selectedWallId);
   
@@ -33,8 +33,8 @@ const WallPropertiesPanel = ({ selectedWallId, onClose }) => {
 
   const handleSave = () => {
     if (selectedWall) {
-      dispatch(updateWall({
-        id: selectedWall.id,
+      dispatch(updateWallAsync({
+        wallId: selectedWall.id,
         updates: {
           thickness: formData.thickness,
           type: formData.type
@@ -98,16 +98,16 @@ const WallPropertiesPanel = ({ selectedWallId, onClose }) => {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Connected Rooms
           </label>
-          <div className="space-y-1">
-            {getRoomNames(selectedWall.roomIds).map((roomName, index) => (
-              <div
-                key={index}
-                className="text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-200"
-              >
-                {roomName}
-              </div>
-            ))}
-          </div>
+                     <div className="space-y-1">
+             {getRoomNames(selectedWall.connectedRooms).map((roomName, index) => (
+               <div
+                 key={index}
+                 className="text-sm text-gray-600 bg-blue-50 p-2 rounded border border-blue-200"
+               >
+                 {roomName}
+               </div>
+             ))}
+           </div>
         </div>
 
         <div>

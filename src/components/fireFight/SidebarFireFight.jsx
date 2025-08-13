@@ -8,7 +8,7 @@ function SidebarFireFight({ activeSection, setActiveSection }) {
   const sidebarItems = [
     { icon: <HeadLossIcon />, id: "head-loss" },
     { icon: <FirePumpIcon />, id: "fire-pump" },
-    { icon: <FirePumpIcon />, id: "sprinkler-layout" },
+    // { icon: <FirePumpIcon />, id: "sprinkler-layout" },
   ];
 
   return (

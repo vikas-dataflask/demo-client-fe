@@ -1,251 +1,197 @@
-// import React, { useState } from "react";
-// import { ReloadIcon } from "../../icons/ReloadIcon";
-// import ReactangleIcon from "../../icons/ReactangleIcon";
-// import FloorPreview from "../shared/FloorPreview";
-// import { useSelector, useDispatch } from "react-redux";
-// import { setDialuxResult } from "../../redux/features/app/dialuxSlice";
-
-// const DialuxForm = () => {
-//   const [roomType, setRoomType] = useState("");
-//   const [iesFile, setIesFile] = useState(null);
-//   const [lumens, setLumens] = useState("");
-
-//   const [illumination, setIllumination] = useState(4);
-//   const [uf, setUf] = useState(0.6);
-//   const [mf, setMf] = useState(0.8);
-//   const [mountingHeight, setMountingHeight] = useState(1000);
-
-//   const [drawingMode, setDrawingMode] = useState(null);
-//   const [showResult, setShowResult] = useState(false);
-//   const [calculationResult, setCalculationResult] = useState(null);
-
-//   const rooms = useSelector((state) => state.rooms);
-//   const selectedRoom = rooms.find((room) => room.id === roomType);
-//   const roomArea = selectedRoom?.area || "";
-//   const roomHeight = "";
-
-//   const dispatch = useDispatch();
-
-//   const parseIesFile = (text) => {
-//     const lines = text.split(/\r?\n/);
-//     const tiltIndex = lines.findIndex((line) =>
-//       line.trim().toUpperCase().startsWith("TILT=NONE")
-//     );
-//     if (tiltIndex !== -1 && lines[tiltIndex + 1]) {
-//       const values = lines[tiltIndex + 1].trim().split(/\s+/).map(Number);
-//       if (!isNaN(values[1])) {
-//         setLumens(values[1]);
-//       } else {
-//         console.warn("Lumens could not be parsed.");
-//       }
-//     } else {
-//       console.warn("TILT=NONE not found or malformed IES file.");
-//     }
-//   };
-
-//   const handleReload = () => {
-//     console.log("Reload clicked");
-//   };
-
-//   const handleCalculate = () => {
-//     if (!roomArea || !lumens || !illumination || !uf || !mf) {
-//       alert(
-//         "Please ensure room, lux level, UF, MF, and IES file are provided."
-//       );
-//       return;
-//     }
-
-//     const totalLuminaires = Math.ceil(
-//       (illumination * roomArea) / (lumens * uf * mf)
-//     );
-
-//     const result = { totalLuminaires };
-//     setCalculationResult(result);
-//     dispatch(setDialuxResult(result));
-//     setShowResult(true);
-//   };
-
-//   return (
-//     <div className="flex h-screen">
-//       {/* Sidebar */}
-//       <div className="w-[340px] h-[92vh] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
-//         <div className="sticky top-0 z-10 bg-white flex justify-between items-start px-4 pt-3 pb-2 border-b border-[#E5E7EB]">
-//           <div>
-//             <h1 className="text-[14px] font-semibold text-black leading-none">
-//               Dialux
-//             </h1>
-//             <p className="text-[11px] text-gray-400 mt-[2px]">
-//               Lighting Calculator
-//             </p>
-//           </div>
-//           <button
-//             className="w-[24px] h-[24px] bg-[#0083EE] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC]"
-//             onClick={handleReload}
-//           >
-//             <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
-//           </button>
-//         </div>
-
-//         <div className="p-2">
-//           {/* Room Select */}
-//           <p className="text-[11px] text-black mb-1">Room</p>
-//           <select
-//             value={roomType}
-//             onChange={(e) => setRoomType(e.target.value)}
-//             className="w-full mb-3 border border-gray-200 rounded-md px-3 py-2 bg-gray-200 focus:outline-none focus:border-[#0083EE]"
-//           >
-//             <option value="">Select Room</option>
-//             {rooms.map((room) => (
-//               <option key={room.id} value={room.id}>
-//                 {room.name}
-//               </option>
-//             ))}
-//           </select>
-
-//           {/* Area and Height */}
-//           <div className="space-y-3 mb-4">
-//             <div>
-//               <p className="text-[11px] mb-1">Area (m²)</p>
-//               <input
-//                 type="number"
-//                 value={roomArea}
-//                 readOnly
-//                 className="w-full bg-gray-200 rounded-md px-3 py-2 border border-gray-200"
-//               />
-//             </div>
-//             <div>
-//               <p className="text-[11px] mb-1">Height (m)</p>
-//               <input
-//                 type="number"
-//                 value={roomHeight}
-//                 readOnly
-//                 className="w-full bg-gray-200 rounded-md px-3 py-2 border border-gray-200"
-//               />
-//             </div>
-//           </div>
-
-//           {/* Upload IES File */}
-//           <div className="mb-4">
-//             <p className="text-[11px] mb-1">Upload IES File</p>
-//             <input
-//               type="file"
-//               accept=".ies"
-//               onChange={(e) => {
-//                 const file = e.target.files[0];
-//                 if (file) {
-//                   setIesFile(file);
-//                   const reader = new FileReader();
-//                   reader.onload = (event) => parseIesFile(event.target.result);
-//                   reader.readAsText(file);
-//                 }
-//               }}
-//               className="w-full text-[13px] file:mr-2 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:bg-[#0083EE] file:text-white hover:file:bg-[#1C78DC]"
-//             />
-//             {iesFile && (
-//               <p className="text-[11px] text-green-600 mt-1">
-//                 Selected: {iesFile.name}
-//               </p>
-//             )}
-//           </div>
-
-//           {/* Light Parameters */}
-//           <div className="border border-gray-300 rounded-md p-3 space-y-3 mb-4">
-//             {[
-//               {
-//                 label: "Lux Level",
-//                 value: illumination,
-//                 set: setIllumination,
-//                 unit: "Lux",
-//               },
-//               { label: "Utilization Factor (UF)", value: uf, set: setUf },
-//               { label: "Maintenance Factor (MF)", value: mf, set: setMf },
-//               {
-//                 label: "Mounting Height",
-//                 value: mountingHeight,
-//                 set: setMountingHeight,
-//                 unit: "m",
-//               },
-//               { label: "Lumens", value: lumens, set: setLumens },
-//             ].map(({ label, value, set, unit }) => (
-//               <div key={label}>
-//                 <p className="text-[11px] text-black mb-1">{label}</p>
-//                 <div className="flex gap-2">
-//                   <input
-//                     type="number"
-//                     value={value}
-//                     onChange={(e) => set(parseFloat(e.target.value))}
-//                     className="w-full rounded-md px-3 py-2 text-[13px] bg-gray-200 border border-gray-200 focus:outline-none focus:border-[#0083EE]"
-//                   />
-//                   {unit && (
-//                     <span className="text-[12px] text-gray-500 flex items-center">
-//                       {unit}
-//                     </span>
-//                   )}
-//                 </div>
-//               </div>
-//             ))}
-
-//             {/* Calculate */}
-//             <button
-//               onClick={handleCalculate}
-//               className="w-full bg-[#0083EE] text-white px-4 py-2 rounded-md hover:bg-[#1C78DC] transition text-[13px] font-medium"
-//             >
-//               Calculate
-//             </button>
-
-//             {showResult && calculationResult && (
-//               <div className="border border-green-400 bg-green-50 text-green-800 rounded-md p-3 text-[13px] mt-3">
-//                 <p>Number of Lights: {calculationResult.totalLuminaires}</p>
-//               </div>
-//             )}
-//           </div>
-
-//           {/* Drawing Options */}
-//           <p className="text-[11px] text-black mb-2">Distribution Pattern</p>
-//           <div className="space-y-2 text-[13px]">
-//             <button className="w-full text-left px-3 py-2 flex items-center gap-2 border border-none text-black rounded-md font-medium">
-//               <div className="w-[24px] h-[24px] bg-[#0083EE] rounded-md flex items-center justify-center">
-//                 <ReactangleIcon className="w-[14px] h-[14px]" />
-//               </div>
-//               Draw rectangular arrangement
-//             </button>
-
-//             {["line", "grid"].map((mode) => (
-//               <button
-//                 key={mode}
-//                 className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-md"
-//                 onClick={() => setDrawingMode(mode)}
-//               >
-//                 {mode === "line"
-//                   ? "── Draw line arrangement"
-//                   : "⊞ Draw grid arrangement"}
-//               </button>
-//             ))}
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Canvas */}
-//       <div className="flex-1 h-full">
-//         <FloorPreview
-//           drawingMode={drawingMode}
-//           exitDrawingMode={() => setDrawingMode(null)}
-//           roomId={roomType}
-//           numberOfLights={calculationResult?.totalLuminaires}
-//         />
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default DialuxForm;
-
 import React, { useState } from "react";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import ReactangleIcon from "../../icons/ReactangleIcon";
 import FloorPreview from "../shared/FloorPreview";
 import { useSelector, useDispatch } from "react-redux";
 import { setDialuxResult } from "../../redux/features/app/dialuxSlice";
+import FrontendIESParser from "../../utils/iesParser.js";
+import AutoFixtureArrangement from "./AutoFixtureArrangement";
+
+const GRID_SIZE = 100; // 100px = 1m for proper unit conversion
+
+const convertPixelsToMeters = (pixels) => {
+  return pixels / GRID_SIZE;
+};
+
+// IES Data Display Component
+const IESDataDisplay = ({ iesData }) => {
+  if (!iesData) return null;
+
+  const formatValue = (value, unit = "") => {
+    if (value === null || value === undefined) return "N/A";
+    if (typeof value === "number") {
+      return value.toFixed(1) + unit;
+    }
+    return value + unit;
+  };
+
+  const getPhotometricTypeLabel = (type) => {
+    const types = {
+      1: "Type C - 0° to 180°",
+      2: "Type B - 0° to 90°",
+      3: "Type A - 0° to 360°",
+    };
+    return types[type] || `Type ${type}`;
+  };
+
+  return (
+    <div className="mt-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[12px] font-semibold text-blue-800">
+          📊 Photometric Data
+        </h3>
+        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Basic Information */}
+        <div className="col-span-2 bg-white p-2 rounded border border-blue-100">
+          <h4 className="text-[10px] font-medium text-gray-700 mb-2">
+            Fixture Information
+          </h4>
+          <div className="space-y-1">
+            {iesData.manufacturer && (
+              <div className="flex justify-between text-[10px]">
+                <span className="text-gray-600">Manufacturer:</span>
+                <span className="font-medium text-gray-800">
+                  {iesData.manufacturer}
+                </span>
+              </div>
+            )}
+            {iesData.catalogNumber && (
+              <div className="flex justify-between text-[10px]">
+                <span className="text-gray-600">Model:</span>
+                <span className="font-medium text-gray-800">
+                  {iesData.catalogNumber}
+                </span>
+              </div>
+            )}
+            {iesData.lampType && (
+              <div className="flex justify-between text-[10px]">
+                <span className="text-gray-600">Lamp Type:</span>
+                <span className="font-medium text-gray-800">
+                  {iesData.lampType}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Key Photometric Parameters */}
+        <div className="bg-white p-2 rounded border border-blue-100">
+          <h4 className="text-[10px] font-medium text-gray-700 mb-2">
+            Light Output
+          </h4>
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-600">Lumens:</span>
+              <span className="font-semibold text-blue-600">
+                {formatValue(iesData.lumens, " lm")}
+              </span>
+            </div>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-600">Wattage:</span>
+              <span className="font-semibold text-orange-600">
+                {formatValue(iesData.wattage, " W")}
+              </span>
+            </div>
+            {iesData.maxCandela && (
+              <div className="flex justify-between text-[10px]">
+                <span className="text-gray-600">Max Candela:</span>
+                <span className="font-semibold text-purple-600">
+                  {formatValue(iesData.maxCandela, " cd")}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-2 rounded border border-blue-100">
+          <h4 className="text-[10px] font-medium text-gray-700 mb-2">
+            Beam Angles
+          </h4>
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-600">Horizontal:</span>
+              <span className="font-semibold text-green-600">
+                {formatValue(iesData.beamAngleH, "°")}
+              </span>
+            </div>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-600">Vertical:</span>
+              <span className="font-semibold text-green-600">
+                {formatValue(iesData.beamAngleV, "°")}
+              </span>
+            </div>
+            {iesData.photometricType && (
+              <div className="flex justify-between text-[10px]">
+                <span className="text-gray-600">Type:</span>
+                <span className="font-medium text-gray-800 text-[9px]">
+                  {getPhotometricTypeLabel(iesData.photometricType)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Additional Data */}
+        {(iesData.luminaireDimensions?.width ||
+          iesData.luminaireDimensions?.length ||
+          iesData.luminaireDimensions?.height) && (
+          <div className="col-span-2 bg-white p-2 rounded border border-blue-100">
+            <h4 className="text-[10px] font-medium text-gray-700 mb-2">
+              Dimensions
+            </h4>
+            <div className="grid grid-cols-3 gap-2 text-[10px]">
+              {iesData.luminaireDimensions.width && (
+                <div className="text-center">
+                  <div className="text-gray-600">Width</div>
+                  <div className="font-semibold text-gray-800">
+                    {formatValue(iesData.luminaireDimensions.width, " mm")}
+                  </div>
+                </div>
+              )}
+              {iesData.luminaireDimensions.length && (
+                <div className="text-center">
+                  <div className="text-gray-600">Length</div>
+                  <div className="font-semibold text-gray-800">
+                    {formatValue(iesData.luminaireDimensions.length, " mm")}
+                  </div>
+                </div>
+              )}
+              {iesData.luminaireDimensions.height && (
+                <div className="text-center">
+                  <div className="text-gray-600">Height</div>
+                  <div className="font-semibold text-gray-800">
+                    {formatValue(iesData.luminaireDimensions.height, " mm")}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Candela Distribution Info */}
+        {iesData.candelaValues && iesData.candelaValues.length > 0 && (
+          <div className="col-span-2 bg-white p-2 rounded border border-blue-100">
+            <h4 className="text-[10px] font-medium text-gray-700 mb-2">
+              Candela Distribution
+            </h4>
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-600">Data Points:</span>
+              <span className="font-semibold text-blue-600">
+                {iesData.candelaValues.length}
+              </span>
+            </div>
+            <div className="mt-1 text-[9px] text-gray-500">
+              Full 3D photometric data available for calculations
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const DialuxForm = () => {
   const [roomType, setRoomType] = useState("");
@@ -260,29 +206,114 @@ const DialuxForm = () => {
   const [calculationResult, setCalculationResult] = useState(null);
   const [gridRows, setGridRows] = useState(1);
   const [gridCols, setGridCols] = useState(1);
+  const [iesData, setIesData] = useState(null);
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseError, setParseError] = useState("");
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [showAutoArrangement, setShowAutoArrangement] = useState(false);
 
-  const rooms = useSelector((state) => state.rooms);
-  const selectedRoom = rooms.find((room) => room.id === roomType);
-  const roomArea = selectedRoom?.area || "";
-  const roomHeight = "";
+  // Use the current project's room selection logic
+  const rooms = useSelector((state) => state.newRooms?.rooms || []);
+
+  // Remove duplicates based on room ID to prevent double rendering
+  const uniqueRooms = rooms.filter(
+    (room, index, self) =>
+      index === self.findIndex((r) => (r.id || r._id) === (room.id || room._id))
+  );
+
+  const selectedRoom = uniqueRooms.find((room) => room.id === roomType);
+
+  // Calculate area in square meters from room dimensions (converting from pixels)
+  const roomArea = selectedRoom
+    ? convertPixelsToMeters(selectedRoom.width) *
+      convertPixelsToMeters(selectedRoom.height)
+    : "";
+
+  // Convert room height to meters if available
+  const roomHeight = selectedRoom
+    ? convertPixelsToMeters(selectedRoom.height)
+    : "";
 
   const dispatch = useDispatch();
 
-  const parseIesFile = (text) => {
-    const lines = text.split(/\r?\n/);
-    const tiltIndex = lines.findIndex((line) =>
-      line.trim().toUpperCase().startsWith("TILT=NONE")
-    );
-    if (tiltIndex !== -1 && lines[tiltIndex + 1]) {
-      const values = lines[tiltIndex + 1].trim().split(/\s+/).map(Number);
-      if (!isNaN(values[1])) {
-        setLumens(values[1]);
-      } else {
-        console.warn("Lumens could not be parsed.");
+  const parseIesFile = async (file) => {
+    setIsParsing(true);
+    setParseError("");
+    setIesData(null);
+
+    console.log("Starting IES file parsing for:", file.name);
+    console.log("File size:", file.size, "bytes");
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const fileContent = event.target.result;
+      console.log(
+        "File content preview (first 500 chars):",
+        fileContent.substring(0, 500)
+      );
+
+      setDebugInfo({
+        fileName: file.name,
+        fileSize: file.size,
+        contentPreview: fileContent.substring(0, 200),
+        firstLine: fileContent.split("\n")[0],
+        lineCount: fileContent.split("\n").length,
+      });
+
+      try {
+        const parser = new FrontendIESParser();
+        console.log("Attempting to parse with backend...");
+        const result = await parser.parseWithBackend(file);
+
+        console.log("Parser result:", result);
+
+        if (result && result.data && result.data.isValid) {
+          console.log("Valid IES data received:", result.data);
+          setIesData(result.data);
+          setLumens(result.data.lumens || "");
+
+          console.log("IES File Parsed Successfully:", {
+            manufacturer: result.data.manufacturer,
+            catalogNumber: result.data.catalogNumber,
+            lumens: result.data.lumens,
+            wattage: result.data.wattage,
+            beamAngleH: result.data.beamAngleH,
+            beamAngleV: result.data.beamAngleV,
+            maxCandela: result.data.maxCandela,
+            photometricType: result.data.photometricType,
+            candelaValuesCount: result.data.candelaValues?.length || 0,
+          });
+        } else if (
+          result &&
+          result.isLocalFallback &&
+          result.data &&
+          result.data.isValid
+        ) {
+          console.log("Using local fallback data:", result.data);
+          setIesData(result.data);
+          setLumens(result.data.lumens || "");
+        } else {
+          console.warn("Invalid IES data received:", result);
+          setParseError("Invalid IES file format or missing required data");
+          if (result && result.data && result.data.errors) {
+            console.warn("IES parsing errors:", result.data.errors);
+          }
+        }
+      } catch (error) {
+        console.error("IES parsing error:", error);
+        setParseError("Failed to parse IES file: " + error.message);
+      } finally {
+        setIsParsing(false);
       }
-    } else {
-      console.warn("TILT=NONE not found or malformed IES file.");
-    }
+    };
+
+    reader.onerror = () => {
+      console.error("Failed to read file");
+      setParseError("Failed to read uploaded file");
+      setIsParsing(false);
+    };
+
+    reader.readAsText(file);
   };
 
   const handleReload = () => {
@@ -290,83 +321,125 @@ const DialuxForm = () => {
   };
 
   const handleCalculate = () => {
-    if (!roomArea || !lumens || !illumination || !uf || !mf) {
-      alert(
-        "Please ensure room, lux level, UF, MF, and IES file are provided."
-      );
+    if (!roomType || !lumens || !illumination || !uf || !mf) {
+      alert("Please fill in all required fields");
       return;
     }
 
+    const area = parseFloat(roomArea);
+    const lumenValue = parseFloat(lumens);
+    const illuminationValue = parseFloat(illumination);
+    const ufValue = parseFloat(uf);
+    const mfValue = parseFloat(mf);
+
+    if (
+      isNaN(area) ||
+      isNaN(lumenValue) ||
+      isNaN(illuminationValue) ||
+      isNaN(ufValue) ||
+      isNaN(mfValue)
+    ) {
+      alert("Please enter valid numeric values");
+      return;
+    }
+
+    const totalLumens = area * illuminationValue;
     const totalLuminaires = Math.ceil(
-      (illumination * roomArea) / (lumens * uf * mf)
+      totalLumens / (lumenValue * ufValue * mfValue)
     );
 
-    setCalculationResult({ totalLuminaires });
-    dispatch(setDialuxResult({ totalLuminaires }));
+    setCalculationResult({
+      totalLumens,
+      totalLuminaires,
+      area,
+      lumenValue,
+      illuminationValue,
+      ufValue,
+      mfValue,
+    });
     setShowResult(true);
+    setShowAutoArrangement(true);
+  };
+
+  const handleArrangementComplete = (fixtures) => {
+    console.log("Auto arrangement completed:", fixtures);
   };
 
   return (
-    <div className="flex h-screen">
-      <div className="w-[340px] h-[92vh] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
-        <div className="sticky top-0 z-10 bg-white flex justify-between items-start px-4 pt-3 pb-2 border-b border-[#E5E7EB]">
-          <div>
-            <h1 className="text-[14px] font-semibold text-black leading-none">
-              Dialux
-            </h1>
-            <p className="text-[11px] text-gray-400 mt-[2px]">
-              Lighting Calculator
-            </p>
-          </div>
-          <button
-            className="w-[24px] h-[24px] bg-[#0083EE] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC]"
-            onClick={handleReload}
-          >
-            <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
-          </button>
+    <div className="flex h-[85vh]">
+      <div className=" bg-white p-6 overflow-y-auto">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            Lighting Design
+          </h2>
+          <p className="text-sm text-gray-600">
+            Calculate lighting requirements and arrange fixtures
+          </p>
         </div>
 
-        <div className="p-2">
-          {/* Room Select */}
-          <p className="text-[11px] text-black mb-1">Room</p>
-          <select
-            value={roomType}
-            onChange={(e) => setRoomType(e.target.value)}
-            className="w-full mb-3 border border-gray-200 rounded-md px-3 py-2 bg-gray-200"
-          >
-            <option value="">Select Room</option>
-            {rooms.map((room) => (
-              <option key={room.id} value={room.id}>
-                {room.name}
-              </option>
-            ))}
-          </select>
+        <div className="space-y-6">
+          {/* Room Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Room
+            </label>
+            <select
+              value={roomType}
+              onChange={(e) => setRoomType(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Choose a room</option>
+              {uniqueRooms.map((room) => {
+                // Calculate area in meters for display
+                const widthInMeters = convertPixelsToMeters(room.width);
+                const heightInMeters = convertPixelsToMeters(room.height);
+                const areaInMeters = widthInMeters * heightInMeters;
 
-          {/* Area and Height */}
-          <div className="space-y-3 mb-4">
-            <div>
-              <p className="text-[11px] mb-1">Area (m²)</p>
-              <input
-                type="number"
-                value={roomArea}
-                readOnly
-                className="w-full bg-gray-200 rounded-md px-3 py-2 border border-gray-200"
-              />
-            </div>
-            <div>
-              <p className="text-[11px] mb-1">Height (m)</p>
-              <input
-                type="number"
-                value={roomHeight}
-                readOnly
-                className="w-full bg-gray-200 rounded-md px-3 py-2 border border-gray-200"
-              />
-            </div>
+                return (
+                  <option key={room.id} value={room.id}>
+                    {room.name || `Room ${room.id}`} ({areaInMeters.toFixed(2)}{" "}
+                    m²)
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
-          {/* Upload IES File */}
-          <div className="mb-4">
-            <p className="text-[11px] mb-1">Upload IES File</p>
+          {/* Room Information Display */}
+          {selectedRoom && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">
+                Room Information
+              </h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Dimensions (pixels):</span>
+                  <div className="font-medium">
+                    {selectedRoom.width} × {selectedRoom.height} px
+                  </div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Dimensions (meters):</span>
+                  <div className="font-medium">
+                    {convertPixelsToMeters(selectedRoom.width).toFixed(2)} ×{" "}
+                    {convertPixelsToMeters(selectedRoom.height).toFixed(2)} m
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-gray-600">Area:</span>
+                  <div className="font-medium text-blue-600">
+                    {roomArea.toFixed(2)} m²
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* IES File Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              IES Photometric File
+            </label>
             <input
               type="file"
               accept=".ies"
@@ -374,109 +447,201 @@ const DialuxForm = () => {
                 const file = e.target.files[0];
                 if (file) {
                   setIesFile(file);
-                  const reader = new FileReader();
-                  reader.onload = (event) => {
-                    const text = event.target.result;
-                    console.log("IES File Content:\n", text); // ✅ Console log here
-                    parseIesFile(text);
-                  };
-                  reader.readAsText(file);
+                  parseIesFile(file);
                 }
               }}
-              className="w-full text-[13px] file:mr-2 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:bg-[#0083EE] file:text-white hover:file:bg-[#1C78DC]"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+            {isParsing && (
+              <p className="text-sm text-blue-600 mt-1">Parsing IES file...</p>
+            )}
+            {parseError && (
+              <p className="text-sm text-red-600 mt-1">{parseError}</p>
+            )}
+          </div>
 
-            {iesFile && (
-              <p className="text-[11px] text-green-600 mt-1">
-                Selected: {iesFile.name}
+          {/* IES Data Display */}
+          {iesData && <IESDataDisplay iesData={iesData} />}
+
+          {/* Lumen Method Inputs */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lumens per Fixture
+              </label>
+              <input
+                type="number"
+                value={lumens}
+                onChange={(e) => setLumens(e.target.value)}
+                placeholder="Enter lumens"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Required Illumination (lux)
+              </label>
+              <input
+                type="number"
+                value={illumination}
+                onChange={(e) => setIllumination(e.target.value)}
+                placeholder="Enter illumination"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Utilization Factor (UF)
+              </label>
+              <input
+                type="number"
+                value={uf}
+                onChange={(e) => setUf(e.target.value)}
+                step="0.01"
+                min="0"
+                max="1"
+                placeholder="Enter UF"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Maintenance Factor (MF)
+              </label>
+              <input
+                type="number"
+                value={mf}
+                onChange={(e) => setMf(e.target.value)}
+                step="0.01"
+                min="0"
+                max="1"
+                placeholder="Enter MF"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mounting Height (mm)
+              </label>
+              <input
+                type="number"
+                value={mountingHeight}
+                onChange={(e) => setMountingHeight(e.target.value)}
+                placeholder="Enter mounting height"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Calculate Button */}
+          <button
+            onClick={handleCalculate}
+            disabled={!roomType || !lumens || !illumination || !uf || !mf}
+            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+              roomType && lumens && illumination && uf && mf
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            Calculate Lighting Requirements
+          </button>
+
+          {/* Calculation Result */}
+          {showResult && calculationResult && (
+            <div className="border border-green-400 bg-green-50 text-green-800 rounded-md p-3 text-[13px] mt-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-green-600">✅</span>
+                <p className="font-medium">Calculation Complete</p>
+              </div>
+              <div className="mt-2 space-y-1">
+                <p>
+                  Room Area:{" "}
+                  <span className="font-bold">
+                    {calculationResult.area.toFixed(2)} m²
+                  </span>
+                </p>
+                <p>
+                  Required Illumination:{" "}
+                  <span className="font-bold">
+                    {calculationResult.illuminationValue} lux
+                  </span>
+                </p>
+                <p>
+                  Total Lumens Required:{" "}
+                  <span className="font-bold">
+                    {calculationResult.totalLumens.toFixed(0)} lm
+                  </span>
+                </p>
+                <p>
+                  Number of Fixtures:{" "}
+                  <span className="font-bold text-green-700">
+                    {calculationResult.totalLuminaires}
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Auto Fixture Arrangement */}
+          {showAutoArrangement && calculationResult && selectedRoom && (
+            <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+              <h3 className="text-lg font-medium text-blue-800 mb-3">
+                Automatic Fixture Arrangement
+              </h3>
+              <AutoFixtureArrangement
+                roomId={selectedRoom.id}
+                fixtureCount={calculationResult.totalLuminaires}
+                onArrangementComplete={handleArrangementComplete}
+              />
+            </div>
+          )}
+
+          {/* Manual Drawing Options */}
+          {showResult && calculationResult && (
+            <div className="border border-gray-200 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-gray-800 mb-3">
+                Manual Fixture Placement
+              </h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Or manually place {calculationResult.totalLuminaires} fixtures
+                using drawing tools:
               </p>
-            )}
-          </div>
 
-          {/* Light Parameters */}
-          <div className="border border-gray-300 rounded-md p-3 space-y-3 mb-4">
-            {[
-              {
-                label: "Lux Level",
-                value: illumination,
-                set: setIllumination,
-                unit: "Lux",
-              },
-              { label: "Utilization Factor (UF)", value: uf, set: setUf },
-              { label: "Maintenance Factor (MF)", value: mf, set: setMf },
-              {
-                label: "Mounting Height",
-                value: mountingHeight,
-                set: setMountingHeight,
-                unit: "m",
-              },
-              { label: "Lumens", value: lumens, set: setLumens },
-            ].map(({ label, value, set, unit }) => (
-              <div key={label}>
-                <p className="text-[11px] text-black mb-1">{label}</p>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    value={value}
-                    onChange={(e) => set(parseFloat(e.target.value))}
-                    className="w-full rounded-md px-3 py-2 text-[13px] bg-gray-200 border border-gray-200"
-                  />
-                  {unit && (
-                    <span className="text-[12px] text-gray-500 flex items-center">
-                      {unit}
-                    </span>
-                  )}
-                </div>
+              <div className="space-y-2 text-[13px]">
+                <button className="w-full text-left px-3 py-2 flex items-center gap-2 border border-none text-black rounded-md font-medium">
+                  <div className="w-[24px] h-[24px] bg-[#0083EE] rounded-md flex items-center justify-center">
+                    <ReactangleIcon className="w-[14px] h-[14px]" />
+                  </div>
+                  Draw rectangular arrangement
+                </button>
+
+                {["line", "grid"].map((mode) => (
+                  <button
+                    key={mode}
+                    className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-md"
+                    onClick={() => setDrawingMode(mode)}
+                  >
+                    {mode === "line"
+                      ? "── Draw line arrangement"
+                      : "⊞ Draw grid arrangement"}
+                  </button>
+                ))}
               </div>
-            ))}
-
-            {/* Calculate */}
-            <button
-              onClick={handleCalculate}
-              className="w-full bg-[#0083EE] text-white px-4 py-2 rounded-md hover:bg-[#1C78DC] transition text-[13px] font-medium"
-            >
-              Calculate
-            </button>
-
-            {showResult && calculationResult && (
-              <div className="border border-green-400 bg-green-50 text-green-800 rounded-md p-3 text-[13px] mt-3">
-                <p>Number of Lights: {calculationResult.totalLuminaires}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Drawing Options */}
-          <p className="text-[11px] text-black mb-2">Distribution Pattern</p>
-          <div className="space-y-2 text-[13px]">
-            <button className="w-full text-left px-3 py-2 flex items-center gap-2 border border-none text-black rounded-md font-medium">
-              <div className="w-[24px] h-[24px] bg-[#0083EE] rounded-md flex items-center justify-center">
-                <ReactangleIcon className="w-[14px] h-[14px]" />
-              </div>
-              Draw rectangular arrangement
-            </button>
-
-            {["line", "grid"].map((mode) => (
-              <button
-                key={mode}
-                className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-md"
-                onClick={() => setDrawingMode(mode)}
-              >
-                {mode === "line"
-                  ? "── Draw line arrangement"
-                  : "⊞ Draw grid arrangement"}
-              </button>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Canvas */}
-      <div className="flex-1 h-full">
+      <div className="flex-1 bg-gray-100">
         <FloorPreview
           drawingMode={drawingMode}
           exitDrawingMode={() => setDrawingMode(null)}
           roomId={roomType}
-          numberOfLights={calculationResult?.totalLuminaires}
+          numberOfLights={calculationResult?.totalLuminaires || 0}
         />
       </div>
     </div>

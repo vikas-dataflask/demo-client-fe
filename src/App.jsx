@@ -4,6 +4,8 @@ import ElectricalPage from "./pages/ElectricalPage";
 import PlumbingPage from "./pages/PlumbingPage";
 import FileSetupPage from "./pages/FileSetupPage";
 import HVACPage from "./pages/HVACPage";
+import ThreeDPage from "./pages/ThreeDPage";
+import TestPage from "./pages/TestPage";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -240,6 +242,26 @@ function App() {
               />
             </PrivateRoute>
           }
+        />
+        <Route
+          path="/3d"
+          element={
+            <PrivateRoute>
+              <ThreeDPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/project/:projectId/3d"
+          element={
+            <PrivateRoute>
+              <ThreeDPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/test"
+          element={<TestPage />}
         />
       </Routes>
 

@@ -30,24 +30,28 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
     data: subBuildingData,
     isLoading: isSubBuildingLoading,
     isError: isSubBuildingError,
-  } = useGetSubBuildingListQuery(building);
+  } = useGetSubBuildingListQuery(building, {
+    skip: !building,
+  });
   const {
     data: leveldata,
     isLoading: isLevelLaoding,
     isError: isLevelError,
-  } = useGetLevelsListQuery(subBuilding);
+  } = useGetLevelsListQuery(subBuilding, {
+    skip: !subBuilding,
+  });
   const [selectedFile, setSelectedFile] = useState(null);
 
-  const token = localStorage.getItem("token");
-  // const userId = token ? jwtDecode(token)?.user?.id : null;
+  // Get user ID from localStorage
+  const storedUser = localStorage.getItem("user");
   let userId = "";
   try {
-    if (token) {
-      const decoded = jwtDecode(token);
-      userId = decoded?.id || decoded?._id || decoded?.user?.id || "";
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      userId = user.user_id || user._id || "";
     }
   } catch (err) {
-    console.error("Invalid token:", err);
+    console.error("Invalid user data:", err);
   }
 
   const [formData, setFormData] = useState({
@@ -141,7 +145,7 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
                 onChange={handleChange}
                 className="w-full overflow-y-auto px-3 py-2 rounded-md border border-gray-300 text-gray-500 focus:outline-none bg-gray-200"
               >
-                <option value="" disabled selected>
+                <option value="" disabled>
                   Select a Location
                 </option>
 
@@ -179,7 +183,7 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-gray-300 text-gray-500 focus:outline-none bg-gray-200"
               >
-                <option value="" disabled selected>
+                <option value="" disabled>
                   Select a Building Type
                 </option>
                 {/* Loading State */}
@@ -216,7 +220,7 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-gray-300 text-gray-500 focus:outline-none bg-gray-200"
               >
-                <option value="" disabled selected>
+                <option value="" disabled>
                   Select a Sub Building Type
                 </option>
                 {/* Loading State */}
@@ -251,7 +255,7 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
                 onChange={handleChange}
                 className="w-full px-3 py-2 rounded-md border border-gray-300 text-gray-500 focus:outline-none bg-gray-200"
               >
-                <option value="" disabled selected>
+                <option value="" disabled>
                   Select a Level
                 </option>
                 {isLevelLaoding && (

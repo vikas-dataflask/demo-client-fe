@@ -110,7 +110,7 @@ const HeatLoad = () => {
     { skip: !currentProjectId || !formData.room }
   );
 
-  const rooms = useSelector((state) => state.rooms);
+  const rooms = useSelector((state) => state.newRooms?.rooms || []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -119,11 +119,19 @@ const HeatLoad = () => {
         (room) => room.name === value || room.id === value
       );
       if (selectedRoom) {
+        // Convert room dimensions from pixels to meters (assuming 100px = 1m like in DialuxForm)
+        const GRID_SIZE = 100;
+        const convertPixelsToMeters = (pixels) => pixels / GRID_SIZE;
+        
+        const roomArea = selectedRoom.width && selectedRoom.height 
+          ? convertPixelsToMeters(selectedRoom.width) * convertPixelsToMeters(selectedRoom.height)
+          : selectedRoom.area || "";
+        
         setFormData((prev) => ({
           ...prev,
           room: value,
-          area: selectedRoom.area || "",
-          height: selectedRoom.roomHeight || "",
+          area: roomArea.toString(),
+          // Keep height as user input - don't auto-fill
         }));
         return;
       }
@@ -518,7 +526,7 @@ const HeatLoad = () => {
 
   return (
     <div className="flex h-screen">
-      <div className="bg-white px-4 pt-4 pb-6 border-r border-gray-200 w-[500px] font-sans text-[13px] overflow-hidden relative h-[92vh] overflow-y-auto flex flex-col">
+      <div className="bg-white px-4 pt-4 pb-6 border-r border-gray-200 w-[440px] font-sans text-[13px] overflow-hidden relative h-[92vh] overflow-y-auto flex flex-col">
         {/* Header */}
         <div className="flex justify-between items-start mb-3 sticky top-0 bg-white z-10 pb-3">
           <div>
@@ -560,11 +568,29 @@ const HeatLoad = () => {
                     className="w-full p-2 rounded-[8px] text-[13px] bg-gray-200"
                   >
                     <option value="">Select a Room</option>
-                    {rooms.map((room, index) => (
-                      <option key={room.id || index} value={room.name}>
-                        {room.name}
-                      </option>
-                    ))}
+                    {(() => {
+                      // Remove duplicates and show room dimensions
+                      const GRID_SIZE = 100;
+                      const convertPixelsToMeters = (pixels) => pixels / GRID_SIZE;
+                      
+                      const uniqueRooms = rooms.filter(
+                        (room, index, self) =>
+                          index === self.findIndex((r) => (r.id || r._id) === (room.id || room._id))
+                      );
+                      
+                      return uniqueRooms.map((room) => {
+                        // Calculate area in meters for display
+                        const widthInMeters = room.width ? convertPixelsToMeters(room.width) : 0;
+                        const heightInMeters = room.height ? convertPixelsToMeters(room.height) : 0;
+                        const areaInMeters = widthInMeters * heightInMeters;
+                        
+                        return (
+                          <option key={room.id || room._id} value={room.name}>
+                            {room.name || `Room ${room.id}`} ({areaInMeters.toFixed(2)} m²)
+                          </option>
+                        );
+                      });
+                    })()}
                   </select>
 
                   {/* AREA FIELD */}

@@ -4,22 +4,31 @@ import FloorEditorSidebar from "./FloorEditorSidebar";
 import FloorPropertiesPanel from "./FloorPropertiesPanel";
 import Editor from "../../Canvas/Editor";
 
-const FloorEditor = ({ open }) => {
+const FloorEditor = ({ open, projectId }) => {
   const [showCoordinates, setShowCoordinates] = useState(true);
   const [showPropertiesPanel, setShowPropertiesPanel] = useState(false);
   const [selectedFloor, setSelectedFloor] = useState(null);
 
-  // Get current floor from Redux
-  const currentFloor = useSelector((state) => state.floor.floor);
+  // Get current floor and loading state from Redux
+  const floors = useSelector((state) => state.floor.floors) || [];
+  const currentFloorId = useSelector((state) => state.floor.currentFloorId);
+  const currentFloor = floors.find((f) => f.id === currentFloorId);
+  const isLoading = useSelector((state) => state.floor.isLoading);
 
   // Auto-open properties panel when floor is created
   useEffect(() => {
-    console.log('FloorEditor: currentFloor changed', currentFloor);
-    console.log('FloorEditor: selectedFloor', selectedFloor);
-    console.log('FloorEditor: showPropertiesPanel', showPropertiesPanel);
-    
-    if (currentFloor && (!selectedFloor || selectedFloor.id !== currentFloor.id)) {
-      console.log('FloorEditor: Opening properties panel for floor', currentFloor);
+    console.log("FloorEditor: currentFloor changed", currentFloor);
+    console.log("FloorEditor: selectedFloor", selectedFloor);
+    console.log("FloorEditor: showPropertiesPanel", showPropertiesPanel);
+
+    if (
+      currentFloor &&
+      (!selectedFloor || selectedFloor.id !== currentFloor.id)
+    ) {
+      console.log(
+        "FloorEditor: Opening properties panel for floor",
+        currentFloor
+      );
       setSelectedFloor(currentFloor);
       setShowPropertiesPanel(true);
     }
@@ -31,20 +40,23 @@ const FloorEditor = ({ open }) => {
   };
 
   const handleOpenPropertiesPanel = (floorData) => {
-    console.log('FloorEditor: Manually opening properties panel', floorData);
+    console.log("FloorEditor: Manually opening properties panel", floorData);
     setSelectedFloor(floorData);
     setShowPropertiesPanel(true);
   };
 
   const handleFloorCreated = (floorData) => {
-    console.log('FloorEditor: Floor created, opening properties panel', floorData);
+    console.log(
+      "FloorEditor: Floor created, opening properties panel",
+      floorData
+    );
     setSelectedFloor(floorData);
     setShowPropertiesPanel(true);
   };
 
   return (
     <div className="flex h-screen">
-      <FloorEditorSidebar 
+      <FloorEditorSidebar
         showCoordinates={showCoordinates}
         setShowCoordinates={setShowCoordinates}
         onOpenPropertiesPanel={handleOpenPropertiesPanel}
@@ -52,18 +64,13 @@ const FloorEditor = ({ open }) => {
       />
 
       <div className="flex-1 relative">
-        <Editor 
-          showCoordinates={showCoordinates} 
+        <Editor
+          showCoordinates={showCoordinates}
           onFloorCreated={handleFloorCreated}
+          projectId={projectId}
+          isLoading={isLoading}
         />
       </div>
-
-      {/* Floor Properties Panel */}
-      <FloorPropertiesPanel
-        isOpen={showPropertiesPanel}
-        onClose={handleClosePropertiesPanel}
-        floorData={selectedFloor}
-      />
     </div>
   );
 };

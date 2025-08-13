@@ -27,7 +27,18 @@ const TraySizer = () => {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
-  const token = localStorage.getItem("token");
+  // Get token from user object in localStorage (matching app authentication pattern)
+  const storedUser = localStorage.getItem("user");
+  let token = null;
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      token = user.token;
+    } catch (e) {
+      console.error("Failed to parse user from localStorage:", e);
+      localStorage.removeItem("user");
+    }
+  }
 
   // ✅ RTK Query hooks
   const { data: referenceData } = useGetCableTrayReferenceDataQuery(undefined, {
@@ -182,9 +193,9 @@ const TraySizer = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="w-[440px] h-[90vh] bg-white p-6 space-y-6">
       {/* --- Header --- */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white  rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center space-x-3">
           <Calculator className="w-8 h-8 text-blue-600" />
           <div>
@@ -238,7 +249,8 @@ const TraySizer = () => {
                     />
                     {index === 0 && (
                       <p className="text-xs text-gray-500 mt-1">
-                        Common sizes: 1, 1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70, 95, 120, 150, 185, 240, 300, 400, 500, 630
+                        Common sizes: 1, 1.5, 2.5, 4, 6, 10, 16, 25, 35, 50, 70,
+                        95, 120, 150, 185, 240, 300, 400, 500, 630
                       </p>
                     )}
                   </div>
@@ -351,7 +363,7 @@ const TraySizer = () => {
 
       {/* --- Results --- */}
       {result && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white  rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Recommended Tray Size
           </h3>
@@ -389,7 +401,7 @@ const TraySizer = () => {
 
       {/* --- Reference Data --- */}
       {referenceData && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white h-[20vh] rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center space-x-2 mb-4">
             <Info className="w-5 h-5 text-blue-600" />
             <h3 className="text-lg font-semibold text-gray-900">

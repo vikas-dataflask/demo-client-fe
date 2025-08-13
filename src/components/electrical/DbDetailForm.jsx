@@ -2,32 +2,26 @@ import React, { useState } from "react";
 import { useSelector } from "react-redux";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import FloorPreview from "../shared/FloorPreview";
-import { useMemo } from "react";
 
 const DbDetailForm = () => {
-  const lightsByRoom = useSelector((state) => state.lighting.lightsByRoom);
-  const rooms = useSelector((state) => state.rooms);
-  const powerByRoom = useSelector((state) => state.power.powerByRoom);
+  const zoneManagement = useSelector(
+    (state) => state.circuiting.zoneManagement || []
+  );
+  const selectedZone = useSelector((state) => state.circuiting.selectedZone);
+  const circuits = useSelector((state) => state.circuiting.circuits);
+  const circuitMapping = useSelector(
+    (state) => state.circuiting.circuitMapping
+  );
 
   // ----- Lighting States -----
-  const [dbName, setDbName] = useState("");
-  const [totalDbLoad, setTotalDbLoad] = useState("");
-  const [dbLoadUnit, setDbLoadUnit] = useState("KW");
-  const [dbAdded, setDbAdded] = useState(false);
+  const [selectedZoneForDB, setSelectedZoneForDB] = useState("");
+  const [zoneSelected, setZoneSelected] = useState(false);
 
-  const [areaName, setAreaName] = useState("");
-  const [areaAdded, setAreaAdded] = useState(false);
+  const [dbs, setDbs] = useState([]); // Array of DBs being created
+  const [currentDbName, setCurrentDbName] = useState("");
+  const [currentDbLoad, setCurrentDbLoad] = useState("");
+  const [currentDbLoadUnit, setCurrentDbLoadUnit] = useState("W");
 
-  const [selectedRoom, setSelectedRoom] = useState("");
-  const [selectedRooms, setSelectedRooms] = useState([]);
-
-  const [showRoomModal, setShowRoomModal] = useState(false);
-  const [modalRoomData, setModalRoomData] = useState({
-    roomId: "",
-    wattagePerLight: "",
-  });
-
-  // const [confirmedDbs, setConfirmedDbs] = useState([]);
   const [confirmedDbs, setConfirmedDbs] = useState(() => {
     try {
       const saved = localStorage.getItem("confirmedLightingDbs");
@@ -38,245 +32,143 @@ const DbDetailForm = () => {
   });
   const [errors, setErrors] = useState({});
 
-  // ----- Power States -----
-  const [powerDbName, setPowerDbName] = useState("");
-  const [powerTotalDbLoad, setPowerTotalDbLoad] = useState("");
-  const [powerDbLoadUnit, setPowerDbLoadUnit] = useState("KW");
-  const [powerDbAdded, setPowerDbAdded] = useState(false);
-
-  const [powerAreaName, setPowerAreaName] = useState("");
-  const [powerAreaAdded, setPowerAreaAdded] = useState(false);
-
-  const [powerSelectedRoom, setPowerSelectedRoom] = useState("");
-  const [powerSelectedRooms, setPowerSelectedRooms] = useState([]);
-
-  const [powerShowRoomModal, setPowerShowRoomModal] = useState(false);
-  const [powerModalRoomData, setPowerModalRoomData] = useState({
-    roomId: "",
-    wattagePerLight: "",
-  });
-
-  // const [confirmedPowerDbs, setConfirmedPowerDbs] = useState([]);
-  const [confirmedPowerDbs, setConfirmedPowerDbs] = useState(() => {
-    try {
-      const saved = localStorage.getItem("confirmedPowerDbs");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [powerErrors, setPowerErrors] = useState({});
-
-  const connectedLoad = useMemo(() => {
-    const lightingTotal = confirmedDbs.reduce(
-      (sum, db) => sum + (db.totalWattage || 0),
-      0
-    );
-    const powerTotal = confirmedPowerDbs.reduce(
-      (sum, db) => sum + (db.totalWattage || 0),
-      0
-    );
-    return lightingTotal + powerTotal;
-  }, [confirmedDbs, confirmedPowerDbs]);
-
   const handleReload = () => {
     console.log("Reload clicked");
   };
 
-  // Lighting handlers
-  const openRoomModal = () => {
-    if (!selectedRoom) {
-      setErrors((prev) => ({ ...prev, selectedRoom: "Please select a room" }));
-      return;
-    }
-    setModalRoomData({ roomId: selectedRoom, wattagePerLight: "" });
-    setShowRoomModal(true);
-  };
-
-  const handleModalInputChange = (e) => {
-    const { name, value } = e.target;
-    setModalRoomData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleCalculateRoomWattage = () => {
-    if (!modalRoomData.wattagePerLight) {
-      setErrors((prev) => ({
-        ...prev,
-        wattagePerLight: "Wattage per light is required",
-      }));
-      return;
-    }
-
-    const lights = lightsByRoom[modalRoomData.roomId]?.lights || [];
-    const watt = parseFloat(modalRoomData.wattagePerLight) || 0;
-    const totalWatt = watt * lights.length;
-    const roomInfo = rooms.find((r) => r.id === modalRoomData.roomId);
-
-    setSelectedRooms((prev) => [
-      ...prev,
-      {
-        id: modalRoomData.roomId,
-        name: roomInfo?.name || modalRoomData.roomId,
-        wattagePerLight: watt,
-        totalWattage: totalWatt,
-      },
-    ]);
-
-    setSelectedRoom("");
-    setShowRoomModal(false);
-    setModalRoomData({ roomId: "", wattagePerLight: "" });
-    setErrors((prev) => ({ ...prev, wattagePerLight: "" }));
-  };
-
-  const handleConfirmFinalDb = () => {
+  // Add a new DB to the current zone
+  const handleAddDb = () => {
     const newErrors = {};
-    if (!dbName.trim()) newErrors.dbName = "DB Name is required";
-    if (!totalDbLoad) newErrors.totalDbLoad = "Total DB Load is required";
-    if (!areaName.trim()) newErrors.areaName = "Area Name is required";
-    if (selectedRooms.length === 0)
-      newErrors.rooms = "At least one room must be added";
+    if (!currentDbName.trim()) newErrors.dbName = "DB Name is required";
+    if (!currentDbLoad) newErrors.dbLoad = "DB Load is required";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    const totalWatt = selectedRooms.reduce((sum, r) => sum + r.totalWattage, 0);
-    const finalData = {
-      dbName,
-      totalDbLoad,
-      dbLoadUnit,
-      areaName,
-      rooms: selectedRooms,
-      totalWattage: totalWatt,
+    const newDb = {
+      id: `db_${Date.now()}`, // Unique ID for the DB
+      name: currentDbName,
+      load: currentDbLoad,
+      loadUnit: currentDbLoadUnit,
+      circuits: [], // Array to store assigned circuits
+      zoneId: selectedZoneForDB,
+      zoneName:
+        zoneManagement.find((z) => z.id === selectedZoneForDB)?.name ||
+        selectedZoneForDB,
     };
 
-    // setConfirmedDbs((prev) => [...prev, finalData]);
+    setDbs((prev) => [...prev, newDb]);
+
+    // Reset current DB form
+    setCurrentDbName("");
+    setCurrentDbLoad("");
+    setCurrentDbLoadUnit("KW");
+    setErrors({});
+  };
+
+  // Assign a circuit to a specific DB
+  const handleAssignCircuit = (dbId, circuitId) => {
+    if (!circuitId) return;
+
+    setDbs((prev) =>
+      prev.map((db) => {
+        if (db.id === dbId) {
+          return {
+            ...db,
+            circuits: [...db.circuits, circuitId],
+          };
+        }
+        return db;
+      })
+    );
+  };
+
+  // Remove a circuit from a DB
+  const handleRemoveCircuit = (dbId, circuitId) => {
+    setDbs((prev) =>
+      prev.map((db) => {
+        if (db.id === dbId) {
+          return {
+            ...db,
+            circuits: db.circuits.filter((c) => c !== circuitId),
+          };
+        }
+        return db;
+      })
+    );
+  };
+
+  // Confirm all DBs for the zone
+  const handleConfirmAllDBs = () => {
+    if (dbs.length === 0) {
+      setErrors({ general: "Please add at least one DB before confirming" });
+      return;
+    }
+
+    const selectedZoneInfo = zoneManagement.find(
+      (z) => z.id === selectedZoneForDB
+    );
+    const zoneRooms = selectedZoneInfo?.rooms || [];
+
+    const finalDBs = dbs.map((db) => ({
+      dbName: db.name,
+      totalDbLoad: db.load,
+      dbLoadUnit: db.loadUnit,
+      zoneName: db.zoneName,
+      zoneId: db.zoneId,
+      rooms: zoneRooms,
+      totalRooms: zoneRooms.length,
+      assignedCircuits: db.circuits,
+      circuitCount: db.circuits.length,
+    }));
 
     setConfirmedDbs((prev) => {
-      const updated = [...prev, finalData];
+      const updated = [...prev, ...finalDBs];
       localStorage.setItem("confirmedLightingDbs", JSON.stringify(updated));
       return updated;
     });
 
-    // Reset all
-    setDbName("");
-    setTotalDbLoad("");
-    setDbLoadUnit("KW");
-    setAreaName("");
-    setDbAdded(false);
-    setAreaAdded(false);
-    setSelectedRooms([]);
-    setSelectedRoom("");
+    // Reset everything
+    setDbs([]);
+    setSelectedZoneForDB("");
+    setZoneSelected(false);
+    setCurrentDbName("");
+    setCurrentDbLoad("");
+    setCurrentDbLoadUnit("KW");
     setErrors({});
   };
 
-  // Power handlers
-  // const openPowerRoomModal = () => {
-  //   if (!powerSelectedRoom) {
-  //     setPowerErrors((prev) => ({
-  //       ...prev,
-  //       selectedRoom: "Please select a room",
-  //     }));
-  //     return;
-  //   }
-  //   setPowerModalRoomData({ roomId: powerSelectedRoom, wattagePerLight: "" });
-  //   setPowerShowRoomModal(true);
-  // };
+  // Get available circuits for a specific DB (circuits not assigned to any DB)
+  const getAvailableCircuits = (currentDbId) => {
+    if (!circuits || Object.keys(circuits).length === 0) return [];
 
-  const handlePowerModalInputChange = (e) => {
-    const { name, value } = e.target;
-    setPowerModalRoomData((prev) => ({ ...prev, [name]: value }));
-  };
+    // Get all circuits assigned to any DB
+    const allAssignedCircuits = dbs.flatMap((db) => db.circuits);
 
-  const handleCalculatePowerRoomWattage = () => {
-    if (!powerModalRoomData.wattagePerLight) {
-      setPowerErrors((prev) => ({
-        ...prev,
-        wattagePerLight: "Wattage per light is required",
-      }));
-      return;
-    }
-
-    const lights = lightsByRoom[powerModalRoomData.roomId]?.lights || [];
-    const watt = parseFloat(powerModalRoomData.wattagePerLight) || 0;
-    const totalWatt = watt * lights.length;
-    const roomInfo = rooms.find((r) => r.id === powerModalRoomData.roomId);
-
-    setPowerSelectedRooms((prev) => [
-      ...prev,
-      {
-        id: powerModalRoomData.roomId,
-        name: roomInfo?.name || powerModalRoomData.roomId,
-        wattagePerLight: watt,
-        totalWattage: totalWatt,
-      },
-    ]);
-
-    setPowerSelectedRoom("");
-    setPowerShowRoomModal(false);
-    setPowerModalRoomData({ roomId: "", wattagePerLight: "" });
-    setPowerErrors((prev) => ({ ...prev, wattagePerLight: "" }));
-  };
-
-  const handleConfirmFinalPowerDb = () => {
-    const newErrors = {};
-    if (!powerDbName.trim()) newErrors.dbName = "DB Name is required";
-    if (!powerTotalDbLoad) newErrors.totalDbLoad = "Total DB Load is required";
-    if (!powerAreaName.trim()) newErrors.areaName = "Area Name is required";
-    if (powerSelectedRooms.length === 0)
-      newErrors.rooms = "At least one room must be added";
-
-    if (Object.keys(newErrors).length > 0) {
-      setPowerErrors(newErrors);
-      return;
-    }
-
-    const totalWatt = powerSelectedRooms.reduce(
-      (sum, r) => sum + r.totalWattage,
-      0
+    // Filter out circuits that are already assigned
+    return Object.values(circuits).filter(
+      (circuit) =>
+        !allAssignedCircuits.includes(circuit.circuitId) ||
+        dbs
+          .find((db) => db.id === currentDbId)
+          ?.circuits.includes(circuit.circuitId)
     );
-    const finalData = {
-      dbName: powerDbName,
-      totalDbLoad: powerTotalDbLoad,
-      dbLoadUnit: powerDbLoadUnit,
-      areaName: powerAreaName,
-      rooms: powerSelectedRooms,
-      totalWattage: totalWatt,
-    };
-
-    // setConfirmedPowerDbs((prev) => [...prev, finalData]);
-
-    setConfirmedPowerDbs((prev) => {
-      const updated = [...prev, finalData];
-      localStorage.setItem("confirmedPowerDbs", JSON.stringify(updated));
-      return updated;
-    });
-
-    // Reset all
-    setPowerDbName("");
-    setPowerTotalDbLoad("");
-    setPowerDbLoadUnit("KW");
-    setPowerAreaName("");
-    setPowerDbAdded(false);
-    setPowerAreaAdded(false);
-    setPowerSelectedRooms([]);
-    setPowerSelectedRoom("");
-    setPowerErrors({});
   };
 
   return (
     <div className="flex h-screen">
       {/* Lighting Section */}
-      <div className="w-[340px] h-[92vh] bg-white border-r border-gray-300 p-4 font-sans text-[13px] text-[#4B5563] overflow-auto">
+      <div className="w-[440px] h-[90vh] bg-white border-r border-gray-300 p-4 font-sans text-[13px] text-[#4B5563] overflow-auto">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white flex justify-between items-start px-4 pt-3 pb-2 border-b border-[#E5E7EB]">
           <div>
             <h1 className="text-[14px] font-semibold text-black leading-none">
-              DB Detail
+              Lighting DB Detail
             </h1>
             <p className="text-[11px] text-gray-400 mt-[2px]">
-              Multi-room wattage calculator
+              Multi-DB Zone Management
             </p>
           </div>
           <button
@@ -287,6 +179,30 @@ const DbDetailForm = () => {
             <ReloadIcon className="w-[16px] h-[16px] stroke-white" />
           </button>
         </div>
+
+        {/* Workflow Info */}
+        <div className="mt-3 p-2 bg-gray-50 border border-gray-200 rounded text-[10px] text-gray-600">
+          <p>
+            <strong>Workflow:</strong>
+          </p>
+          <p>
+            1. Select Zone → 2. Create Multiple DBs → 3. Assign Circuits → 4.
+            Confirm All
+          </p>
+          <p className="text-[9px] text-gray-500 mt-1">
+            Multiple DBs per zone. Each DB can have multiple circuits assigned.
+          </p>
+        </div>
+
+        {/* General Error Display */}
+        {errors.general && (
+          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-[11px] text-red-800">
+            <p>
+              <strong>Error:</strong> {errors.general}
+            </p>
+          </div>
+        )}
+
         {/* Confirmed DBs */}
         {confirmedDbs.length > 0 && (
           <div className="space-y-4 mt-4">
@@ -305,562 +221,281 @@ const DbDetailForm = () => {
                   <strong>Total Load:</strong> {db.totalDbLoad} {db.dbLoadUnit}
                 </p>
                 <p>
-                  <strong>Total Wattage:</strong> {db.totalWattage} W
+                  <strong>Zone:</strong> {db.zoneName}
                 </p>
                 <p>
-                  <strong>Area:</strong> {db.areaName}
+                  <strong>Total Rooms:</strong> {db.totalRooms}
                 </p>
-                <p>
-                  <strong>Rooms:</strong>
-                </p>
-                <ul className="list-disc list-inside ml-2">
-                  {db.rooms.map((room) => (
-                    <li key={room.id}>{room.name}</li>
-                  ))}
-                </ul>
+                {db.assignedCircuits && db.assignedCircuits.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-green-200">
+                    <p>
+                      <strong>Assigned Circuits:</strong> {db.circuitCount}
+                    </p>
+                    <div className="text-xs text-green-600 mt-1">
+                      {db.assignedCircuits.join(", ")}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
-        {confirmedPowerDbs.length > 0 && (
-          <div className="space-y-4 mt-4">
-            {confirmedPowerDbs.map((db, idx) => (
-              <div
-                key={idx}
-                className="border border-green-400 bg-green-50 p-3 rounded-md"
-              >
-                <h2 className="text-[14px] font-semibold text-green-700 mb-2">
-                  Power DB Saved: {db.dbName}
-                </h2>
-                <p>
-                  <strong>Name:</strong> {db.dbName}
-                </p>
-                <p>
-                  <strong>Total Load:</strong> {db.totalDbLoad} {db.dbLoadUnit}
-                </p>
-                <p>
-                  <strong>Total Wattage:</strong> {db.totalWattage} W
-                </p>
-                <p>
-                  <strong>Area:</strong> {db.areaName}
-                </p>
-                <p>
-                  <strong>Rooms:</strong>
-                </p>
-                <ul className="list-disc list-inside ml-2">
-                  {db.rooms.map((room) => (
-                    <li key={room.id}>{room.name}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        )}
-        {(confirmedDbs.length > 0 || confirmedPowerDbs.length > 0) && (
-          <div className="mt-4 border border-blue-400 bg-blue-50 p-3 rounded-md">
-            <h2 className="text-[14px] font-semibold text-blue-700 mb-1">
-              Connected Load Summary
-            </h2>
-            <p className="text-[13px] text-black">
-              <strong>Total Connected Load:</strong> {connectedLoad} W
-            </p>
-          </div>
-        )}
-        {/* DB Name */} Lighting
-        <p className="text-[11px] text-black mb-1 mt-3">DB Name</p>
-        <input
-          type="text"
-          value={dbName}
-          onChange={(e) => {
-            setDbName(e.target.value);
-            setErrors((prev) => ({ ...prev, dbName: "" }));
-          }}
-          className="w-[95%] border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-gray-200 mb-1"
-          aria-label="DB Name input"
-        />
-        {errors.dbName && (
-          <p className="text-red-500 text-[11px] mb-2">{errors.dbName}</p>
-        )}
-        {/* Total Load */}
-        <p className="text-[11px] text-black mb-1">Total DB Load</p>
-        <div className="flex gap-2 mb-1">
-          <input
-            type="number"
-            value={totalDbLoad}
-            onChange={(e) => {
-              setTotalDbLoad(e.target.value);
-              setErrors((prev) => ({ ...prev, totalDbLoad: "" }));
-            }}
-            className="w-1/2 border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-gray-200"
-            aria-label="Total DB Load input"
-          />
-          <select
-            value={dbLoadUnit}
-            onChange={(e) => setDbLoadUnit(e.target.value)}
-            className="w-1/2 border border-gray-200 rounded-md px-2 py-2 text-[13px] bg-gray-200"
-            aria-label="DB Load Unit select"
-          >
-            <option>W</option>
-            <option>KW</option>
-          </select>
-        </div>
-        {errors.totalDbLoad && (
-          <p className="text-red-500 text-[11px] mb-2">{errors.totalDbLoad}</p>
-        )}
-        <button
-          onClick={() => {
-            const errorsObj = {};
-            if (!dbName.trim()) errorsObj.dbName = "DB Name is required";
-            if (!totalDbLoad)
-              errorsObj.totalDbLoad = "Total DB Load is required";
-            if (Object.keys(errorsObj).length > 0) {
-              setErrors((prev) => ({ ...prev, ...errorsObj }));
-              return;
-            }
-            setDbAdded(true);
-          }}
-          className="text-white bg-[#0083EE] hover:bg-[#1C78DC] px-3 py-2 text-[13px] rounded-md mb-4"
-          type="button"
-        >
-          Add DB
-        </button>
-        {/* Area Input */}
-        {dbAdded && (
-          <>
-            <p className="text-[11px] text-black mb-1">Area Name</p>
-            <input
-              type="text"
-              value={areaName}
-              onChange={(e) => {
-                setAreaName(e.target.value);
-                setErrors((prev) => ({ ...prev, areaName: "" }));
-              }}
-              className="w-[95%] border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-gray-200 mb-1"
-              aria-label="Area Name input"
-            />
-            {errors.areaName && (
-              <p className="text-red-500 text-[11px] mb-2">{errors.areaName}</p>
-            )}
-            <button
-              onClick={() => {
-                if (!areaName.trim()) {
-                  setErrors((prev) => ({
-                    ...prev,
-                    areaName: "Area Name is required",
-                  }));
-                  return;
-                }
-                setAreaAdded(true);
-              }}
-              className="text-white bg-[#0083EE] hover:bg-[#1C78DC] px-3 py-2 text-[13px] rounded-md mb-4"
-              type="button"
-            >
-              Add Area
-            </button>
-          </>
-        )}
-        {/* Room Selection */}
-        {areaAdded && (
-          <>
-            <p className="text-[11px] text-black mb-1">Select Room</p>
+
+        {/* Zone Selection First */}
+        <div className="mt-3">
+          <p className="text-[11px] text-black mb-1">Select Zone</p>
+          {zoneManagement.length === 0 ? (
+            <div className="w-[95%] p-3 bg-yellow-50 border border-yellow-200 rounded-md text-[11px] text-yellow-800">
+              <p>
+                <strong>No zones available!</strong>
+              </p>
+              <p>
+                Please create zones in the Circuiting Management section first.
+              </p>
+              <p>Zones are required to organize rooms for DB assignment.</p>
+            </div>
+          ) : (
             <select
-              value={selectedRoom}
+              value={selectedZoneForDB}
               onChange={(e) => {
-                setSelectedRoom(e.target.value);
-                setErrors((prev) => ({ ...prev, selectedRoom: "" }));
+                setSelectedZoneForDB(e.target.value);
+                setErrors((prev) => ({ ...prev, zone: "" }));
               }}
               className="w-[95%] border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-gray-200 mb-1"
-              aria-label="Select Room for Lighting"
+              aria-label="Select Zone for DB"
             >
-              <option value="">Select</option>
-              {rooms.map((room) => (
-                <option
-                  key={room.id}
-                  value={room.id}
-                  disabled={selectedRooms.some((r) => r.id === room.id)}
-                >
-                  {room.name}
+              <option value="">Select Zone</option>
+              {zoneManagement.map((zone) => (
+                <option key={zone.id} value={zone.id}>
+                  {zone.name} ({zone.rooms.length} rooms)
                 </option>
               ))}
             </select>
-            {errors.selectedRoom && (
-              <p className="text-red-500 text-[11px] mb-2">
-                {errors.selectedRoom}
-              </p>
-            )}
-            <button
-              onClick={() => {
-                if (!selectedRoom) {
-                  setErrors((prev) => ({
-                    ...prev,
-                    selectedRoom: "Please select a room",
-                  }));
-                  return;
-                }
-                openRoomModal();
-              }}
-              disabled={!selectedRoom}
-              className="text-white bg-[#0083EE] hover:bg-[#1C78DC] px-3 py-2 text-[13px] rounded-md mb-4"
-              type="button"
-            >
-              Add Room
-            </button>
-          </>
-        )}
-        {/* Rooms Display */}
-        {selectedRooms.length > 0 && (
-          <div>
-            <p className="text-[12px] font-semibold mb-2 text-black">
-              Rooms Added
-            </p>
-            {selectedRooms.map((room) => (
-              <div
-                key={room.id}
-                className="border border-gray-300 rounded-md px-3 py-2 mb-2 bg-gray-100"
-              >
-                <p className="text-[13px] text-black font-semibold">
-                  {room.name}
-                </p>
-                <p className="text-[12px]">
-                  Watt/Light: {room.wattagePerLight} W
-                </p>
-                <p className="text-[12px]">Total: {room.totalWattage} W</p>
-              </div>
-            ))}
-            <div className="mt-3 border-t border-gray-300 pt-2">
-              <p className="text-[13px] font-semibold text-black">
-                Total Wattage:{" "}
-                {selectedRooms.reduce(
-                  (sum, room) => sum + room.totalWattage,
-                  0
-                )}{" "}
-                W
-              </p>
-              {errors.rooms && (
-                <p className="text-red-500 text-[11px] mt-1">{errors.rooms}</p>
-              )}
-            </div>
-            <button
-              onClick={handleConfirmFinalDb}
-              className="mt-3 text-white bg-green-600 hover:bg-green-700 px-3 py-2 text-[13px] rounded-md"
-              type="button"
-            >
-              Confirm Final DB
-            </button>
-          </div>
-        )}
-        {/* Power Section */}
-        {/* Confirmed Power DBs */}
-        <div className=" border-t border-gray-300">
-          {" "}
-          Power
-          {/* Power DB Name */}
-          <p className="text-[11px] text-black mb-1 mt-3">Power DB Name</p>
-          <input
-            type="text"
-            value={powerDbName}
-            onChange={(e) => {
-              setPowerDbName(e.target.value);
-              setPowerErrors((prev) => ({ ...prev, dbName: "" }));
-            }}
-            className="w-[95%] border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-gray-200 mb-1"
-            aria-label="Power DB Name input"
-          />
-          {powerErrors.dbName && (
-            <p className="text-red-500 text-[11px] mb-2">
-              {powerErrors.dbName}
-            </p>
           )}
-          {/* Power Total Load */}
-          <p className="text-[11px] text-black mb-1">Total Power DB Load</p>
-          <div className="flex gap-2 mb-1">
-            <input
-              type="number"
-              value={powerTotalDbLoad}
-              onChange={(e) => {
-                setPowerTotalDbLoad(e.target.value);
-                setPowerErrors((prev) => ({ ...prev, totalDbLoad: "" }));
-              }}
-              className="w-1/2 border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-gray-200"
-              aria-label="Total Power DB Load input"
-            />
-            <select
-              value={powerDbLoadUnit}
-              onChange={(e) => setPowerDbLoadUnit(e.target.value)}
-              className="w-1/2 border border-gray-200 rounded-md px-2 py-2 text-[13px] bg-gray-200"
-              aria-label="Power DB Load Unit select"
-            >
-              <option>W</option>
-              <option>KW</option>
-            </select>
-          </div>
-          {powerErrors.totalDbLoad && (
-            <p className="text-red-500 text-[11px] mb-2">
-              {powerErrors.totalDbLoad}
-            </p>
-          )}
-          <button
-            onClick={() => {
-              const errorsObj = {};
-              if (!powerDbName.trim()) errorsObj.dbName = "DB Name is required";
-              if (!powerTotalDbLoad)
-                errorsObj.totalDbLoad = "Total DB Load is required";
-              if (Object.keys(errorsObj).length > 0) {
-                setPowerErrors((prev) => ({ ...prev, ...errorsObj }));
-                return;
-              }
-              setPowerDbAdded(true);
-            }}
-            className="text-white bg-[#0083EE] hover:bg-[#1C78DC] px-3 py-2 text-[13px] rounded-md mb-4"
-            type="button"
-          >
-            Add DB
-          </button>
-          {/* Power Area Input */}
-          {powerDbAdded && (
-            <>
-              <p className="text-[11px] text-black mb-1">Area Name</p>
-              <input
-                type="text"
-                value={powerAreaName}
-                onChange={(e) => {
-                  setPowerAreaName(e.target.value);
-                  setPowerErrors((prev) => ({ ...prev, areaName: "" }));
-                }}
-                className="w-[95%] border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-gray-200 mb-1"
-                aria-label="Power Area Name input"
-              />
-              {powerErrors.areaName && (
-                <p className="text-red-500 text-[11px] mb-2">
-                  {powerErrors.areaName}
-                </p>
-              )}
-              <button
-                onClick={() => {
-                  if (!powerAreaName.trim()) {
-                    setPowerErrors((prev) => ({
-                      ...prev,
-                      areaName: "Area Name is required",
-                    }));
-                    return;
-                  }
-                  setPowerAreaAdded(true);
-                }}
-                className="text-white bg-[#0083EE] hover:bg-[#1C78DC] px-3 py-2 text-[13px] rounded-md mb-4"
-                type="button"
-              >
-                Add Area
-              </button>
-            </>
-          )}
-          {/* Power Room Selection */}
-          {powerAreaAdded && (
-            <>
-              <p className="text-[11px] text-black mb-1">Select Room</p>
-              <select
-                value={powerSelectedRoom}
-                onChange={(e) => {
-                  setPowerSelectedRoom(e.target.value);
-                  setPowerErrors((prev) => ({ ...prev, selectedRoom: "" }));
-                }}
-                className="w-[95%] border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-gray-200 mb-1"
-                aria-label="Select Room for Power"
-              >
-                <option value="">Select</option>
-                {rooms.map((room) => (
-                  <option
-                    key={room.id}
-                    value={room.id}
-                    disabled={powerSelectedRooms.some((r) => r.id === room.id)}
-                  >
-                    {room.name}
-                  </option>
-                ))}
-              </select>
-              {powerErrors.selectedRoom && (
-                <p className="text-red-500 text-[11px] mb-2">
-                  {powerErrors.selectedRoom}
-                </p>
-              )}
-              <button
-                onClick={() => {
-                  if (!powerSelectedRoom) {
-                    setPowerErrors((prev) => ({
-                      ...prev,
-                      selectedRoom: "Please select a room",
-                    }));
-                    return;
-                  }
-
-                  const powerData = powerByRoom[powerSelectedRoom];
-                  if (!powerData) {
-                    alert("Power data not available for the selected room.");
-                    return;
-                  }
-
-                  const roomInfo = rooms.find(
-                    (r) => r.id === powerSelectedRoom
-                  );
-                  setPowerSelectedRooms((prev) => [
-                    ...prev,
-                    {
-                      id: powerSelectedRoom,
-                      name: roomInfo?.name || powerSelectedRoom,
-                      wattagePerLight: powerData.powerPerButton,
-                      totalWattage: powerData.totalPower,
-                    },
-                  ]);
-
-                  setPowerSelectedRoom("");
-                }}
-                disabled={!powerSelectedRoom}
-                className="text-white bg-[#0083EE] hover:bg-[#1C78DC] px-3 py-2 text-[13px] rounded-md mb-4"
-                type="button"
-              >
-                Add Room
-              </button>
-            </>
-          )}
-          {/* Power Rooms Display */}
-          {powerSelectedRooms.length > 0 && (
-            <div>
-              <p className="text-[12px] font-semibold mb-2 text-black">
-                Rooms Added
-              </p>
-              {powerSelectedRooms.map((room) => (
-                <div
-                  key={room.id}
-                  className="border border-gray-300 rounded-md px-3 py-2 mb-2 bg-gray-100"
-                >
-                  <p className="text-[13px] text-black font-semibold">
-                    {room.name}
-                  </p>
-                  <p className="text-[12px]">
-                    Watt/Light: {room.wattagePerLight} W
-                  </p>
-                  <p className="text-[12px]">Total: {room.totalWattage} W</p>
-                </div>
-              ))}
-              <div className="mt-3 border-t border-gray-300 pt-2">
-                <p className="text-[13px] font-semibold text-black">
-                  Total Wattage:{" "}
-                  {powerSelectedRooms.reduce(
-                    (sum, room) => sum + room.totalWattage,
-                    0
-                  )}{" "}
-                  W
-                </p>
-                {powerErrors.rooms && (
-                  <p className="text-red-500 text-[11px] mt-1">
-                    {powerErrors.rooms}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={handleConfirmFinalPowerDb}
-                className="mt-3 text-white bg-green-600 hover:bg-green-700 px-3 py-2 text-[13px] rounded-md"
-                type="button"
-              >
-                Confirm Final DB
-              </button>
-            </div>
+          {errors.zone && (
+            <p className="text-red-500 text-[11px] mb-2">{errors.zone}</p>
           )}
         </div>
+
+        {/* Zone Details Display */}
+        {selectedZoneForDB && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="text-[12px] font-semibold text-blue-800 mb-2">
+              Zone Details:{" "}
+              {zoneManagement.find((z) => z.id === selectedZoneForDB)?.name}
+            </h4>
+            <div className="text-[11px] text-blue-700 space-y-1">
+              <div className="flex justify-between">
+                <span>Total Circuits:</span>
+                <span className="font-medium">
+                  {Object.keys(circuits).length > 0
+                    ? Object.keys(circuits).length
+                    : "No circuits generated yet"}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Rooms in Zone:</span>
+                <span className="font-medium text-lg">
+                  {zoneManagement.find((z) => z.id === selectedZoneForDB)?.rooms
+                    .length || 0}
+                </span>
+              </div>
+              {Object.keys(circuits).length > 0 && (
+                <div className="mt-2 pt-2 border-t border-blue-200">
+                  <span className="font-medium">Circuit Details:</span>
+                  <div className="mt-1 space-y-1">
+                    {Object.values(circuits).map((circuit, index) => (
+                      <div
+                        key={index}
+                        className="text-[10px] bg-blue-100 p-1 rounded"
+                      >
+                        <span className="font-medium">
+                          Circuit {index + 1}:
+                        </span>{" "}
+                        {circuit.fixtures?.length || 0} fixtures,{" "}
+                        {circuit.load || 0}W
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {Object.keys(circuits).length === 0 && (
+                <div className="mt-2 pt-2 border-t border-blue-200">
+                  <div className="text-[10px] bg-yellow-100 p-2 rounded text-yellow-800">
+                    <p>
+                      <strong>⚠️ Warning:</strong>
+                    </p>
+                    <p>No circuits generated for this zone yet.</p>
+                    <p>
+                      Please generate circuits in Circuiting Management first.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* DB Creation Form - Only show after zone is selected */}
+        {selectedZoneForDB && (
+          <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <h4 className="text-[12px] font-medium text-gray-700 mb-3">
+              Create New DB
+            </h4>
+
+            {/* DB Name */}
+            <div className="mb-3">
+              <p className="text-[11px] text-black mb-1">DB Name</p>
+              <input
+                type="text"
+                value={currentDbName}
+                onChange={(e) => {
+                  setCurrentDbName(e.target.value);
+                  setErrors((prev) => ({ ...prev, dbName: "" }));
+                }}
+                className="w-full border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-white"
+                placeholder="Enter DB name"
+                aria-label="DB Name input"
+              />
+              {errors.dbName && (
+                <p className="text-red-500 text-[11px] mt-1">{errors.dbName}</p>
+              )}
+            </div>
+
+            {/* DB Load */}
+            <div className="mb-3">
+              <p className="text-[11px] text-black mb-1">DB Load</p>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={currentDbLoad}
+                  onChange={(e) => {
+                    setCurrentDbLoad(e.target.value);
+                    setErrors((prev) => ({ ...prev, dbLoad: "" }));
+                  }}
+                  className="flex-1 border border-gray-200 rounded-md px-3 py-2 text-[13px] bg-white"
+                  placeholder="Load value"
+                  aria-label="DB Load input"
+                />
+                <select
+                  value={currentDbLoadUnit}
+                  onChange={(e) => setCurrentDbLoadUnit(e.target.value)}
+                  className="w-20 border border-gray-200 rounded-md px-2 py-2 text-[13px] bg-white"
+                  aria-label="DB Load Unit select"
+                >
+                  <option>W</option>
+                  <option>KW</option>
+                </select>
+              </div>
+              {errors.dbLoad && (
+                <p className="text-red-500 text-[11px] mt-1">{errors.dbLoad}</p>
+              )}
+            </div>
+
+            <button
+              onClick={handleAddDb}
+              className="w-full text-white bg-blue-600 hover:bg-blue-700 px-3 py-2 text-[13px] rounded-md transition-colors"
+              type="button"
+            >
+              Add DB
+            </button>
+          </div>
+        )}
+
+        {/* DBs Display - Show all created DBs for the zone */}
+        {dbs.length > 0 && (
+          <div className="mt-4 space-y-3">
+            <h4 className="text-[12px] font-medium text-gray-700">
+              Created DBs
+            </h4>
+            {dbs.map((db) => (
+              <div
+                key={db.id}
+                className="p-3 bg-white border border-gray-200 rounded-lg"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="text-[13px] font-medium text-gray-800">
+                    {db.name}
+                  </h5>
+                  <span className="text-[11px] text-gray-600">
+                    {db.load} {db.loadUnit}
+                  </span>
+                </div>
+
+                {/* Circuit Assignment */}
+                <div className="mb-3">
+                  <p className="text-[11px] text-gray-600 mb-1">
+                    Assign Circuits:
+                  </p>
+                  <select
+                    onChange={(e) => handleAssignCircuit(db.id, e.target.value)}
+                    className="w-full text-[11px] border border-gray-200 rounded px-2 py-1"
+                    defaultValue=""
+                  >
+                    <option value="">Select Circuit</option>
+                    {getAvailableCircuits(db.id).map((circuit) => (
+                      <option key={circuit.circuitId} value={circuit.circuitId}>
+                        {circuit.displayName || circuit.circuitId} (
+                        {circuit.fixtures?.length || 0} fixtures)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Assigned Circuits */}
+                {db.circuits.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[11px] text-gray-600">
+                      Assigned Circuits:
+                    </p>
+                    {db.circuits.map((circuitId) => {
+                      const circuit = Object.values(circuits).find(
+                        (c) => c.circuitId === circuitId
+                      );
+                      return (
+                        <div
+                          key={circuitId}
+                          className="flex items-center justify-between text-[10px] bg-gray-100 p-1 rounded"
+                        >
+                          <span>{circuit?.displayName || circuitId}</span>
+                          <button
+                            onClick={() =>
+                              handleRemoveCircuit(db.id, circuitId)
+                            }
+                            className="text-red-500 hover:text-red-700 text-xs"
+                            title="Remove circuit"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Confirm All DBs Button */}
+        {dbs.length > 0 && (
+          <div className="mt-4">
+            <button
+              onClick={handleConfirmAllDBs}
+              className="w-full text-white bg-green-600 hover:bg-green-700 px-4 py-3 text-[14px] rounded-md font-medium"
+              type="button"
+            >
+              Confirm All DBs ({dbs.length})
+            </button>
+          </div>
+        )}
       </div>
+
       {/* Canvas Side */}
       <div className="flex-1 h-full">
         <FloorPreview />
       </div>
-      {/* Lighting Room Modal */}
-      {showRoomModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
-          <div className="bg-white w-[500px] p-4 rounded-lg shadow-lg">
-            <h2 className="text-lg font-semibold mb-3 text-black">
-              Enter Room Details
-            </h2>
-            <p className="text-[13px] mb-1">Room ID: {modalRoomData.roomId}</p>
-            <label className="text-[13px]">Wattage per Light</label>
-            <input
-              type="number"
-              name="wattagePerLight"
-              value={modalRoomData.wattagePerLight}
-              onChange={(e) => {
-                handleModalInputChange(e);
-                setErrors((prev) => ({ ...prev, wattagePerLight: "" }));
-              }}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] mb-1"
-              aria-label="Wattage per Light Input"
-            />
-            {errors.wattagePerLight && (
-              <p className="text-red-500 text-[12px] mb-2">
-                {errors.wattagePerLight}
-              </p>
-            )}
-            <div className="flex justify-end gap-2 mt-2">
-              <button
-                onClick={() => setShowRoomModal(false)}
-                className="px-3 py-2 text-sm bg-gray-200 rounded-md hover:bg-gray-300"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCalculateRoomWattage}
-                className="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
-                type="button"
-              >
-                Calculate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Power Room Modal */}
-      {powerShowRoomModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
-          <div className="bg-white w-[500px] p-4 rounded-lg shadow-lg">
-            <h2 className="text-lg font-semibold mb-3 text-black">
-              Enter Room Details
-            </h2>
-            <p className="text-[13px] mb-1">
-              Room ID: {powerModalRoomData.roomId}
-            </p>
-            <label className="text-[13px]">Wattage per Light</label>
-            <input
-              type="number"
-              name="wattagePerLight"
-              value={powerModalRoomData.wattagePerLight}
-              onChange={(e) => {
-                handlePowerModalInputChange(e);
-                setPowerErrors((prev) => ({ ...prev, wattagePerLight: "" }));
-              }}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-[13px] mb-1"
-              aria-label="Power Wattage per Light Input"
-            />
-            {powerErrors.wattagePerLight && (
-              <p className="text-red-500 text-[12px] mb-2">
-                {powerErrors.wattagePerLight}
-              </p>
-            )}
-            <div className="flex justify-end gap-2 mt-2">
-              <button
-                onClick={() => setPowerShowRoomModal(false)}
-                className="px-3 py-2 text-sm bg-gray-200 rounded-md hover:bg-gray-300"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCalculatePowerRoomWattage}
-                className="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700"
-                type="button"
-              >
-                Calculate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

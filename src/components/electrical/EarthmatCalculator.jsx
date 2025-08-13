@@ -197,7 +197,7 @@ const EarthmatCalculator = ({ calculationId = null }) => {
     );
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="w-[450px] h-[90vh] bg-white p-6 space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center space-x-3">
@@ -597,7 +597,7 @@ const EarthmatCalculator = ({ calculationId = null }) => {
 
       {/* Reference Information */}
       {referenceData && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white h-[20vh] rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center space-x-2 mb-4">
             <Info className="w-5 h-5 text-blue-600" />
             <h3 className="text-lg font-semibold text-gray-900">

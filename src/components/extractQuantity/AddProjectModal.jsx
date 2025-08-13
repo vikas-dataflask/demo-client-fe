@@ -28,12 +28,16 @@ const AddProjectModal = ({ onClose, setProjectAdded }) => {
     data: subBuildingData,
     isLoading: isSubBuildingLoading,
     isError: isSubBuildingError,
-  } = useGetSubBuildingListQuery(building);
+  } = useGetSubBuildingListQuery(building, {
+    skip: !building,
+  });
   const {
     data: leveldata,
     isLoading: isLevelLaoding,
     isError: isLevelError,
-  } = useGetLevelsListQuery(subBuilding);
+  } = useGetLevelsListQuery(subBuilding, {
+    skip: !subBuilding,
+  });
 
   const token = localStorage.getItem("token");
   let userId = "";

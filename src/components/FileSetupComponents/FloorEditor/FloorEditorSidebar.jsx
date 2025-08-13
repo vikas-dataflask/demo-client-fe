@@ -58,7 +58,7 @@ const FloorEditorSidebar = ({
   const isDrawingFloor = useSelector((state) => state.floor.isDrawingFloor);
   const floors = useSelector((state) => state.floor.floors);
   const currentFloorId = useSelector((state) => state.floor.currentFloorId);
-  const currentFloor = floors.find(f => f.id === currentFloorId);
+  const currentFloor = floors.find((f) => f.id === currentFloorId);
   const [selectedFile, setSelectedFile] = useState(null);
   const dispatch = useDispatch();
 
@@ -133,8 +133,9 @@ const FloorEditorSidebar = ({
       alert("Please select a floor first before creating floor shapes.");
       return;
     }
+    // Default mode: rectangle drawing is auto-active, no need to set drawing mode
     dispatch(setFloorMode("rectangle"));
-    dispatch(setIsDrawingFloor(true));
+    dispatch(setIsDrawingFloor(false)); // Let it auto-activate on mouse down
   };
 
   const handlePolygonMode = () => {
@@ -151,28 +152,33 @@ const FloorEditorSidebar = ({
       alert("Please select a floor first before creating floor shapes.");
       return;
     }
-    setShowCreateFloorModal(true);
+    // This will trigger the modal in the Editor component
+    dispatch(setFloorMode("manual"));
+    dispatch(setIsDrawingFloor(false));
   };
 
   const handleCreateFloor = (floorData) => {
-    console.log("FloorEditorSidebar: Creating floor shape from modal", floorData);
-    
+    console.log(
+      "FloorEditorSidebar: Creating floor shape from modal",
+      floorData
+    );
+
     // Add shape to current floor
     if (currentFloor) {
       const floorShape = {
         ...floorData,
         id: `shape-${Date.now()}`,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
-      
+
       const updatedFloor = {
         ...currentFloor,
         shapes: [...(currentFloor.shapes || []), floorShape],
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       };
       dispatch(updateFloor({ id: currentFloor.id, updates: updatedFloor }));
     }
-    
+
     dispatch(setIsDrawingFloor(false));
 
     // Trigger properties panel opening
@@ -185,19 +191,21 @@ const FloorEditorSidebar = ({
   const handleClearFloor = () => {
     // Clear all shapes from the current floor
     if (currentFloor) {
-      dispatch(updateFloor({
-        id: currentFloor.id,
-        updates: {
-          shapes: [],
-          updatedAt: new Date().toISOString()
-        }
-      }));
+      dispatch(
+        updateFloor({
+          id: currentFloor.id,
+          updates: {
+            shapes: [],
+            updatedAt: new Date().toISOString(),
+          },
+        })
+      );
     }
     dispatch(setIsDrawingFloor(false));
   };
 
   return (
-    <div className="bg-white w-[350px] h-full border-r border-gray-300 overflow-y-auto">
+    <div className="bg-white w-[350px] h-[90vh] border-r border-gray-300 overflow-y-auto">
       <div className="mt-6 mx-4 flex flex-col gap-4">
         <div className="border-b border-gray-300 pb-4 flex justify-between items-center">
           <div>
@@ -304,21 +312,19 @@ const FloorEditorSidebar = ({
           )}
         </div>
 
-        {/* Draw Floor Button */}
-        <button
-          onClick={handleDrawFloor}
-          disabled={!currentFloorId}
-          className={`flex items-center gap-2 px-3 py-2 rounded border transition-colors text-sm ${
-            !currentFloorId
-              ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-              : isDrawingFloor && floorMode === "rectangle"
-              ? "bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-              : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
-          }`}
-        >
-          <Square className="h-4 w-4" />
-          <span>Draw Floor</span>
-        </button>
+        {/* Auto-Active Floor Drawing Info */}
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Square className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">
+              Auto-Active Floor Drawing
+            </span>
+          </div>
+          <p className="text-xs text-blue-700">
+            Click and drag anywhere on the canvas to create a new floor. No
+            button click required.
+          </p>
+        </div>
 
         {/* Polygon Mode Dropdown */}
         <div className="relative">
@@ -356,7 +362,9 @@ const FloorEditorSidebar = ({
         <button
           onClick={() => {
             if (!currentFloorId) {
-              alert("Please select a floor first before creating floor shapes.");
+              alert(
+                "Please select a floor first before creating floor shapes."
+              );
               return;
             }
             const testFloorShape = {
@@ -373,18 +381,23 @@ const FloorEditorSidebar = ({
               slabThickness: 200,
               material: "RCC",
               source: "test",
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
             };
-            console.log("FloorEditorSidebar: Creating test floor shape", testFloorShape);
-            
+            console.log(
+              "FloorEditorSidebar: Creating test floor shape",
+              testFloorShape
+            );
+
             // Add shape to current floor
             if (currentFloor) {
               const updatedFloor = {
                 ...currentFloor,
                 shapes: [...(currentFloor.shapes || []), testFloorShape],
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
               };
-              dispatch(updateFloor({ id: currentFloor.id, updates: updatedFloor }));
+              dispatch(
+                updateFloor({ id: currentFloor.id, updates: updatedFloor })
+              );
             }
 
             // Trigger properties panel opening
@@ -445,10 +458,16 @@ const FloorEditorSidebar = ({
               <div>Name: {currentFloor.name}</div>
               <div>Level: {currentFloor.level}</div>
               <div>Height: {currentFloor.height}mm</div>
-              <div>Shapes: {currentFloor.shapes ? currentFloor.shapes.length : 0}</div>
+              <div>
+                Shapes: {currentFloor.shapes ? currentFloor.shapes.length : 0}
+              </div>
               {currentFloor.shapes && currentFloor.shapes.length > 0 && (
                 <div>
-                  Total Area: {currentFloor.shapes.reduce((total, shape) => total + (shape.areaSqM || 0), 0).toFixed(2)} m²
+                  Total Area:{" "}
+                  {currentFloor.shapes
+                    .reduce((total, shape) => total + (shape.areaSqM || 0), 0)
+                    .toFixed(2)}{" "}
+                  m²
                 </div>
               )}
             </div>
@@ -483,17 +502,82 @@ const FloorEditorSidebar = ({
                 type="text"
                 value={currentFloor.name || "Ground Floor"}
                 onChange={(e) => {
-                  dispatch(updateFloor({
-                    id: currentFloor.id,
-                    updates: {
-                      name: e.target.value,
-                      updatedAt: new Date().toISOString()
-                    }
-                  }));
+                  dispatch(
+                    updateFloor({
+                      id: currentFloor.id,
+                      updates: {
+                        name: e.target.value,
+                        updatedAt: new Date().toISOString(),
+                      },
+                    })
+                  );
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 placeholder="Enter floor name"
               />
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-500 font-semibold mb-1">
+                Floor Width
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={
+                    currentFloor.widthInMeters
+                      ? currentFloor.widthInMeters
+                      : 3.2
+                  }
+                  onChange={(e) => {
+                    const width = parseFloat(e.target.value) || 3.2;
+                    dispatch(
+                      updateFloor({
+                        id: currentFloor.id,
+                        updates: {
+                          width: width,
+                          updatedAt: new Date().toISOString(),
+                        },
+                      })
+                    );
+                  }}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="3.2"
+                />
+                <span className="text-sm text-gray-500">m</span>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-500 font-semibold mb-1">
+                Floor Length
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={currentFloor.height ? currentFloor.height / 1000 : 3.2}
+                  onChange={(e) => {
+                    const heightInMm =
+                      (parseFloat(e.target.value) || 3.2) * 1000;
+                    dispatch(
+                      updateFloor({
+                        id: currentFloor.id,
+                        updates: {
+                          height: heightInMm,
+                          updatedAt: new Date().toISOString(),
+                        },
+                      })
+                    );
+                  }}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  placeholder="3.2"
+                />
+                <span className="text-sm text-gray-500">m</span>
+              </div>
             </div>
 
             {/* Auto-Calculated Area */}
@@ -502,9 +586,12 @@ const FloorEditorSidebar = ({
                 Area (Auto-Calculated)
               </div>
               <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
-                {currentFloor.shapes && currentFloor.shapes.length > 0 
-                  ? currentFloor.shapes.reduce((total, shape) => total + (shape.areaSqM || 0), 0).toFixed(2)
-                  : '0.00'} m²
+                {currentFloor.shapes && currentFloor.shapes.length > 0
+                  ? currentFloor.shapes
+                      .reduce((total, shape) => total + (shape.areaSqM || 0), 0)
+                      .toFixed(2)
+                  : "0.00"}{" "}
+                m²
               </div>
             </div>
 
@@ -520,14 +607,17 @@ const FloorEditorSidebar = ({
                   min="0.1"
                   value={currentFloor.height ? currentFloor.height / 1000 : 3.2}
                   onChange={(e) => {
-                    const heightInMm = (parseFloat(e.target.value) || 3.2) * 1000;
-                    dispatch(updateFloor({
-                      id: currentFloor.id,
-                      updates: {
-                        height: heightInMm,
-                        updatedAt: new Date().toISOString()
-                      }
-                    }));
+                    const heightInMm =
+                      (parseFloat(e.target.value) || 3.2) * 1000;
+                    dispatch(
+                      updateFloor({
+                        id: currentFloor.id,
+                        updates: {
+                          height: heightInMm,
+                          updatedAt: new Date().toISOString(),
+                        },
+                      })
+                    );
                   }}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="3.2"
@@ -546,15 +636,17 @@ const FloorEditorSidebar = ({
                   type="number"
                   step="1"
                   min="0"
-                  value={currentFloor.slabThickness || 200}
+                  value={currentFloor.slabThickness}
                   onChange={(e) => {
-                    dispatch(updateFloor({
-                      id: currentFloor.id,
-                      updates: {
-                        slabThickness: parseInt(e.target.value) || 200,
-                        updatedAt: new Date().toISOString()
-                      }
-                    }));
+                    dispatch(
+                      updateFloor({
+                        id: currentFloor.id,
+                        updates: {
+                          slabThickness: parseInt(e.target.value) || 200,
+                          updatedAt: new Date().toISOString(),
+                        },
+                      })
+                    );
                   }}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   placeholder="200"
@@ -571,13 +663,15 @@ const FloorEditorSidebar = ({
               <select
                 value={currentFloor.material || "RCC"}
                 onChange={(e) => {
-                  dispatch(updateFloor({
-                    id: currentFloor.id,
-                    updates: {
-                      material: e.target.value,
-                      updatedAt: new Date().toISOString()
-                    }
-                  }));
+                  dispatch(
+                    updateFloor({
+                      id: currentFloor.id,
+                      updates: {
+                        material: e.target.value,
+                        updatedAt: new Date().toISOString(),
+                      },
+                    })
+                  );
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               >
@@ -596,12 +690,19 @@ const FloorEditorSidebar = ({
               </div>
               <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
                 {(() => {
-                  const totalArea = currentFloor.shapes && currentFloor.shapes.length > 0 
-                    ? currentFloor.shapes.reduce((total, shape) => total + (shape.areaSqM || 0), 0)
-                    : 0;
-                  const heightInM = currentFloor.height ? currentFloor.height / 1000 : 3.2;
+                  const totalArea =
+                    currentFloor.shapes && currentFloor.shapes.length > 0
+                      ? currentFloor.shapes.reduce(
+                          (total, shape) => total + (shape.areaSqM || 0),
+                          0
+                        )
+                      : 0;
+                  const heightInM = currentFloor.height
+                    ? currentFloor.height / 1000
+                    : 3.2;
                   return (totalArea * heightInM).toFixed(2);
-                })()} m³
+                })()}{" "}
+                m³
               </div>
             </div>
           </div>

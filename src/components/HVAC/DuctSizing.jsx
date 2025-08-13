@@ -18,7 +18,7 @@ import FloorPreview from "../shared/FloorPreview";
 
 const DuctSizing = () => {
   const { projectId } = useParams();
-  const rooms = useSelector((state) => state.rooms);
+  const rooms = useSelector((state) => state.newRooms?.rooms || []);
   const heatLoadByRoom = useSelector(selectRoomHeatLoadCapacity);
 
   const [formData, setFormData] = useState({
@@ -363,7 +363,7 @@ const DuctSizing = () => {
 
   return (
     <div className="flex h-screen">
-      <div className="w-[340px] h-[92vh] bg-white border-r border-gray-300 text-sm font-medium relative flex flex-col overflow-hidden">
+      <div className="w-[440px] h-[92vh] bg-white border-r border-gray-300 text-sm font-medium relative flex flex-col overflow-hidden">
         {/* Fixed Header */}
         <div className="p-4 border-b border-gray-200 bg-white flex items-start justify-between">
           <div>
@@ -392,11 +392,29 @@ const DuctSizing = () => {
                 className="w-full p-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
               >
                 <option value="">Select a room</option>
-                {rooms.map((option, index) => (
-                  <option key={index} value={option.name || option.id}>
-                    {option.name || option.id}
-                  </option>
-                ))}
+                {(() => {
+                  // Remove duplicates and show room dimensions
+                  const GRID_SIZE = 100;
+                  const convertPixelsToMeters = (pixels) => pixels / GRID_SIZE;
+                  
+                  const uniqueRooms = rooms.filter(
+                    (room, index, self) =>
+                      index === self.findIndex((r) => (r.id || r._id) === (room.id || room._id))
+                  );
+                  
+                  return uniqueRooms.map((room) => {
+                    // Calculate area in meters for display
+                    const widthInMeters = room.width ? convertPixelsToMeters(room.width) : 0;
+                    const heightInMeters = room.height ? convertPixelsToMeters(room.height) : 0;
+                    const areaInMeters = widthInMeters * heightInMeters;
+                    
+                    return (
+                      <option key={room.id || room._id} value={room.name}>
+                        {room.name || `Room ${room.id}`} ({areaInMeters.toFixed(2)} m²)
+                      </option>
+                    );
+                  });
+                })()}
               </select>
             </div>
 

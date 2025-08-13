@@ -10,6 +10,7 @@ import {
   PURGE,
   REGISTER,
 } from "redux-persist";
+import { projectLoggerMiddleware } from "./middleware/projectLogger";
 
 import projectReducer from "./features/app/projectSlice";
 import userReducer from "./features/app/userSLice";
@@ -21,17 +22,24 @@ import roomReducer from "./features/app/roomSlice";
 import dialuxReducer from "./features/app/dialuxSlice";
 import lightingReducer from "./features/app/lightingSlice";
 import powerReducer from "./features/app/powerSlice";
+import fixtureReducer from "./features/app/fixtureSlice";
 import { backofficeApi } from "./features/api/backofficeApi";
+import { floorRoomApi } from "./features/api/floorRoomApi";
 import editorReducer from "./features/app/editorSlice";
 import floorReducer from "./features/app/floorSlice";
 import wallReducer from "./features/app/wallSlice";
-
+import doorReducer from "./features/app/doorSlice";
+import windowReducer from "./features/app/windowSlice";
+import newRoomReducer from "./features/app/newRoomSlice";
+import circuitingReducer from "./features/app/circuitingSlice";
+import circuitingSummaryReducer from "./features/app/circuitingSummarySlice";
+import powerCircuitingReducer from "./features/app/powerCircuitingSlice";
 const userFromStorage = JSON.parse(localStorage.getItem("user"));
 
 const persistConfig = {
   key: "root",
   storage,
-  whitelist: ["rooms", "floorPlan", "project", "dailux", "lighting"], // this must match the key in combineReducers
+  whitelist: ["rooms", "floorPlan", "project", "dailux", "floor", "newRooms", "power", "powerCircuiting", "circuiting"], // Added circuiting for lighting zones
 };
 
 const rootReducer = combineReducers({
@@ -41,15 +49,23 @@ const rootReducer = combineReducers({
   areaMarkup: areaMarkupReducer,
   dxf: dxfReducer,
   rooms: roomReducer,
+  newRooms: newRoomReducer,
   dialux: dialuxReducer,
   lighting: lightingReducer,
   power: powerReducer,
+  fixture: fixtureReducer,
   editor: editorReducer,
   floor: floorReducer,
   walls: wallReducer,
+  doors: doorReducer,
+  windows: windowReducer,
+  circuiting: circuitingReducer,
+  circuitingSummary: circuitingSummaryReducer,
+  powerCircuiting: powerCircuitingReducer,
 
   [apiSlice.reducerPath]: apiSlice.reducer,
   [backofficeApi.reducerPath]: backofficeApi.reducer,
+  [floorRoomApi.reducerPath]: floorRoomApi.reducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -63,10 +79,17 @@ export const store = configureStore({
     getDefaultMiddleware({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+        // Disable serializable check in development for better performance
+        warnAfter: 128,
+      },
+      immutableCheck: {
+        warnAfter: 128,
       },
     })
       .concat(apiSlice.middleware)
-      .concat(backofficeApi.middleware),
+      .concat(backofficeApi.middleware)
+      .concat(floorRoomApi.middleware)
+      .concat(projectLoggerMiddleware),
 });
 
 export const persistor = persistStore(store);

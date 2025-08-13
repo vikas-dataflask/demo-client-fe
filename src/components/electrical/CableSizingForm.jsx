@@ -37,7 +37,18 @@ const CableSizingForm = () => {
     },
   ]);
 
-  const token = localStorage.getItem("token");
+  // Get token from user object in localStorage (matching app authentication pattern)
+  const storedUser = localStorage.getItem("user");
+  let token = null;
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      token = user.token;
+    } catch (e) {
+      console.error("Failed to parse user from localStorage:", e);
+      localStorage.removeItem("user");
+    }
+  }
 
   // ✅ RTK Query hooks
   const { data: referenceData, isLoading: isLoadingReference } =
@@ -308,9 +319,9 @@ const CableSizingForm = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="w-[440px] h-[90vh] bg-white p-6 space-y-6">
       {/* --- Header --- */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white w-[400px] rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center space-x-3">
           <Calculator className="w-8 h-8 text-blue-600" />
           <div>
@@ -326,7 +337,7 @@ const CableSizingForm = () => {
       </div>
 
       {/* --- Mode Toggle --- */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white w-[400px] rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex items-center space-x-4">
           <label className="flex items-center">
             <input
@@ -350,7 +361,7 @@ const CableSizingForm = () => {
       </div>
 
       {/* --- Input Form --- */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white w-[400px] rounded-lg shadow-sm border border-gray-200 p-6">
         {!bulkMode ? (
           // ✅ Single Circuit Form
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -523,7 +534,7 @@ const CableSizingForm = () => {
 
           <button
             onClick={() => setShowReference(!showReference)}
-            className="flex items-center space-x-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            className="flex items-center space-x-2 px-2 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
           >
             <Info className="w-5 h-5" />
             <span>Reference Data</span>
@@ -533,7 +544,7 @@ const CableSizingForm = () => {
 
       {/* --- Reference Data --- */}
       {showReference && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white  rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Reference Data
           </h3>
@@ -599,7 +610,7 @@ const CableSizingForm = () => {
 
       {/* --- Results Display --- */}
       {result && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white h-[55vh] rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Calculation Results
           </h3>

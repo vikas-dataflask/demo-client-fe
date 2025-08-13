@@ -49,9 +49,11 @@ export const getFloorDisplayName = (name, level) => {
  * @returns {Object} - New floor object
  */
 export const createNewFloor = (name, level, height = 3200) => {
+  const floorName = name || getFloorLevelName(level);
   return {
     id: generateFloorId(),
-    name: name || getFloorLevelName(level),
+    name: floorName,
+    description: `${floorName} - Level ${level} floor`,
     level: level,
     height: height,
     shapes: [],

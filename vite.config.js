@@ -8,9 +8,9 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:8000/", // your backend
+        target: "http://localhost:8000", // adminBe for other API calls
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""), // removes /api from request path
+        // Don't rewrite the path - keep /api prefix
       },
       "/backoffice-api": {
         target: "http://localhost:8080/api/admin/", // another backend or microservice
