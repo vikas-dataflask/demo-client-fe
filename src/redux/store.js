@@ -25,6 +25,9 @@ import powerReducer from "./features/app/powerSlice";
 import fixtureReducer from "./features/app/fixtureSlice";
 import { backofficeApi } from "./features/api/backofficeApi";
 import { floorRoomApi } from "./features/api/floorRoomApi";
+import { newAdminApi } from "./features/api/newAdminApi";
+import { latestAdminApi } from "./features/api/latestAdminApi";
+import { aiApi } from "./features/api/aiApi";
 import editorReducer from "./features/app/editorSlice";
 import floorReducer from "./features/app/floorSlice";
 import wallReducer from "./features/app/wallSlice";
@@ -39,7 +42,17 @@ const userFromStorage = JSON.parse(localStorage.getItem("user"));
 const persistConfig = {
   key: "root",
   storage,
-  whitelist: ["rooms", "floorPlan", "project", "dailux", "floor", "newRooms", "power", "powerCircuiting", "circuiting"], // Added circuiting for lighting zones
+  whitelist: [
+    "rooms",
+    "floorPlan",
+    "project",
+    "dailux",
+    "floor",
+    "newRooms",
+    "power",
+    "powerCircuiting",
+    "circuiting",
+  ], // Added circuiting for lighting zones
 };
 
 const rootReducer = combineReducers({
@@ -66,6 +79,9 @@ const rootReducer = combineReducers({
   [apiSlice.reducerPath]: apiSlice.reducer,
   [backofficeApi.reducerPath]: backofficeApi.reducer,
   [floorRoomApi.reducerPath]: floorRoomApi.reducer,
+  [newAdminApi.reducerPath]: newAdminApi.reducer,
+  [latestAdminApi.reducerPath]: latestAdminApi.reducer,
+  [aiApi.reducerPath]: aiApi.reducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -89,6 +105,9 @@ export const store = configureStore({
       .concat(apiSlice.middleware)
       .concat(backofficeApi.middleware)
       .concat(floorRoomApi.middleware)
+      .concat(newAdminApi.middleware)
+      .concat(aiApi.middleware)
+      .concat(latestAdminApi.middleware)
       .concat(projectLoggerMiddleware),
 });
 
