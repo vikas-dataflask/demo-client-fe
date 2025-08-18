@@ -17,6 +17,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/backoffice-api/, ""),
       },
+      "/ai-api": {
+        target: "https://aiagent.askmantu.com/",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ai-api/, ""),
+      },
     },
   },
 });

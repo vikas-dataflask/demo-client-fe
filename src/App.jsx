@@ -20,6 +20,8 @@ import { ToastContainer } from "react-toastify";
 
 import React, { useState } from "react"; // Import useState
 import UserProfile from "./components/userProfile/UserProfile"; // Import UserProfile component
+import AiSidebar from "./components/SharedComponents/AITools/AISidebar";
+import NewAdminApiTest from "./components/test/NewAdminApiTest";
 
 function PrivateRoute({ children }) {
   // --- START OF FIX: Correctly retrieve token from 'user' object in localStorage ---
@@ -262,6 +264,14 @@ function App() {
         <Route
           path="/test"
           element={<TestPage />}
+        />
+        <Route
+          path="/new-admin-api-test"
+          element={
+            <PrivateRoute>
+              <NewAdminApiTest />
+            </PrivateRoute>
+          }
         />
       </Routes>
 
