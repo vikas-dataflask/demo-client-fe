@@ -819,6 +819,14 @@ export const apiSlice = createApi({
         body: payload,
       }),
     }),
+    convertFile: builder.mutation({
+      query: (formData) => ({
+        url: "convert",
+        method: "POST",
+        body: formData,
+        // RTK Query will automatically set the correct headers for FormData
+      }),
+    }),
   }),
 });
 
@@ -932,4 +940,5 @@ export const {
   useUploadProfilePicMutation,
   useDeleteProfilePicMutation,
   useChangePasswordMutation,
+  useConvertFileMutation,
 } = apiSlice;

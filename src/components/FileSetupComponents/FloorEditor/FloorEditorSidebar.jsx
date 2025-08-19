@@ -30,7 +30,10 @@ import {
   updateFloor,
 } from "../../../redux/features/app/floorSlice";
 import { Eye, EyeOff } from "lucide-react";
-import { useGetDxfEntitiesMutation } from "../../../redux/features/api/api";
+import {
+  useGetDxfEntitiesMutation,
+  useConvertFileMutation,
+} from "../../../redux/features/api/api";
 import {
   convertUnits,
   formatMeasurement,
@@ -46,6 +49,7 @@ const FloorEditorSidebar = ({
   onFloorCreated,
 }) => {
   const [parseDxf] = useGetDxfEntitiesMutation();
+  const [convertFile] = useConvertFileMutation();
   const [updated, setUpdated] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -76,51 +80,104 @@ const FloorEditorSidebar = ({
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (file && file.name.endsWith(".dxf")) {
-      setSelectedFile(file);
-      setIsUploading(true);
-      setIsUploading(true);
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    const isDxf = fileName.endsWith(".dxf");
+    const isDwg = fileName.endsWith(".dwg");
+    const isPdf = fileName.endsWith(".pdf");
+
+    if (!isDxf && !isDwg && !isPdf) {
+      alert("Please select a DXF, DWG, or PDF file.");
+      return;
     }
+
+    setSelectedFile(file);
+    setIsUploading(true);
+
     const form = new FormData();
-    form.append("dxf_file", file);
+    form.append("file", file);
+
     try {
-      const response = await parseDxf(form).unwrap();
-      console.log("DXF Entities:", response);
-      console.log("DXF Response structure:", {
-        hasResponse: !!response,
-        keys: response ? Object.keys(response) : [],
-        dxfEntities: response?.dxf_entities,
-        dxfEntitiesLength: response?.dxf_entities?.length,
-        dxfLayers: response?.dxf_layers,
-        dxfBlocks: response?.dxf_blocks,
-      });
+      let response;
 
-      // Extract the actual DXF data from the response
-      const dxfData = response?.dxf || response;
-      console.log("Extracted DXF data:", dxfData);
-      console.log("Extracted DXF data structure:", {
-        hasDxfData: !!dxfData,
-        keys: dxfData ? Object.keys(dxfData) : [],
-        dxfEntities: dxfData?.dxf_entities,
-        dxfEntitiesLength: dxfData?.dxf_entities?.length,
-        dxfLayers: dxfData?.dxf_layers,
-        dxfLayersLength: dxfData?.dxf_layers?.length,
-        dxfBlocks: dxfData?.dxf_blocks,
-        dxfBlocksKeys: dxfData?.dxf_blocks
-          ? Object.keys(dxfData.dxf_blocks)
-          : [],
-        fullDxfData: JSON.stringify(dxfData, null, 2),
-      });
+      if (isDxf) {
+        // Use the existing DXF parser for DXF files
+        const dxfForm = new FormData();
+        dxfForm.append("dxf_file", file);
+        response = await parseDxf(dxfForm).unwrap();
+        console.log("DXF Entities:", response);
 
-      dispatch(setFloorDxf(dxfData));
-      console.log("Dispatched setFloorDxf with:", dxfData);
+        // Extract the actual DXF data from the response
+        const dxfData = response?.dxf || response;
+        console.log("Extracted DXF data:", dxfData);
+
+        dispatch(setFloorDxf(dxfData));
+        console.log("Dispatched setFloorDxf with:", dxfData);
+      } else {
+        // Use the new convert API for DWG and PDF files
+        try {
+          if (isPdf) {
+            // For PDF files, we need to handle binary PNG response
+            const pngResponse = await fetch("/api/convert", {
+              method: "POST",
+              body: form,
+              headers: {
+                Authorization: `Bearer ${
+                  JSON.parse(localStorage.getItem("user"))?.token || ""
+                }`,
+              },
+            });
+
+            if (!pngResponse.ok) {
+              throw new Error(`HTTP error! status: ${pngResponse.status}`);
+            }
+
+            // Get PNG as blob
+            const pngBlob = await pngResponse.blob();
+            console.log("PDF converted to PNG blob:", pngBlob);
+
+            // Convert blob to base64 for storage
+            const reader = new FileReader();
+            reader.onload = () => {
+              const base64Data = reader.result;
+              console.log("PNG base64 data length:", base64Data.length);
+
+              // Store PNG data in the DXF state
+              dispatch(
+                setFloorDxf({
+                  entities: [],
+                  source: "pdf",
+                  png: base64Data,
+                })
+              );
+            };
+            reader.readAsDataURL(pngBlob);
+          } else {
+            // For DWG files, use the normal API call
+            response = await convertFile(form).unwrap();
+            console.log("DWG conversion response:", response);
+
+            const dwgData = response?.json || response;
+            console.log("DWG conversion data:", dwgData);
+            dispatch(setFloorDxf(dwgData));
+          }
+        } catch (convertError) {
+          console.error("Convert API error:", convertError);
+          throw new Error(
+            `File conversion failed: ${
+              convertError.message || "Unknown conversion error"
+            }`
+          );
+        }
+      }
 
       setIsUploading(false);
       setUpdated(true);
     } catch (error) {
-      console.error("Error parsing DXF file:", error);
+      console.error("Error processing file:", error);
       setIsUploading(false);
-      setIsUploading(false);
+      alert(`Error processing file: ${error.message || "Unknown error"}`);
     }
   };
 
@@ -230,10 +287,10 @@ const FloorEditorSidebar = ({
             <Info />
           </div>
         </div>
-        {/* DXF Upload Section */}
+        {/* File Upload Section */}
         <div className="border-b border-gray-300 pb-4">
           <div className="text-sm font-semibold text-gray-700 mb-2">
-            DXF Drawing
+            File Upload (DXF, DWG, PDF)
           </div>
           <div
             className={`flex gap-2 justify-center items-center bg-gray-200 p-2 text-gray-500 font-semibold rounded ${
@@ -254,7 +311,7 @@ const FloorEditorSidebar = ({
               </>
             ) : (
               <>
-                <div>Upload DXF file</div>
+                <div>Upload File (DXF/DWG/PDF)</div>
                 <CloudUpload className="h-4 w-4" />
               </>
             )}
@@ -262,7 +319,7 @@ const FloorEditorSidebar = ({
             {!isUploading && (
               <input
                 type="file"
-                accept=".dxf"
+                accept=".dxf,.dwg,.pdf"
                 onChange={handleFileChange}
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
@@ -272,7 +329,11 @@ const FloorEditorSidebar = ({
           {hasDxfEntities && (
             <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
               <FileText className="h-3 w-3" />
-              <span>{floorDxf.entities.length} entities loaded</span>
+              <span>
+                {floorDxf.source === "pdf"
+                  ? "PDF converted to PNG"
+                  : `${floorDxf.entities.length} entities loaded`}
+              </span>
             </div>
           )}
         </div>
