@@ -37,6 +37,8 @@ import newRoomReducer from "./features/app/newRoomSlice";
 import circuitingReducer from "./features/app/circuitingSlice";
 import circuitingSummaryReducer from "./features/app/circuitingSummarySlice";
 import powerCircuitingReducer from "./features/app/powerCircuitingSlice";
+import { adminApiSlice } from "./features/api/adminApi";
+
 const userFromStorage = JSON.parse(localStorage.getItem("user"));
 
 const persistConfig = {
@@ -78,6 +80,8 @@ const rootReducer = combineReducers({
 
   [apiSlice.reducerPath]: apiSlice.reducer,
   [backofficeApi.reducerPath]: backofficeApi.reducer,
+  [adminApiSlice.reducerPath]: adminApiSlice.reducer,
+
   [floorRoomApi.reducerPath]: floorRoomApi.reducer,
   [newAdminApi.reducerPath]: newAdminApi.reducer,
   [latestAdminApi.reducerPath]: latestAdminApi.reducer,
@@ -106,6 +110,8 @@ export const store = configureStore({
       .concat(backofficeApi.middleware)
       .concat(floorRoomApi.middleware)
       .concat(newAdminApi.middleware)
+      .concat(adminApiSlice.middleware)
+
       .concat(aiApi.middleware)
       .concat(latestAdminApi.middleware)
       .concat(projectLoggerMiddleware),
