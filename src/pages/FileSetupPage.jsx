@@ -8,6 +8,7 @@ import FileSetupSidebar from "../components/FileSetupComponents/FileSetupSidebar
 import RoomEditor from "../components/FileSetupComponents/RoomEditor/roomEditor";
 import AreaMarkup from "../components/fileSetup/AreaMarkup";
 import DoorMarkup from "../components/fileSetup/DoorMarkup";
+import AIFileProcessor from "../components/fileSetup/AIFileProcessor";
 import AssignMaterial from "../components/fileSetup/AssignMaterial";
 
 export default function FileSetupPage() {
@@ -15,24 +16,24 @@ export default function FileSetupPage() {
   const location = useLocation();
   const [activeSection, setActiveSection] = useState("drawing-file");
   const [open, setOpen] = useState(true);
-  
-  console.log('🎯 FileSetupPage: projectId from URL params:', projectId);
+
+  console.log("🎯 FileSetupPage: projectId from URL params:", projectId);
 
   // Use the project data hook
-  const { 
-    floors = [], 
-    rooms = [], 
-    currentFloorId, 
-    isLoading = false, 
-    error, 
-    clearProjectData, 
+  const {
+    floors = [],
+    rooms = [],
+    currentFloorId,
+    isLoading = false,
+    error,
+    clearProjectData,
     refetchProjectData,
-    hasData = false 
+    hasData = false,
   } = useProjectData(projectId);
 
   // Debug logging for project data
   useEffect(() => {
-    console.log('🎯 FileSetupPage: Project data debug:', {
+    console.log("🎯 FileSetupPage: Project data debug:", {
       projectId,
       floorsCount: floors?.length || 0,
       roomsCount: rooms?.length || 0,
@@ -40,12 +41,13 @@ export default function FileSetupPage() {
       isLoading,
       error,
       hasData,
-      floors: floors?.map(f => ({ 
-        id: f.id, 
-        name: f.name, 
-        shapesCount: f.shapes?.length || 0,
-        shapes: f.shapes
-      })) || []
+      floors:
+        floors?.map((f) => ({
+          id: f.id,
+          name: f.name,
+          shapesCount: f.shapes?.length || 0,
+          shapes: f.shapes,
+        })) || [],
     });
   }, [projectId, floors, rooms, currentFloorId, isLoading, error, hasData]);
 
@@ -53,35 +55,43 @@ export default function FileSetupPage() {
   useEffect(() => {
     const handleBeforeUnload = () => {
       // Don't clear data on page refresh, only on navigation
-      console.log('🔄 FileSetupPage: Page unloading, preserving data');
+      console.log("🔄 FileSetupPage: Page unloading, preserving data");
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
 
   // Force refetch on mount to ensure data is loaded
   useEffect(() => {
     if (projectId && !isLoading) {
-      console.log('🔄 FileSetupPage: Force refetching project data on mount');
+      console.log("🔄 FileSetupPage: Force refetching project data on mount");
       refetchProjectData();
     }
   }, [projectId, isLoading, refetchProjectData]);
 
   // Log project data status
   useEffect(() => {
-    console.log('📊 FileSetupPage: Project data status:', {
+    console.log("📊 FileSetupPage: Project data status:", {
       projectId,
       floorsCount: floors?.length || 0,
       roomsCount: rooms?.length || 0,
       currentFloorId,
       isLoading,
       error,
-      hasData
+      hasData,
     });
-  }, [projectId, floors?.length, rooms?.length, currentFloorId, isLoading, error, hasData]);
+  }, [
+    projectId,
+    floors?.length,
+    rooms?.length,
+    currentFloorId,
+    isLoading,
+    error,
+    hasData,
+  ]);
 
   const renderContent = () => {
     switch (activeSection) {
@@ -93,6 +103,8 @@ export default function FileSetupPage() {
         return <DoorMarkup />;
       case "assign-material":
         return <AssignMaterial />;
+      case "ai-file-processor":
+        return <AIFileProcessor />;
 
       default:
         return <FloorEditor open={open} projectId={projectId} />;
@@ -109,8 +121,8 @@ export default function FileSetupPage() {
           open={open}
         />
         <div className="flex overflow-y-auto">
-                     {/* Debug panel for testing */}
-           {/* {process.env.NODE_ENV === 'development' && (
+          {/* Debug panel for testing */}
+          {/* {process.env.NODE_ENV === 'development' && (
              <div className="fixed top-4 right-4 bg-white border border-gray-300 rounded-lg p-4 shadow-lg z-50">
                <h3 className="text-sm font-semibold mb-2">Debug Panel</h3>
                <div className="space-y-2 text-xs">
@@ -169,7 +181,6 @@ export default function FileSetupPage() {
                </div>
              </div>
            )} */}
-           
 
           {renderContent()}
         </div>

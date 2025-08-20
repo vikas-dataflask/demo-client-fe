@@ -6,6 +6,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setDialuxResult } from "../../redux/features/app/dialuxSlice";
 import FrontendIESParser from "../../utils/iesParser.js";
 import AutoFixtureArrangement from "./AutoFixtureArrangement";
+import { convertAIDimensionsToMeters } from "../../utils/aiRoomExtractor";
 
 const GRID_SIZE = 100; // 100px = 1m for proper unit conversion
 
@@ -214,6 +215,9 @@ const DialuxForm = () => {
 
   // Use the current project's room selection logic
   const rooms = useSelector((state) => state.newRooms?.rooms || []);
+  
+  // Get AI rooms from Redux state
+  const aiRooms = useSelector((state) => state.aiRoomData?.rooms || []);
 
   // Remove duplicates based on room ID to prevent double rendering
   const uniqueRooms = rooms.filter(
@@ -221,17 +225,31 @@ const DialuxForm = () => {
       index === self.findIndex((r) => (r.id || r._id) === (room.id || room._id))
   );
 
-  const selectedRoom = uniqueRooms.find((room) => room.id === roomType);
+  // Combine existing rooms with AI rooms
+  const allRooms = [
+    ...uniqueRooms,
+    ...aiRooms.map(room => ({
+      ...room,
+      // Convert AI room dimensions to meters for consistency
+      ...convertAIDimensionsToMeters(room)
+    }))
+  ];
 
-  // Calculate area in square meters from room dimensions (converting from pixels)
+  const selectedRoom = allRooms.find((room) => room.id === roomType);
+
+  // Calculate area in square meters from room dimensions
   const roomArea = selectedRoom
-    ? convertPixelsToMeters(selectedRoom.width) *
-      convertPixelsToMeters(selectedRoom.height)
+    ? selectedRoom.source === 'ai'
+      ? selectedRoom.areaInSquareMeters || 0
+      : convertPixelsToMeters(selectedRoom.width) *
+        convertPixelsToMeters(selectedRoom.height)
     : "";
 
   // Convert room height to meters if available
   const roomHeight = selectedRoom
-    ? convertPixelsToMeters(selectedRoom.height)
+    ? selectedRoom.source === 'ai'
+      ? selectedRoom.heightInMeters || 0
+      : convertPixelsToMeters(selectedRoom.height)
     : "";
 
   const dispatch = useDispatch();
@@ -389,16 +407,30 @@ const DialuxForm = () => {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Choose a room</option>
-              {uniqueRooms.map((room) => {
-                // Calculate area in meters for display
-                const widthInMeters = convertPixelsToMeters(room.width);
-                const heightInMeters = convertPixelsToMeters(room.height);
-                const areaInMeters = widthInMeters * heightInMeters;
+              {allRooms.map((room) => {
+                let displayText = '';
+                let areaDisplay = '';
+                
+                if (room.source === 'ai') {
+                  // AI room - use extracted dimensions
+                  displayText = room.name;
+                  if (room.category && room.category !== room.name) {
+                    displayText = `${room.category} - ${room.name}`;
+                  }
+                  areaDisplay = room.areaInSquareMeters ? ` (${room.areaInSquareMeters.toFixed(2)} m²)` : '';
+                } else {
+                  // Existing room - calculate from pixels
+                  const widthInMeters = convertPixelsToMeters(room.width);
+                  const heightInMeters = convertPixelsToMeters(room.height);
+                  const areaInMeters = widthInMeters * heightInMeters;
+                  displayText = room.name || `Room ${room.id}`;
+                  areaDisplay = ` (${areaInMeters.toFixed(2)} m²)`;
+                }
 
                 return (
                   <option key={room.id} value={room.id}>
-                    {room.name || `Room ${room.id}`} ({areaInMeters.toFixed(2)}{" "}
-                    m²)
+                    {displayText}{areaDisplay}
+                    {room.source === 'ai' && ' [AI]'}
                   </option>
                 );
               })}
@@ -410,21 +442,55 @@ const DialuxForm = () => {
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <h4 className="text-sm font-medium text-gray-700 mb-3">
                 Room Information
+                {selectedRoom.source === 'ai' && (
+                  <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                    AI Generated
+                  </span>
+                )}
+                {selectedRoom.source === 'ai' && selectedRoom.category && selectedRoom.category !== selectedRoom.name && (
+                  <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                    {selectedRoom.category}
+                  </span>
+                )}
               </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Dimensions (pixels):</span>
-                  <div className="font-medium">
-                    {selectedRoom.width} × {selectedRoom.height} px
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-600">Dimensions (meters):</span>
-                  <div className="font-medium">
-                    {convertPixelsToMeters(selectedRoom.width).toFixed(2)} ×{" "}
-                    {convertPixelsToMeters(selectedRoom.height).toFixed(2)} m
-                  </div>
-                </div>
+                {selectedRoom.source === 'ai' ? (
+                  // AI Room Display
+                  <>
+                    <div>
+                      <span className="text-gray-600">Dimensions:</span>
+                      <div className="font-medium">
+                        {selectedRoom.widthInMeters > 0 && selectedRoom.heightInMeters > 0
+                          ? `${selectedRoom.widthInMeters.toFixed(2)} × ${selectedRoom.heightInMeters.toFixed(2)} m`
+                          : selectedRoom.specialDimensions || 'Special dimensions'
+                        }
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Original Data:</span>
+                      <div className="font-medium text-xs text-gray-600">
+                        {selectedRoom.dimensions}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  // Existing Room Display
+                  <>
+                    <div>
+                      <span className="text-gray-600">Dimensions (pixels):</span>
+                      <div className="font-medium">
+                        {selectedRoom.width} × {selectedRoom.height} px
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Dimensions (meters):</span>
+                      <div className="font-medium">
+                        {convertPixelsToMeters(selectedRoom.width).toFixed(2)} ×{" "}
+                        {convertPixelsToMeters(selectedRoom.height).toFixed(2)} m
+                      </div>
+                    </div>
+                  </>
+                )}
                 <div className="col-span-2">
                   <span className="text-gray-600">Area:</span>
                   <div className="font-medium text-blue-600">
