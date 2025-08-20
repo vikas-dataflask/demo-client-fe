@@ -23,7 +23,7 @@ const MeasurementLine = ({
       <Line
         points={[startPoint.x, startPoint.y, endPoint.x, endPoint.y]}
         stroke={isActive ? "#3b82f6" : "#6b7280"}
-        strokeWidth={isActive ? 2 : 1}
+        strokeWidth={isActive ? 40 : 20}
         dash={[5, 5]}
         opacity={0.8}
       />
@@ -32,24 +32,24 @@ const MeasurementLine = ({
       <Line
         points={[startPoint.x - 3, startPoint.y - 3, startPoint.x + 3, startPoint.y + 3]}
         stroke={isActive ? "#3b82f6" : "#6b7280"}
-        strokeWidth={2}
+        strokeWidth={40}
       />
       <Line
         points={[startPoint.x - 3, startPoint.y + 3, startPoint.x + 3, startPoint.y - 3]}
         stroke={isActive ? "#3b82f6" : "#6b7280"}
-        strokeWidth={2}
+        strokeWidth={40}
       />
       
       {/* End Point */}
       <Line
         points={[endPoint.x - 3, endPoint.y - 3, endPoint.x + 3, endPoint.y + 3]}
         stroke={isActive ? "#3b82f6" : "#6b7280"}
-        strokeWidth={2}
+        strokeWidth={40}
       />
       <Line
         points={[endPoint.x - 3, endPoint.y + 3, endPoint.x + 3, endPoint.y - 3]}
         stroke={isActive ? "#3b82f6" : "#6b7280"}
-        strokeWidth={2}
+        strokeWidth={40}
       />
       
       {/* Measurement Text */}
@@ -57,7 +57,7 @@ const MeasurementLine = ({
         x={centerX}
         y={centerY - 10}
         text={measurement}
-        fontSize={12}
+        fontSize={150}
         fontFamily="monospace"
         fill={isActive ? "#3b82f6" : "#6b7280"}
         backgroundColor={isActive ? "rgba(59, 130, 246, 0.1)" : "rgba(107, 114, 128, 0.1)"}

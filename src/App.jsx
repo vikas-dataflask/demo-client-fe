@@ -16,12 +16,16 @@ import DesignCalculation from "./components/designCalculation/DesignCalculation"
 import QuantityExtraction from "./components/extractQuantity/QuantityExtraction";
 import ExtractQuantity from "./components/extractQuantity/ExtractQuantity";
 // import ProductComparisonPage from "./pages/ProductComparisonPage";
+import ProductDetailPage from "./components/ProductComparison/ProductDetailPage";
+
 import { ToastContainer } from "react-toastify";
 
 import React, { useState } from "react"; // Import useState
 import UserProfile from "./components/userProfile/UserProfile"; // Import UserProfile component
 import AiSidebar from "./components/SharedComponents/AITools/AISidebar";
 import NewAdminApiTest from "./components/test/NewAdminApiTest";
+import ProductComparisonPage from "./pages/ProductComparisonPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function PrivateRoute({ children }) {
   // --- START OF FIX: Correctly retrieve token from 'user' object in localStorage ---
@@ -87,6 +91,36 @@ function App() {
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
               />
             </PrivateRoute>
+          }
+        />
+        <Route
+          path="/product-comparison"
+          element={
+            <ProtectedRoute>
+              <ProductComparisonPage
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/product-comparison/:projectId"
+          element={
+            <ProtectedRoute>
+              <ProductComparisonPage
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
+              />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/product/:productId"
+          element={
+            <ProtectedRoute>
+              <ProductDetailPage
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
+              />
+            </ProtectedRoute>
           }
         />
         <Route
@@ -261,10 +295,7 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route
-          path="/test"
-          element={<TestPage />}
-        />
+        <Route path="/test" element={<TestPage />} />
         <Route
           path="/new-admin-api-test"
           element={
