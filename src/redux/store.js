@@ -37,6 +37,7 @@ import newRoomReducer from "./features/app/newRoomSlice";
 import circuitingReducer from "./features/app/circuitingSlice";
 import circuitingSummaryReducer from "./features/app/circuitingSummarySlice";
 import powerCircuitingReducer from "./features/app/powerCircuitingSlice";
+import aiRoomDataReducer from "./features/app/aiRoomDataSlice";
 const userFromStorage = JSON.parse(localStorage.getItem("user"));
 
 const persistConfig = {
@@ -52,6 +53,7 @@ const persistConfig = {
     "power",
     "powerCircuiting",
     "circuiting",
+    "aiRoomData",
   ], // Added circuiting for lighting zones
 };
 
@@ -75,6 +77,7 @@ const rootReducer = combineReducers({
   circuiting: circuitingReducer,
   circuitingSummary: circuitingSummaryReducer,
   powerCircuiting: powerCircuitingReducer,
+  aiRoomData: aiRoomDataReducer,
 
   [apiSlice.reducerPath]: apiSlice.reducer,
   [backofficeApi.reducerPath]: backofficeApi.reducer,

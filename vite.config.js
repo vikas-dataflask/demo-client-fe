@@ -22,6 +22,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ai-api/, ""),
       },
+      "/vedi-api": {
+        target: "https://oauth1.askmantu.com",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/vedi-api/, ""),
+      },
     },
   },
 });

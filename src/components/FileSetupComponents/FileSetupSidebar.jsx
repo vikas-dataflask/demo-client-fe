@@ -2,6 +2,7 @@ import DrawingFileIcon from "../../icons/DrawingFileIcon";
 import AreaMarkupIcon from "../../icons/AreaMarkupIcon";
 import DoorMarkupIcon from "../../icons/DoorMarkupIcon";
 import AssignMaterialIcon from "../../icons/AssignMaterialIcon";
+import AIFileProcessorIcon from "../../icons/AIFileProcessorIcon";
 import { SquareChevronLeft, SquareChevronRight } from "lucide-react";
 
 function FileSetupSidebar({ activeSection, setActiveSection, setOpen, open }) {
@@ -10,6 +11,7 @@ function FileSetupSidebar({ activeSection, setActiveSection, setOpen, open }) {
     { icon: <AreaMarkupIcon />, id: "area-markup" },
     { icon: <DoorMarkupIcon />, id: "door-markup" },
     { icon: <AssignMaterialIcon />, id: "assign-material" },
+    { icon: <AIFileProcessorIcon />, id: "ai-file-processor" },
   ];
 
   return (
