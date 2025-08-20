@@ -2,7 +2,7 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Layer, Rect, Line, Text } from "react-konva";
+import { Layer, Rect, Line, Text, Image, Group, Circle } from "react-konva";
 import AreaMarkupSidebar from "./AreaMarkupSideBar";
 import EntityRenderer from "../../drawing/EntityRender";
 import CanvasWrapper from "../Canvas/CanvasWrapper";
@@ -53,6 +53,11 @@ const AreaMarkup = () => {
   const [newlyCreatedRoom, setNewlyCreatedRoom] = useState(null);
   const [showWallEditor, setShowWallEditor] = useState(false);
 
+  // PNG image state for PDF conversions (same as Editor.jsx)
+  const [pngImage, setPngImage] = useState(null);
+  const [pngDimensions, setPngDimensions] = useState({ width: 0, height: 0 });
+  const [pngError, setPngError] = useState(null);
+
   const entities = data?.dxf_entities || [];
   const blocks = data?.dxf_blocks || {};
   const layers = data?.dxf_layers || {};
@@ -63,6 +68,78 @@ const AreaMarkup = () => {
   const currentFloor = floors.find((f) => f.id === currentFloorId);
   const selectedScale = useSelector((state) => state.project.scale);
   const walls = useSelector((state) => state.walls.walls);
+
+  // Get PNG data from Redux state (same as Editor.jsx)
+  const dxfData = useSelector((state) => state.floor.floor_dxf) || {};
+
+  // Handle PNG image from PDF conversion (same logic as Editor.jsx)
+  useEffect(() => {
+    console.log('🎯 AreaMarkup: PNG image effect triggered', {
+      hasDxfData: !!dxfData,
+      source: dxfData?.source,
+      hasPng: !!dxfData?.png,
+      pngType: dxfData?.png ? typeof dxfData.png : 'none'
+    });
+    
+    // Clear any previous errors
+    setPngError(null);
+    
+    if (dxfData?.source === "pdf" && dxfData?.png) {
+      console.log('🎯 AreaMarkup: Processing PNG data for PDF source');
+      
+      // Convert base64 or buffer to image
+      const img = new window.Image();
+      
+      img.onload = () => {
+        console.log('🎯 AreaMarkup: PNG image loaded successfully', {
+          width: img.width,
+          height: img.height
+        });
+        setPngDimensions({
+          width: img.width,
+          height: img.height
+        });
+        setPngImage(img);
+      };
+      
+      img.onerror = (error) => {
+        console.error('🎯 AreaMarkup: PNG image failed to load:', error);
+        setPngError('Failed to load PNG image');
+        setPngImage(null);
+        setPngDimensions({ width: 0, height: 0 });
+      };
+      
+      // Handle different PNG data formats
+      if (typeof dxfData.png === 'string') {
+        console.log('🎯 AreaMarkup: PNG is base64 string, length:', dxfData.png.length);
+        // If it's a base64 string
+        img.src = dxfData.png;
+      } else if (dxfData.png instanceof ArrayBuffer) {
+        console.log('🎯 AreaMarkup: PNG is ArrayBuffer, size:', dxfData.png.byteLength);
+        // If it's a buffer, convert to blob URL
+        const blob = new Blob([dxfData.png], { type: 'image/png' });
+        const url = URL.createObjectURL(blob);
+        img.src = url;
+        
+        // Cleanup function
+        return () => URL.revokeObjectURL(url);
+      }
+    } else {
+      console.log('🎯 AreaMarkup: No PNG data available, clearing image state');
+      setPngImage(null);
+      setPngDimensions({ width: 0, height: 0 });
+    }
+  }, [dxfData]);
+
+  // Debug logging for PNG state
+  useEffect(() => {
+    console.log('🎯 AreaMarkup: PNG state updated', {
+      hasPngImage: !!pngImage,
+      pngDimensions,
+      hasDxfData: !!dxfData,
+      source: dxfData?.source
+    });
+  }, [pngImage, pngDimensions, dxfData]);
 
   // API hooks for room operations
   const {
@@ -378,6 +455,47 @@ const AreaMarkup = () => {
     <div className="flex">
       <div className="w-[340px] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
         <AreaMarkupSidebar />
+        
+        {/* PNG Status Indicator */}
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
+          <h4 className="font-medium text-gray-700 mb-2">PNG Image Status</h4>
+          {dxfData?.source === "pdf" ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  pngError ? 'bg-red-500' : 
+                  pngImage ? 'bg-green-500' : 
+                  'bg-yellow-500'
+                }`}></div>
+                <span className="text-xs">
+                  {pngError ? 'PNG Error' : 
+                   pngImage ? 'PNG Loaded' : 
+                   'PNG Loading...'}
+                </span>
+              </div>
+              {pngImage && (
+                <div className="text-xs text-gray-600">
+                  <div>Dimensions: {pngDimensions.width} × {pngDimensions.height}</div>
+                  <div>Source: PDF Conversion</div>
+                </div>
+              )}
+              {pngError && (
+                <div className="text-xs text-red-600">
+                  {pngError}
+                </div>
+              )}
+              {dxfData?.png && !pngImage && !pngError && (
+                <div className="text-xs text-orange-600">
+                  PNG data available but not yet loaded
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-xs text-gray-500">
+              No PDF/PNG data available
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 h-full">
@@ -403,7 +521,13 @@ const AreaMarkup = () => {
                 No Floor Defined
               </h3>
               <p className="text-gray-600 mb-4">
-                Please create a floor in the Floor Editor page first.
+                {pngImage ? (
+                  <>
+                    PNG background is visible, but please create a floor in the Floor Editor page first to start marking up areas.
+                  </>
+                ) : (
+                  "Please create a floor in the Floor Editor page first."
+                )}
               </p>
               <button
                 onClick={() => (window.location.href = "/floor-editor")}
@@ -415,12 +539,56 @@ const AreaMarkup = () => {
           </div>
         ) : (
           <div className="relative">
+            {/* PNG Background Notice */}
+            {pngImage && (
+              <div className="absolute top-4 left-4 z-10 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-xs text-blue-700 font-medium">
+                    PNG Background Active
+                  </span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  PDF content is visible as background for reference
+                </p>
+              </div>
+            )}
+            
             <CanvasWrapper
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
             >
               <Layer>
+                {/* Render PNG image as background layer (same as Editor.jsx) */}
+                {pngImage && dxfData?.source === "pdf" && (
+                  <Group>
+                    {/* PNG Image - positioned at center of canvas */}
+                    <Image
+                      image={pngImage}
+                      x={(10000 - pngDimensions.width) / 2}
+                      y={(6000 - pngDimensions.height) / 2}
+                      width={pngDimensions.width}
+                      height={pngDimensions.height}
+                      opacity={0.7}
+                      listening={false}
+                    />
+                    
+                    {/* PNG bounds indicator for debugging */}
+                    <Rect
+                      x={(10000 - pngDimensions.width) / 2 - 5}
+                      y={(6000 - pngDimensions.height) / 2 - 5}
+                      width={pngDimensions.width + 10}
+                      height={pngDimensions.height + 10}
+                      fill="rgba(255, 255, 255, 0.05)"
+                      stroke="rgba(0, 0, 255, 0.3)"
+                      strokeWidth={2}
+                      cornerRadius={3}
+                      listening={false}
+                    />
+                  </Group>
+                )}
+
                 {/* Render DXF entities if available */}
                 {hasEntities && (
                   <EntityRenderer
@@ -541,26 +709,7 @@ const AreaMarkup = () => {
               </Layer>
             </CanvasWrapper>
 
-            {/* Room Drawing Instructions */}
-            <div className="absolute top-15 left-4 bg-white p-3 rounded-lg shadow-lg border border-gray-200">
-              <div className="flex items-center gap-2 text-sm text-gray-700">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Click and drag to draw rooms</span>
-              </div>
 
-              {/* Color Legend */}
-              <div className="mt-2 pt-2 border-t border-gray-200">
-                <div className="text-xs text-gray-600 mb-1">Color Legend:</div>
-                <div className="flex items-center gap-2 text-xs">
-                  <div className="w-3 h-3 bg-green-500 rounded"></div>
-                  <span>Normal Rooms</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <div className="w-3 h-3 bg-pink-500 rounded"></div>
-                  <span>False Ceiling</span>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 

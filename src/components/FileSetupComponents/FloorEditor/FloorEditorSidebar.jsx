@@ -96,7 +96,7 @@ const FloorEditorSidebar = ({
     setIsUploading(true);
 
     const form = new FormData();
-    form.append("file", file);
+    form.append("dxf_file", file);
 
     try {
       let response;
@@ -263,96 +263,119 @@ const FloorEditorSidebar = ({
 
   return (
     <div className="bg-white w-[350px] h-[90vh] border-r border-gray-300 overflow-y-auto">
-      <div className="mt-6 mx-4 flex flex-col gap-4">
-        <div className="border-b border-gray-300 pb-4 flex justify-between items-center">
-          <div>
-            <div className="font-bold text-lg">Floor Editor</div>
-            {updated ? (
-              <div className="flex items-center gap-2">
-                <LaptopMinimalCheck className="text-green-500 h-4 w-4" />
-                <div className="text-xs font-semibold text-green-500">
-                  Updated Now
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <LaptopMinimal className="text-red-500 h-4 w-4" />
-                <div className="text-xs font-semibold text-red-500">
-                  Waiting for Input
-                </div>
-              </div>
-            )}
+      <div className="mt-6 mx-4 flex flex-col gap-6">
+        {/* Header Section */}
+        <div className="border-b border-gray-300 pb-6">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <div className="font-bold text-xl text-gray-800">Floor Editor</div>
+              <div className="text-sm text-gray-500 mt-1">Create and manage floor plans</div>
+            </div>
+            <div className="text-gray-400 hover:text-gray-600 cursor-pointer">
+              <Info className="h-5 w-5" />
+            </div>
           </div>
-          <div>
-            <Info />
-          </div>
+          
+          {/* Status Indicator */}
+          {updated ? (
+            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              <LaptopMinimalCheck className="text-green-500 h-4 w-4" />
+              <div className="text-sm font-medium text-green-700">
+                Floor Plan Updated
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <LaptopMinimal className="text-amber-500 h-4 w-4" />
+              <div className="text-sm font-medium text-amber-700">
+                Waiting for Input
+              </div>
+            </div>
+          )}
         </div>
-        {/* File Upload Section */}
-        <div className="border-b border-gray-300 pb-4">
-          <div className="text-sm font-semibold text-gray-700 mb-2">
-            File Upload (DXF, DWG, PDF)
-          </div>
-          <div
-            className={`flex gap-2 justify-center items-center bg-gray-200 p-2 text-gray-500 font-semibold rounded ${
-              !selectedFile &&
-              !isUploading &&
-              "hover:bg-blue-500 hover:text-white"
-            } cursor-pointer relative`}
-          >
-            {isUploading ? (
-              <>
-                <div>Uploading...</div>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-              </>
-            ) : selectedFile ? (
-              <>
-                <div>{selectedFile.name}</div>
-                <FileText className="h-4 w-4" />
-              </>
-            ) : (
-              <>
-                <div>Upload File (DXF/DWG/PDF)</div>
-                <CloudUpload className="h-4 w-4" />
-              </>
-            )}
 
-            {!isUploading && (
+        {/* File Upload Section */}
+        <div className="bg-gradient-to-r from-gray-50 to-blue-50 border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CloudUpload className="h-4 w-4 text-blue-600" />
+            <div className="text-sm font-semibold text-gray-700">
+              Upload Floor Plan
+            </div>
+          </div>
+          <div className="text-xs text-gray-600 mb-3">
+            Support for DXF, DWG, and PDF files
+          </div>
+          
+          <div className="relative">
+            <div
+              className={`flex gap-2 justify-center items-center p-4 text-gray-500 font-medium rounded-lg border-2 border-dashed transition-all duration-200 ${
+                !selectedFile && !isUploading
+                  ? "border-blue-300 bg-blue-50 hover:border-blue-400 hover:bg-blue-100 cursor-pointer"
+                  : "border-gray-300 bg-gray-100"
+              }`}
+            >
+              {isUploading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  <span className="text-blue-600">Processing...</span>
+                </>
+              ) : selectedFile ? (
+                <>
+                  <FileText className="h-4 w-4 text-green-600" />
+                  <span className="text-green-700">{selectedFile.name}</span>
+                </>
+              ) : (
+                <>
+                  <CloudUpload className="h-4 w-4" />
+                  <span>Click to upload file</span>
+                </>
+              )}
+            </div>
+
+            {/* File input positioned over the upload area but only when not uploading and no file selected */}
+            {!isUploading && !selectedFile && (
               <input
                 type="file"
                 accept=".dxf,.dwg,.pdf"
                 onChange={handleFileChange}
-                className="absolute inset-0 opacity-0 cursor-pointer"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                style={{ zIndex: 10 }}
               />
             )}
           </div>
 
           {hasDxfEntities && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
+            <div className="mt-3 flex items-center gap-2 text-xs text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
               <FileText className="h-3 w-3" />
-              <span>
+              <span className="font-medium">
                 {floorDxf.source === "pdf"
-                  ? "PDF converted to PNG"
+                  ? "PDF converted to PNG successfully"
                   : `${floorDxf.entities.length} entities loaded`}
               </span>
             </div>
           )}
         </div>
-        <div>
-          <div className="text-xs text-gray-500 font-semibold">Select Unit</div>
-          <div>
-            <select
-              className="w-full bg-gray-100 border border-gray-300 text-sm text-gray-700 rounded-md px-3 py-2 focus:outline-none focus:ring-0"
-              value={displayUnit}
-              onChange={(e) => handleDisplayUnitChange(e.target.value)}
-            >
-              <option value="m">Meters (m)</option>
-              <option value="mm">Millimeters (mm)</option>
-              <option value="cm">Centimeters (cm)</option>
-              <option value="ft">Feet (ft)</option>
-              <option value="inch">Inches (inch)</option>
-              <option value="sq yd">Square Yards (sq yd)</option>
-            </select>
+
+        {/* Unit Selection */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Ruler className="h-4 w-4 text-gray-600" />
+            <div className="text-sm font-semibold text-gray-700">
+              Display Units
+            </div>
           </div>
+          <select
+            className="w-full bg-gray-50 border border-gray-300 text-sm text-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={displayUnit}
+            onChange={(e) => handleDisplayUnitChange(e.target.value)}
+          >
+            <option value="m">Meters (m)</option>
+            <option value="mm">Millimeters (mm)</option>
+            <option value="cm">Centimeters (cm)</option>
+            <option value="ft">Feet (ft)</option>
+            <option value="inch">Inches (inch)</option>
+            <option value="sq yd">Square Yards (sq yd)</option>
+          </select>
         </div>
       </div>
 
@@ -360,203 +383,196 @@ const FloorEditorSidebar = ({
       <FloorManagement />
 
       {/* Floor Creation Tools */}
-      <div className="flex flex-col gap-4 border p-4 rounded border-gray-300 mx-4 mt-4">
-        <div className="flex justify-between items-center mb-2">
-          <div className="text-xs text-gray-500 font-semibold">
-            Floor Creation Tools
-          </div>
-          {currentFloor && (
-            <div className="flex items-center gap-1 text-xs text-orange-600 font-semibold">
-              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-              Floor Selected
-            </div>
-          )}
-        </div>
-
-        {/* Auto-Active Floor Drawing Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-          <div className="flex items-center gap-2 mb-2">
+      <div className="mx-4 mt-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
             <Square className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">
-              Auto-Active Floor Drawing
-            </span>
-          </div>
-          <p className="text-xs text-blue-700">
-            Click and drag anywhere on the canvas to create a new floor. No
-            button click required.
-          </p>
-        </div>
-
-        {/* Polygon Mode Dropdown */}
-        <div className="relative">
-          <button
-            onClick={handlePolygonMode}
-            disabled={!currentFloorId}
-            className={`flex items-center gap-2 px-3 py-2 rounded border transition-colors text-sm w-full ${
-              !currentFloorId
-                ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                : isDrawingFloor && floorMode === "polygon"
-                ? "bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200"
-                : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
-            }`}
-          >
-            <Hexagon className="h-4 w-4" />
-            <span>Polygon Mode</span>
-          </button>
-        </div>
-
-        {/* Manual Entry Button */}
-        <button
-          onClick={handleManualEntry}
-          disabled={!currentFloorId}
-          className={`flex items-center gap-2 px-3 py-2 rounded border transition-colors text-sm ${
-            !currentFloorId
-              ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-              : "bg-green-50 hover:bg-green-100 text-green-700 border border-green-200"
-          }`}
-        >
-          <Ruler className="h-4 w-4" />
-          <span>Enter Floor Dimensions</span>
-        </button>
-
-        {/* Test Floor Button */}
-        <button
-          onClick={() => {
-            if (!currentFloorId) {
-              alert(
-                "Please select a floor first before creating floor shapes."
-              );
-              return;
-            }
-            const testFloorShape = {
-              id: `shape-${Date.now()}`,
-              name: "Test Floor",
-              type: "floor",
-              shape: "rectangle",
-              x: 100,
-              y: 150,
-              width: 800,
-              height: 600,
-              areaSqM: 48,
-              floorHeight: 3.2,
-              slabThickness: 200,
-              material: "RCC",
-              source: "test",
-              createdAt: new Date().toISOString(),
-            };
-            console.log(
-              "FloorEditorSidebar: Creating test floor shape",
-              testFloorShape
-            );
-
-            // Add shape to current floor
-            if (currentFloor) {
-              const updatedFloor = {
-                ...currentFloor,
-                shapes: [...(currentFloor.shapes || []), testFloorShape],
-                updatedAt: new Date().toISOString(),
-              };
-              dispatch(
-                updateFloor({ id: currentFloor.id, updates: updatedFloor })
-              );
-            }
-
-            // Trigger properties panel opening
-            if (onFloorCreated) {
-              console.log(
-                "FloorEditorSidebar: Calling onFloorCreated callback for test floor"
-              );
-              onFloorCreated(testFloorShape);
-            }
-          }}
-          disabled={!currentFloorId}
-          className={`flex items-center gap-2 px-3 py-2 rounded border transition-colors text-sm ${
-            !currentFloorId
-              ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-              : "bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200"
-          }`}
-        >
-          <Square className="h-4 w-4" />
-          <span>Create Test Floor</span>
-        </button>
-
-        {/* Check Redux State Button */}
-        <button
-          onClick={() => {
-            console.log(
-              "FloorEditorSidebar: Current Redux state - currentFloor:",
-              currentFloor
-            );
-            console.log(
-              "FloorEditorSidebar: Should show properties panel:",
-              !!currentFloor
-            );
-          }}
-          className="flex items-center gap-2 px-3 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded transition-colors text-sm"
-        >
-          <Square className="h-4 w-4" />
-          <span>Check Redux State</span>
-        </button>
-
-        {/* Clear Floor Button */}
-        {currentFloor && (
-          <button
-            onClick={handleClearFloor}
-            className="flex items-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded transition-colors text-sm"
-          >
-            <X className="h-4 w-4" />
-            <span>Clear Floor</span>
-          </button>
-        )}
-
-        {/* Current Floor Info */}
-        {currentFloor && currentFloor.id && (
-          <div className="bg-blue-50 border border-blue-200 rounded p-3">
-            <div className="text-xs font-semibold text-blue-700 mb-2">
-              Current Floor
+            <div className="text-sm font-semibold text-gray-700">
+              Floor Creation Tools
             </div>
-            <div className="text-xs text-blue-600 space-y-1">
-              <div>Name: {currentFloor.name}</div>
-              <div>Level: {currentFloor.level}</div>
-              <div>Height: {currentFloor.height}mm</div>
-              <div>
-                Shapes: {currentFloor.shapes ? currentFloor.shapes.length : 0}
+            {currentFloor && (
+              <div className="flex items-center gap-1 text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                Floor Selected
               </div>
-              {currentFloor.shapes && currentFloor.shapes.length > 0 && (
-                <div>
-                  Total Area:{" "}
-                  {currentFloor.shapes
-                    .reduce((total, shape) => total + (shape.areaSqM || 0), 0)
-                    .toFixed(2)}{" "}
-                  m²
+            )}
+          </div>
+
+          {/* Auto-Active Floor Drawing Info */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Square className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-800">
+                Auto-Active Floor Drawing
+              </span>
+            </div>
+            <p className="text-xs text-blue-700">
+              Click and drag anywhere on the canvas to create a new floor. No button click required.
+            </p>
+          </div>
+
+          {/* Tool Buttons */}
+          <div className="space-y-3">
+            {/* Polygon Mode */}
+            <button
+              onClick={handlePolygonMode}
+              disabled={!currentFloorId}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 text-sm w-full ${
+                !currentFloorId
+                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                  : isDrawingFloor && floorMode === "polygon"
+                  ? "bg-purple-100 hover:bg-purple-200 text-purple-700 border-purple-300 shadow-sm"
+                  : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 hover:shadow-sm"
+              }`}
+            >
+              <Hexagon className="h-4 w-4" />
+              <span>Polygon Mode</span>
+            </button>
+
+            {/* Manual Entry */}
+            <button
+              onClick={handleManualEntry}
+              disabled={!currentFloorId}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 text-sm w-full ${
+                !currentFloorId
+                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                  : "bg-green-50 hover:bg-green-100 text-green-700 border-green-200 hover:shadow-sm"
+              }`}
+            >
+              <Ruler className="h-4 w-4" />
+              <span>Enter Floor Dimensions</span>
+            </button>
+
+            {/* Test Floor */}
+            <button
+              onClick={() => {
+                if (!currentFloorId) {
+                  alert("Please select a floor first before creating floor shapes.");
+                  return;
+                }
+                const testFloorShape = {
+                  id: `shape-${Date.now()}`,
+                  name: "Test Floor",
+                  type: "floor",
+                  shape: "rectangle",
+                  x: 100,
+                  y: 150,
+                  width: 800,
+                  height: 600,
+                  widthInMeters: 8.0,
+                  heightInMeters: 6.0,
+                  areaSqM: 48,
+                  floorHeight: 3200,
+                  slabThickness: 200,
+                  material: "RCC",
+                  source: "test",
+                  createdAt: new Date().toISOString(),
+                };
+                console.log("FloorEditorSidebar: Creating test floor shape", testFloorShape);
+
+                // Add shape to current floor
+                if (currentFloor) {
+                  const updatedFloor = {
+                    ...currentFloor,
+                    shapes: [...(currentFloor.shapes || []), testFloorShape],
+                    updatedAt: new Date().toISOString(),
+                  };
+                  dispatch(
+                    updateFloor({ id: currentFloor.id, updates: updatedFloor })
+                  );
+                }
+
+                // Trigger properties panel opening
+                if (onFloorCreated) {
+                  console.log("FloorEditorSidebar: Calling onFloorCreated callback for test floor");
+                  onFloorCreated(testFloorShape);
+                }
+              }}
+              disabled={!currentFloorId}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 text-sm w-full ${
+                !currentFloorId
+                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                  : "bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200 hover:shadow-sm"
+              }`}
+            >
+              <Square className="h-4 w-4" />
+              <span>Create Test Floor</span>
+            </button>
+
+            {/* Clear Floor */}
+            {currentFloor && (
+              <button
+                onClick={handleClearFloor}
+                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg transition-all duration-200 text-sm w-full hover:shadow-sm"
+              >
+                <X className="h-4 w-4" />
+                <span>Clear Floor Shapes</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Current Floor Info */}
+      {currentFloor && currentFloor.id && (
+        <div className="mx-4 mt-6">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <div className="text-sm font-semibold text-blue-800">
+                Current Floor: {currentFloor.name}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-white rounded p-2 border border-blue-100">
+                <div className="text-blue-600 font-medium">Level</div>
+                <div className="text-gray-800">{currentFloor.level || 0}</div>
+              </div>
+              <div className="bg-white rounded p-2 border border-blue-100">
+                <div className="text-blue-600 font-medium">Height</div>
+                <div className="text-gray-800">{(currentFloor.height || 3200) / 1000}m</div>
+              </div>
+              <div className="bg-white rounded p-2 border border-blue-100">
+                <div className="text-blue-600 font-medium">Shapes</div>
+                <div className="text-gray-800">{currentFloor.shapes ? currentFloor.shapes.length : 0}</div>
+              </div>
+              <div className="bg-white rounded p-2 border border-blue-100">
+                <div className="text-blue-600 font-medium">Total Area</div>
+                <div className="text-gray-800">
+                  {currentFloor.shapes && currentFloor.shapes.length > 0
+                    ? currentFloor.shapes
+                        .reduce((total, shape) => total + (shape.areaSqM || 0), 0)
+                        .toFixed(2)
+                    : "0.00"} m²
                 </div>
-              )}
+              </div>
             </div>
             <button
               onClick={() =>
                 onOpenPropertiesPanel && onOpenPropertiesPanel(currentFloor)
               }
-              className="mt-2 w-full px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              className="mt-3 w-full px-3 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               Open Properties Panel
             </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Floor Properties Section */}
-        {console.log(
-          "FloorEditorSidebar: Rendering floor properties section",
-          !!currentFloor
-        )}
-        {currentFloor && currentFloor.id && (
-          <div className="flex flex-col gap-4 border p-4 rounded border-gray-300 mx-4 mt-4">
-            <div className="text-xs text-gray-500 font-semibold mb-2">
-              Floor Properties
+      {/* Floor Properties Section */}
+      {currentFloor && currentFloor.id && currentFloor.shapes && currentFloor.shapes.length > 0 && (
+        <div className="mx-4 mt-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Ruler className="h-4 w-4 text-gray-600" />
+              <div className="text-sm font-semibold text-gray-700">
+                Floor Shape Properties
+              </div>
             </div>
 
             {/* Floor Name */}
-            <div>
-              <div className="text-xs text-gray-500 font-semibold mb-1">
+            <div className="mb-4">
+              <div className="text-xs text-gray-600 font-medium mb-2">
                 Floor Name
               </div>
               <input
@@ -573,152 +589,196 @@ const FloorEditorSidebar = ({
                     })
                   );
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50"
                 placeholder="Enter floor name"
               />
             </div>
 
-            <div>
-              <div className="text-xs text-gray-500 font-semibold mb-1">
-                Floor Width
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  value={
-                    currentFloor.widthInMeters
-                      ? currentFloor.widthInMeters
-                      : 3.2
-                  }
-                  onChange={(e) => {
-                    const width = parseFloat(e.target.value) || 3.2;
-                    dispatch(
-                      updateFloor({
-                        id: currentFloor.id,
-                        updates: {
-                          width: width,
-                          updatedAt: new Date().toISOString(),
-                        },
-                      })
-                    );
-                  }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="3.2"
-                />
-                <span className="text-sm text-gray-500">m</span>
-              </div>
-            </div>
+            {/* Floor Dimensions - Fixed calculations */}
+            {currentFloor.shapes && currentFloor.shapes.length > 0 && (
+              <div className="space-y-4 mb-4">
+                {/* Floor Width - Use the first shape's width */}
+                <div>
+                  <div className="text-xs text-gray-600 font-medium mb-2">
+                    Floor Width
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={
+                        currentFloor.shapes[0]?.widthInMeters || 
+                        (currentFloor.shapes[0]?.width ? (currentFloor.shapes[0].width / 100).toFixed(2) : "0.00")
+                      }
+                      onChange={(e) => {
+                        const widthInMeters = parseFloat(e.target.value) || 0;
+                        const widthInPixels = widthInMeters * 100; // Convert to pixels (100px = 1m)
+                        
+                        // Update the first shape's dimensions
+                        const updatedShapes = currentFloor.shapes.map((shape, index) => 
+                          index === 0 ? {
+                            ...shape,
+                            width: widthInPixels,
+                            widthInMeters: widthInMeters,
+                            areaSqM: widthInMeters * (shape.heightInMeters || shape.height / 100)
+                          } : shape
+                        );
+                        
+                        dispatch(
+                          updateFloor({
+                            id: currentFloor.id,
+                            updates: {
+                              shapes: updatedShapes,
+                              updatedAt: new Date().toISOString(),
+                            },
+                          })
+                        );
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50"
+                      placeholder="0.00"
+                    />
+                    <span className="text-sm text-gray-500 font-medium">m</span>
+                  </div>
+                </div>
 
-            <div>
-              <div className="text-xs text-gray-500 font-semibold mb-1">
-                Floor Length
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  value={currentFloor.height ? currentFloor.height / 1000 : 3.2}
-                  onChange={(e) => {
-                    const heightInMm =
-                      (parseFloat(e.target.value) || 3.2) * 1000;
-                    dispatch(
-                      updateFloor({
-                        id: currentFloor.id,
-                        updates: {
-                          height: heightInMm,
-                          updatedAt: new Date().toISOString(),
-                        },
-                      })
-                    );
-                  }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="3.2"
-                />
-                <span className="text-sm text-gray-500">m</span>
-              </div>
-            </div>
+                {/* Floor Length - Use the first shape's height */}
+                <div>
+                  <div className="text-xs text-gray-600 font-medium mb-2">
+                    Floor Length
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={
+                        currentFloor.shapes[0]?.heightInMeters || 
+                        (currentFloor.shapes[0]?.height ? (currentFloor.shapes[0].height / 100).toFixed(2) : "0.00")
+                      }
+                      onChange={(e) => {
+                        const heightInMeters = parseFloat(e.target.value) || 0;
+                        const heightInPixels = heightInMeters * 100; // Convert to pixels (100px = 1m)
+                        
+                        // Update the first shape's dimensions
+                        const updatedShapes = currentFloor.shapes.map((shape, index) => 
+                          index === 0 ? {
+                            ...shape,
+                            height: heightInPixels,
+                            heightInMeters: heightInMeters,
+                            areaSqM: (shape.widthInMeters || shape.width / 100) * heightInMeters
+                          } : shape
+                        );
+                        
+                        dispatch(
+                          updateFloor({
+                            id: currentFloor.id,
+                            updates: {
+                              shapes: updatedShapes,
+                              updatedAt: new Date().toISOString(),
+                            },
+                          })
+                        );
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50"
+                      placeholder="0.00"
+                    />
+                    <span className="text-sm text-gray-500 font-medium">m</span>
+                  </div>
+                </div>
 
-            {/* Auto-Calculated Area */}
-            <div>
-              <div className="text-xs text-gray-500 font-semibold mb-1">
-                Area (Auto-Calculated)
+                {/* Auto-Calculated Area - Fixed calculation */}
+                <div>
+                  <div className="text-xs text-gray-600 font-medium mb-2">
+                    Area (Auto-Calculated)
+                  </div>
+                  <div className="w-full px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800 font-medium">
+                    {(() => {
+                      if (!currentFloor.shapes || currentFloor.shapes.length === 0) return "0.00 m²";
+                      
+                      const totalArea = currentFloor.shapes.reduce((total, shape) => {
+                        if (shape.shape === 'rectangle') {
+                          const widthInM = shape.widthInMeters || (shape.width / 100);
+                          const heightInM = shape.heightInMeters || (shape.height / 100);
+                          return total + (widthInM * heightInM);
+                        } else if (shape.shape === 'polygon') {
+                          return total + (shape.areaSqM || 0);
+                        }
+                        return total;
+                      }, 0);
+                      
+                      return `${totalArea.toFixed(2)} m²`;
+                    })()}
+                  </div>
+                </div>
               </div>
-              <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
-                {currentFloor.shapes && currentFloor.shapes.length > 0
-                  ? currentFloor.shapes
-                      .reduce((total, shape) => total + (shape.areaSqM || 0), 0)
-                      .toFixed(2)
-                  : "0.00"}{" "}
-                m²
-              </div>
-            </div>
+            )}
 
-            {/* Floor Height */}
-            <div>
-              <div className="text-xs text-gray-500 font-semibold mb-1">
-                Floor Height
+            {/* Floor Properties Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Floor Height */}
+              <div>
+                <div className="text-xs text-gray-600 font-medium mb-2">
+                  Floor Height
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={currentFloor.height ? (currentFloor.height / 1000).toFixed(1) : "3.2"}
+                    onChange={(e) => {
+                      const heightInMm = (parseFloat(e.target.value) || 3.2) * 1000;
+                      dispatch(
+                        updateFloor({
+                          id: currentFloor.id,
+                          updates: {
+                            height: heightInMm,
+                            updatedAt: new Date().toISOString(),
+                          },
+                        })
+                      );
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50"
+                    placeholder="3.2"
+                  />
+                  <span className="text-sm text-gray-500 font-medium">m</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  value={currentFloor.height ? currentFloor.height / 1000 : 3.2}
-                  onChange={(e) => {
-                    const heightInMm =
-                      (parseFloat(e.target.value) || 3.2) * 1000;
-                    dispatch(
-                      updateFloor({
-                        id: currentFloor.id,
-                        updates: {
-                          height: heightInMm,
-                          updatedAt: new Date().toISOString(),
-                        },
-                      })
-                    );
-                  }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="3.2"
-                />
-                <span className="text-sm text-gray-500">m</span>
-              </div>
-            </div>
 
-            {/* Slab Thickness */}
-            <div>
-              <div className="text-xs text-gray-500 font-semibold mb-1">
-                Slab Thickness
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  value={currentFloor.slabThickness}
-                  onChange={(e) => {
-                    dispatch(
-                      updateFloor({
-                        id: currentFloor.id,
-                        updates: {
-                          slabThickness: parseInt(e.target.value) || 200,
-                          updatedAt: new Date().toISOString(),
-                        },
-                      })
-                    );
-                  }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  placeholder="200"
-                />
-                <span className="text-sm text-gray-500">mm</span>
+              {/* Slab Thickness */}
+              <div>
+                <div className="text-xs text-gray-600 font-medium mb-2">
+                  Slab Thickness
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={currentFloor.slabThickness || 200}
+                    onChange={(e) => {
+                      dispatch(
+                        updateFloor({
+                          id: currentFloor.id,
+                          updates: {
+                            slabThickness: parseInt(e.target.value) || 200,
+                            updatedAt: new Date().toISOString(),
+                          },
+                        })
+                      );
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50"
+                    placeholder="200"
+                  />
+                  <span className="text-sm text-gray-500 font-medium">mm</span>
+                </div>
               </div>
             </div>
 
             {/* Material Type */}
-            <div>
-              <div className="text-xs text-gray-500 font-semibold mb-1">
+            <div className="mt-4">
+              <div className="text-xs text-gray-600 font-medium mb-2">
                 Material Type
               </div>
               <select
@@ -734,7 +794,7 @@ const FloorEditorSidebar = ({
                     })
                   );
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-gray-50"
               >
                 <option value="RCC">RCC</option>
                 <option value="Tile">Tile</option>
@@ -744,36 +804,44 @@ const FloorEditorSidebar = ({
               </select>
             </div>
 
-            {/* Volume Display */}
-            <div>
-              <div className="text-xs text-gray-500 font-semibold mb-1">
+            {/* Volume Display - Fixed calculation */}
+            <div className="mt-4">
+              <div className="text-xs text-gray-600 font-medium mb-2">
                 Volume
               </div>
-              <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700">
+              <div className="w-full px-3 py-2 bg-green-50 border border-green-200 rounded-md text-sm text-green-800 font-medium">
                 {(() => {
-                  const totalArea =
-                    currentFloor.shapes && currentFloor.shapes.length > 0
-                      ? currentFloor.shapes.reduce(
-                          (total, shape) => total + (shape.areaSqM || 0),
-                          0
-                        )
-                      : 0;
-                  const heightInM = currentFloor.height
-                    ? currentFloor.height / 1000
-                    : 3.2;
-                  return (totalArea * heightInM).toFixed(2);
-                })()}{" "}
-                m³
+                  if (!currentFloor.shapes || currentFloor.shapes.length === 0) return "0.00 m³";
+                  
+                  const totalArea = currentFloor.shapes.reduce((total, shape) => {
+                    if (shape.shape === 'rectangle') {
+                      const widthInM = shape.widthInMeters || (shape.width / 100);
+                      const heightInM = shape.heightInMeters || (shape.height / 100);
+                      return total + (widthInM * heightInM);
+                    } else if (shape.shape === 'polygon') {
+                      return total + (shape.areaSqM || 0);
+                    }
+                    return total;
+                  }, 0);
+                  
+                  const heightInM = currentFloor.height ? currentFloor.height / 1000 : 3.2;
+                  return `${(totalArea * heightInM).toFixed(2)} m³`;
+                })()}
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Drawing Instructions */}
-        {isDrawingFloor && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-            <div className="text-xs font-semibold text-yellow-700 mb-2">
-              Drawing Mode Active
+      {/* Drawing Instructions */}
+      {isDrawingFloor && (
+        <div className="mx-4 mt-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <div className="text-sm font-semibold text-yellow-700">
+                Drawing Mode Active
+              </div>
             </div>
             <div className="text-xs text-yellow-600 space-y-1">
               {floorMode === "rectangle" && (
@@ -786,29 +854,34 @@ const FloorEditorSidebar = ({
               )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Coordinate Display Toggle */}
-      <div className="flex flex-col gap-4 border p-4 rounded border-gray-300 mx-4 mt-4">
-        <div className="text-xs text-gray-500 font-semibold mb-2">
-          Display Controls
+      <div className="mx-4 mt-6 mb-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Eye className="h-4 w-4 text-gray-600" />
+            <div className="text-sm font-semibold text-gray-700">
+              Display Controls
+            </div>
+          </div>
+          <button
+            onClick={() => setShowCoordinates(!showCoordinates)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 text-sm w-full ${
+              showCoordinates
+                ? "bg-green-50 hover:bg-green-100 text-green-700 border-green-200 hover:shadow-sm"
+                : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 hover:shadow-sm"
+            }`}
+          >
+            {showCoordinates ? (
+              <Eye className="h-4 w-4" />
+            ) : (
+              <EyeOff className="h-4 w-4" />
+            )}
+            <span>{showCoordinates ? "Hide" : "Show"} Coordinates</span>
+          </button>
         </div>
-        <button
-          onClick={() => setShowCoordinates(!showCoordinates)}
-          className={`flex items-center gap-2 px-3 py-2 rounded border transition-colors text-sm ${
-            showCoordinates
-              ? "bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-              : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200"
-          }`}
-        >
-          {showCoordinates ? (
-            <Eye className="h-4 w-4" />
-          ) : (
-            <EyeOff className="h-4 w-4" />
-          )}
-          <span>{showCoordinates ? "Hide" : "Show"} Coordinates</span>
-        </button>
       </div>
 
       {/* Create Floor Modal */}
