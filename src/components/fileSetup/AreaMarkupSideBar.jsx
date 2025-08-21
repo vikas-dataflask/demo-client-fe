@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { setCurrentFloorId } from "../../redux/features/app/floorSlice";
-import { setRooms, updateRoomProperties } from "../../redux/features/app/roomSlice";
+import {
+  setRooms,
+  updateRoomProperties,
+} from "../../redux/features/app/roomSlice";
 import { createRooms } from "../../redux/features/app/newRoomSlice";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import PlusIcon from "../../icons/PlusIcon";
@@ -12,9 +16,9 @@ import PolygonalIcon from "../../icons/PolygonalIcon";
 import RoomCreationModal from "./RoomCreationModal";
 import { calculateAreaInMeters } from "../../utils/canvasUtils";
 
-const GRID_SIZE = 100; // 100px = 1m for proper unit conversion
+// Remove hardcoded GRID_SIZE constant - will use calibrated pixelsPerMeter from Redux
 
-const AreaMarkupSidebar = ({setCreated}) => {
+const AreaMarkupSidebar = ({ setCreated }) => {
   const dispatch = useDispatch();
   const [selectedShape, setSelectedShape] = useState("square");
   // const [buildingName, setBuildingName] = useState("Building 1");
@@ -28,12 +32,16 @@ const AreaMarkupSidebar = ({setCreated}) => {
   const currentFloorId = useSelector((state) => state.floor.currentFloorId);
   const currentFloor = floors.find((f) => f.id === currentFloorId);
   const selectedScale = useSelector((state) => state.project.scale);
-  
+
   // AI Rooms data from Redux
   const aiRooms = useSelector((state) => state.aiRoomData?.rooms || []);
   const [showAIRoomsModal, setShowAIRoomsModal] = useState(false);
-  const [aiRoomsStatus, setAiRoomsStatus] = useState({ type: 'info', message: '' });
+  const [aiRoomsStatus, setAiRoomsStatus] = useState({
+    type: "info",
+    message: "",
+  });
   const [isImportingAIRooms, setIsImportingAIRooms] = useState(false);
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter); // Get calibrated scale from Redux
 
   // Debug logging for room data
   useEffect(() => {
@@ -75,13 +83,13 @@ const AreaMarkupSidebar = ({setCreated}) => {
   useEffect(() => {
     console.log("🤖 AreaMarkupSideBar: AI Rooms data:", {
       aiRoomsCount: aiRooms?.length || 0,
-      aiRooms: aiRooms?.map(room => ({
+      aiRooms: aiRooms?.map((room) => ({
         name: room.name,
         category: room.category,
         dimensions: room.dimensions,
         width: room.width,
-        height: room.height
-      }))
+        height: room.height,
+      })),
     });
   }, [aiRooms]);
 
@@ -137,13 +145,13 @@ const AreaMarkupSidebar = ({setCreated}) => {
     }
   }, [currentFloor]);
 
-  // Convert pixels to logical units (meters)
+  // Convert pixels to logical units (meters) using calibrated scale
   const convertToLogicalUnits = (pixels) => {
-    return pixels / GRID_SIZE;
+    return pixels / pixelsPerMeter;
   };
 
-  const convertPixelsToMeters = (meters) => {
-    return meters / GRID_SIZE;
+  const convertPixelsToMeters = (pixels) => {
+    return pixels / pixelsPerMeter;
   };
 
   // Convert meters to pixels (for AI room dimensions)
@@ -151,9 +159,9 @@ const AreaMarkupSidebar = ({setCreated}) => {
     return meters * GRID_SIZE;
   };
 
-  // Convert area to the selected scale
+  // Convert area to the selected scale using calibrated scale
   const convertArea = (pixelArea) => {
-    const areaInLogicalUnits = pixelArea / (GRID_SIZE * GRID_SIZE);
+    const areaInLogicalUnits = pixelArea / (pixelsPerMeter * pixelsPerMeter);
     const areaInSquareMeters = areaInLogicalUnits;
 
     switch (selectedScale) {
@@ -186,58 +194,64 @@ const AreaMarkupSidebar = ({setCreated}) => {
   const handleImportAIRooms = () => {
     if (!currentFloorId) {
       setAiRoomsStatus({
-        type: 'error',
-        message: 'Please select a floor first before importing AI rooms.'
+        type: "error",
+        message: "Please select a floor first before importing AI rooms.",
       });
       return;
     }
 
     if (!aiRooms || aiRooms.length === 0) {
       setAiRoomsStatus({
-        type: 'warning',
-        message: 'No AI rooms found. Please use the AI File Processor to extract room data first.'
+        type: "warning",
+        message:
+          "No AI rooms found. Please use the AI File Processor to extract room data first.",
       });
       return;
     }
 
-    if (!currentFloor || !currentFloor.shapes || currentFloor.shapes.length === 0) {
+    if (
+      !currentFloor ||
+      !currentFloor.shapes ||
+      currentFloor.shapes.length === 0
+    ) {
       setAiRoomsStatus({
-        type: 'error',
-        message: 'No floor shapes found. Please create a floor first in the Floor Editor.'
+        type: "error",
+        message:
+          "No floor shapes found. Please create a floor first in the Floor Editor.",
       });
       return;
     }
 
     try {
       setIsImportingAIRooms(true);
-      
+
       // Get the floor shape to calculate boundaries
       const floorShape = currentFloor.shapes[0]; // Use the first shape as the main floor
       if (!floorShape) {
-        throw new Error('No floor shape found');
+        throw new Error("No floor shape found");
       }
 
       // Calculate floor boundaries based on shape type
       let floorBounds;
-      if (floorShape.shape === 'rectangle') {
+      if (floorShape.shape === "rectangle") {
         // Rectangle floor
         floorBounds = {
           x: floorShape.x || 0,
           y: floorShape.y || 0,
           width: floorShape.width || 1000,
-          height: floorShape.height || 1000
+          height: floorShape.height || 1000,
         };
-      } else if (floorShape.shape === 'polygon' && floorShape.points) {
+      } else if (floorShape.shape === "polygon" && floorShape.points) {
         // Polygon floor - calculate bounding box
         const points = floorShape.points;
-        const xCoords = points.map(p => p.x);
-        const yCoords = points.map(p => p.y);
-        
+        const xCoords = points.map((p) => p.x);
+        const yCoords = points.map((p) => p.y);
+
         floorBounds = {
           x: Math.min(...xCoords),
           y: Math.min(...yCoords),
           width: Math.max(...xCoords) - Math.min(...xCoords),
-          height: Math.max(...yCoords) - Math.min(...yCoords)
+          height: Math.max(...yCoords) - Math.min(...yCoords),
         };
       } else {
         // Fallback to default bounds
@@ -245,11 +259,11 @@ const AreaMarkupSidebar = ({setCreated}) => {
           x: 0,
           y: 0,
           width: 1000,
-          height: 1000
+          height: 1000,
         };
       }
 
-      console.log('🏗️ Floor bounds for AI room placement:', floorBounds);
+      console.log("🏗️ Floor bounds for AI room placement:", floorBounds);
 
       // Calculate total area of all AI rooms to scale them proportionally
       const totalAIRoomArea = aiRooms.reduce((total, room) => {
@@ -258,15 +272,16 @@ const AreaMarkupSidebar = ({setCreated}) => {
       }, 0);
 
       // Calculate floor area in square meters
-      const floorAreaInMeters = (floorBounds.width / GRID_SIZE) * (floorBounds.height / GRID_SIZE);
-      
+      const floorAreaInMeters =
+        (floorBounds.width / GRID_SIZE) * (floorBounds.height / GRID_SIZE);
+
       // Calculate scaling factor to fit AI rooms within floor
       const scaleFactor = Math.sqrt(floorAreaInMeters / totalAIRoomArea) * 0.8; // 80% of floor area
 
-      console.log('📏 AI Room scaling:', {
+      console.log("📏 AI Room scaling:", {
         totalAIRoomArea,
         floorAreaInMeters,
-        scaleFactor
+        scaleFactor,
       });
 
       // Convert AI rooms to room format and add to Redux
@@ -274,69 +289,108 @@ const AreaMarkupSidebar = ({setCreated}) => {
         // Scale dimensions according to floor size
         const scaledWidth = (aiRoom.width || 0) * scaleFactor;
         const scaledHeight = (aiRoom.height || 0) * scaleFactor;
-        
+
         // Convert scaled dimensions from meters to pixels
         const widthInPixels = convertMetersToPixels(scaledWidth);
         const heightInPixels = convertMetersToPixels(scaledHeight);
-        
+
         // Calculate area in pixels
         const areaInPixels = widthInPixels * heightInPixels;
-        
+
         // Generate unique room ID
         const roomId = `ai-room-${Date.now()}-${index}`;
-        
+
         // Calculate room position within floor boundaries
         // Use proportional positioning based on room index and total rooms
         const totalRooms = aiRooms.length;
         const roomsPerRow = Math.ceil(Math.sqrt(totalRooms));
         const row = Math.floor(index / roomsPerRow);
         const col = index % roomsPerRow;
-        
+
         // Calculate spacing between rooms
         const padding = 50; // 50px padding between rooms
-        const availableWidth = floorBounds.width - (padding * (roomsPerRow + 1));
-        const availableHeight = floorBounds.height - (padding * (Math.ceil(totalRooms / roomsPerRow) + 1));
-        
+        const availableWidth = floorBounds.width - padding * (roomsPerRow + 1);
+        const availableHeight =
+          floorBounds.height -
+          padding * (Math.ceil(totalRooms / roomsPerRow) + 1);
+
         // Calculate room size to fit within available space
-        const maxRoomWidth = Math.min(widthInPixels, availableWidth / roomsPerRow);
-        const maxRoomHeight = Math.min(heightInPixels, availableHeight / Math.ceil(totalRooms / roomsPerRow));
-        
+        const maxRoomWidth = Math.min(
+          widthInPixels,
+          availableWidth / roomsPerRow
+        );
+        const maxRoomHeight = Math.min(
+          heightInPixels,
+          availableHeight / Math.ceil(totalRooms / roomsPerRow)
+        );
+
         // Position room within floor boundaries
-        const startX = floorBounds.x + padding + (col * (maxRoomWidth + padding));
-        const startY = floorBounds.y + padding + (row * (maxRoomHeight + padding));
-        
+        const startX = floorBounds.x + padding + col * (maxRoomWidth + padding);
+        const startY =
+          floorBounds.y + padding + row * (maxRoomHeight + padding);
+
         // Ensure room doesn't exceed floor boundaries
-        const finalX = Math.max(floorBounds.x + padding, Math.min(startX, floorBounds.x + floorBounds.width - maxRoomWidth - padding));
-        const finalY = Math.max(floorBounds.y + padding, Math.min(startY, floorBounds.y + floorBounds.height - maxRoomHeight - padding));
-        
+        const finalX = Math.max(
+          floorBounds.x + padding,
+          Math.min(
+            startX,
+            floorBounds.x + floorBounds.width - maxRoomWidth - padding
+          )
+        );
+        const finalY = Math.max(
+          floorBounds.y + padding,
+          Math.min(
+            startY,
+            floorBounds.y + floorBounds.height - maxRoomHeight - padding
+          )
+        );
+
         // For polygon floors, ensure the room center is within the polygon
         let adjustedX = finalX;
         let adjustedY = finalY;
-        
-        if (floorShape.shape === 'polygon' && floorShape.points) {
+
+        if (floorShape.shape === "polygon" && floorShape.points) {
           // Check if room center is within polygon bounds
-          const roomCenterX = finalX + (maxRoomWidth / 2);
-          const roomCenterY = finalY + (maxRoomHeight / 2);
-          
+          const roomCenterX = finalX + maxRoomWidth / 2;
+          const roomCenterY = finalY + maxRoomHeight / 2;
+
           // Simple boundary check - ensure room center is within the bounding box
-          if (roomCenterX < floorBounds.x || roomCenterX > floorBounds.x + floorBounds.width ||
-              roomCenterY < floorBounds.y || roomCenterY > floorBounds.y + floorBounds.height) {
+          if (
+            roomCenterX < floorBounds.x ||
+            roomCenterX > floorBounds.x + floorBounds.width ||
+            roomCenterY < floorBounds.y ||
+            roomCenterY > floorBounds.y + floorBounds.height
+          ) {
             // Adjust position to keep room within bounds
-            adjustedX = Math.max(floorBounds.x + padding, Math.min(adjustedX, floorBounds.x + floorBounds.width - maxRoomWidth - padding));
-            adjustedY = Math.max(floorBounds.y + padding, Math.min(adjustedY, floorBounds.y + floorBounds.height - maxRoomHeight - padding));
+            adjustedX = Math.max(
+              floorBounds.x + padding,
+              Math.min(
+                adjustedX,
+                floorBounds.x + floorBounds.width - maxRoomWidth - padding
+              )
+            );
+            adjustedY = Math.max(
+              floorBounds.y + padding,
+              Math.min(
+                adjustedY,
+                floorBounds.y + floorBounds.height - maxRoomHeight - padding
+              )
+            );
           }
         }
-        
+
         console.log(`🏠 AI Room ${index + 1} placement:`, {
           name: aiRoom.name,
           originalDimensions: `${aiRoom.width}m × ${aiRoom.height}m`,
-          scaledDimensions: `${scaledWidth.toFixed(2)}m × ${scaledHeight.toFixed(2)}m`,
+          scaledDimensions: `${scaledWidth.toFixed(
+            2
+          )}m × ${scaledHeight.toFixed(2)}m`,
           pixelDimensions: `${maxRoomWidth}px × ${maxRoomHeight}px`,
           position: `(${adjustedX}, ${adjustedY})`,
           floorBounds,
-          floorShapeType: floorShape.shape
+          floorShapeType: floorShape.shape,
         });
-        
+
         return {
           id: roomId,
           x: adjustedX,
@@ -350,7 +404,7 @@ const AreaMarkupSidebar = ({setCreated}) => {
           falseCeiling: "",
           floorId: currentFloorId,
           createdAt: new Date().toISOString(),
-          source: 'ai',
+          source: "ai",
           originalDimensions: aiRoom.dimensions,
           category: aiRoom.category,
           // Store scaling information for reference
@@ -358,44 +412,43 @@ const AreaMarkupSidebar = ({setCreated}) => {
             originalWidth: aiRoom.width,
             originalHeight: aiRoom.height,
             scaleFactor: scaleFactor,
-            floorArea: floorAreaInMeters
-          }
+            floorArea: floorAreaInMeters,
+          },
         };
       });
 
-      console.log('🤖 Converting AI rooms to room format:', convertedRooms);
+      console.log("🤖 Converting AI rooms to room format:", convertedRooms);
 
       // Add rooms to both Redux slices for compatibility
-      convertedRooms.forEach(room => {
+      convertedRooms.forEach((room) => {
         dispatch(createRooms(room));
         dispatch(updateRoomProperties({ id: room.id, updates: room }));
       });
 
       setAiRoomsStatus({
-        type: 'success',
-        message: `Successfully imported ${convertedRooms.length} AI rooms to the current floor.`
+        type: "success",
+        message: `Successfully imported ${convertedRooms.length} AI rooms to the current floor.`,
       });
 
       // Auto-hide success message after 3 seconds
       setTimeout(() => {
-        setAiRoomsStatus({ type: 'info', message: '' });
+        setAiRoomsStatus({ type: "info", message: "" });
       }, 3000);
-
     } catch (error) {
-      console.error('Error importing AI rooms:', error);
+      console.error("Error importing AI rooms:", error);
       setAiRoomsStatus({
-        type: 'error',
-        message: `Error importing AI rooms: ${error.message}`
+        type: "error",
+        message: `Error importing AI rooms: ${error.message}`,
       });
     } finally {
       setIsImportingAIRooms(false);
     }
-    setCreated(true)
+    setCreated(true);
   };
 
   // Function to clear AI rooms status
   const clearAIRoomsStatus = () => {
-    setAiRoomsStatus({ type: 'info', message: '' });
+    setAiRoomsStatus({ type: "info", message: "" });
   };
 
   // State for modal
@@ -476,29 +529,29 @@ const AreaMarkupSidebar = ({setCreated}) => {
         </select>
       </div>
 
-
-
       {/* AI Rooms Import Section */}
       <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-md">
         <h4 className="text-sm font-medium text-purple-800 mb-2 flex items-center gap-2">
           <span className="text-lg">🤖</span>
           AI Rooms Import
         </h4>
-        
+
         {/* AI Rooms Status */}
         {aiRoomsStatus.message && (
-          <div className={`mb-3 p-2 rounded text-xs ${
-            aiRoomsStatus.type === 'success' 
-              ? 'bg-green-100 text-green-700 border border-green-200' 
-              : aiRoomsStatus.type === 'error'
-              ? 'bg-red-100 text-red-700 border border-red-200'
-              : aiRoomsStatus.type === 'warning'
-              ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-              : 'bg-blue-100 text-blue-700 border border-blue-200'
-          }`}>
+          <div
+            className={`mb-3 p-2 rounded text-xs ${
+              aiRoomsStatus.type === "success"
+                ? "bg-green-100 text-green-700 border border-green-200"
+                : aiRoomsStatus.type === "error"
+                ? "bg-red-100 text-red-700 border border-red-200"
+                : aiRoomsStatus.type === "warning"
+                ? "bg-yellow-100 text-yellow-700 border border-yellow-200"
+                : "bg-blue-100 text-blue-700 border border-blue-200"
+            }`}
+          >
             <div className="flex items-center justify-between">
               <span>{aiRoomsStatus.message}</span>
-              <button 
+              <button
                 onClick={clearAIRoomsStatus}
                 className="text-xs opacity-70 hover:opacity-100"
               >
@@ -522,7 +575,9 @@ const AreaMarkupSidebar = ({setCreated}) => {
                 </div>
               ))}
               {aiRooms.length > 3 && (
-                <div className="text-purple-500">... and {aiRooms.length - 3} more</div>
+                <div className="text-purple-500">
+                  ... and {aiRooms.length - 3} more
+                </div>
               )}
             </div>
           )}
@@ -531,13 +586,21 @@ const AreaMarkupSidebar = ({setCreated}) => {
         {/* Import Button */}
         <button
           onClick={handleImportAIRooms}
-          disabled={!currentFloorId || !aiRooms || aiRooms.length === 0 || isImportingAIRooms}
+          disabled={
+            !currentFloorId ||
+            !aiRooms ||
+            aiRooms.length === 0 ||
+            isImportingAIRooms
+          }
           className={`w-full py-2 px-3 rounded-md text-xs font-medium transition-all duration-200 ${
-            currentFloorId && aiRooms && aiRooms.length > 0 && !isImportingAIRooms
-              ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 hover:shadow-md active:scale-95'
+            currentFloorId &&
+            aiRooms &&
+            aiRooms.length > 0 &&
+            !isImportingAIRooms
+              ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 hover:shadow-md active:scale-95"
               : isImportingAIRooms
-              ? 'bg-purple-400 text-white cursor-wait'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              ? "bg-purple-400 text-white cursor-wait"
+              : "bg-gray-200 text-gray-400 cursor-not-allowed"
           }`}
         >
           {isImportingAIRooms ? (
@@ -546,9 +609,9 @@ const AreaMarkupSidebar = ({setCreated}) => {
               Importing AI Rooms...
             </>
           ) : aiRooms && aiRooms.length > 0 ? (
-            `Import ${aiRooms.length} AI Room${aiRooms.length !== 1 ? 's' : ''}`
+            `Import ${aiRooms.length} AI Room${aiRooms.length !== 1 ? "s" : ""}`
           ) : (
-            'No AI Rooms Available'
+            "No AI Rooms Available"
           )}
         </button>
 
@@ -556,29 +619,36 @@ const AreaMarkupSidebar = ({setCreated}) => {
         <p className="text-xs text-purple-600 mt-2">
           Use AI File Processor to extract room data from PDFs, then import here
         </p>
-        
+
         {/* AI Import Status Notice */}
         {isImportingAIRooms && (
           <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-              <span>Room creation is temporarily disabled during AI import</span>
+              <span>
+                Room creation is temporarily disabled during AI import
+              </span>
             </div>
           </div>
         )}
-        
+
         {/* AI Rooms Status Notice */}
         {(() => {
-          const aiRoomsOnFloor = ROOMS?.filter(room => 
-            room.floorId === currentFloorId && room.source === 'ai'
-          ) || [];
-          
+          const aiRoomsOnFloor =
+            ROOMS?.filter(
+              (room) => room.floorId === currentFloorId && room.source === "ai"
+            ) || [];
+
           if (aiRoomsOnFloor.length > 0) {
             return (
               <div className="mt-3 p-2 bg-purple-50 border border-purple-200 rounded text-xs text-purple-700">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span>Manual room creation permanently disabled - {aiRoomsOnFloor.length} AI room{aiRoomsOnFloor.length !== 1 ? 's' : ''} exist</span>
+                  <span>
+                    Manual room creation permanently disabled -{" "}
+                    {aiRoomsOnFloor.length} AI room
+                    {aiRoomsOnFloor.length !== 1 ? "s" : ""} exist
+                  </span>
                 </div>
               </div>
             );
@@ -591,14 +661,16 @@ const AreaMarkupSidebar = ({setCreated}) => {
       <p className="text-[#333333] text-[13px] mb-[6px]">Draw Building rooms</p>
       {currentFloor ? (
         (() => {
-          const aiRoomsOnFloor = ROOMS?.filter(room => 
-            room.floorId === currentFloorId && room.source === 'ai'
-          ) || [];
-          
+          const aiRoomsOnFloor =
+            ROOMS?.filter(
+              (room) => room.floorId === currentFloorId && room.source === "ai"
+            ) || [];
+
           if (aiRoomsOnFloor.length > 0) {
             return (
               <p className="text-xs text-purple-600 mb-2">
-                🚫 Room creation disabled - {aiRoomsOnFloor.length} AI room{aiRoomsOnFloor.length !== 1 ? 's' : ''} already exist
+                🚫 Room creation disabled - {aiRoomsOnFloor.length} AI room
+                {aiRoomsOnFloor.length !== 1 ? "s" : ""} already exist
               </p>
             );
           } else if (isImportingAIRooms) {
@@ -723,7 +795,11 @@ const AreaMarkupSidebar = ({setCreated}) => {
               room.height !== undefined &&
               room.height !== null
             ) {
-              areaInMeters = calculateAreaInMeters(room.width, room.height);
+              areaInMeters = calculateAreaInMeters(
+                room.width,
+                room.height,
+                pixelsPerMeter
+              );
             } else if (room.area !== undefined && room.area !== null) {
               // Use the stored area if dimensions are not available
               areaInMeters = room.area;
@@ -735,7 +811,7 @@ const AreaMarkupSidebar = ({setCreated}) => {
               room.falseCeiling && room.falseCeiling.trim() !== "";
 
             // Check if this is an AI-generated room
-            const isAIRoom = room.source === 'ai';
+            const isAIRoom = room.source === "ai";
 
             return (
               <div
@@ -759,11 +835,13 @@ const AreaMarkupSidebar = ({setCreated}) => {
                       m²
                     </p>
                     {room.roomType && (
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        isAIRoom 
-                          ? 'bg-purple-100 text-purple-700' 
-                          : 'bg-blue-100 text-blue-700'
-                      }`}>
+                      <span
+                        className={`text-xs px-2 py-1 rounded ${
+                          isAIRoom
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
                         {room.roomType}
                       </span>
                     )}
@@ -809,7 +887,16 @@ const AreaMarkupSidebar = ({setCreated}) => {
                     {isAIRoom && room.scalingInfo && (
                       <span className="ml-2">
                         <span className="font-medium">Scaled:</span>{" "}
-                        {(room.scalingInfo.originalWidth * room.scalingInfo.scaleFactor).toFixed(2)}m × {(room.scalingInfo.originalHeight * room.scalingInfo.scaleFactor).toFixed(2)}m
+                        {(
+                          room.scalingInfo.originalWidth *
+                          room.scalingInfo.scaleFactor
+                        ).toFixed(2)}
+                        m ×{" "}
+                        {(
+                          room.scalingInfo.originalHeight *
+                          room.scalingInfo.scaleFactor
+                        ).toFixed(2)}
+                        m
                       </span>
                     )}
                   </div>

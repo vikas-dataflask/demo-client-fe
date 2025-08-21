@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Line, Rect, Text, Group } from 'react-konva';
+import { useSelector } from 'react-redux';
+import { selectPixelsPerMeter } from '../../redux/features/app/calibrationSlice';
 
 const WallRenderer = ({ 
   walls, 
@@ -11,6 +13,7 @@ const WallRenderer = ({
   showWallThickness = true 
 }) => {
   const [hoveredWallId, setHoveredWallId] = useState(null);
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter); // Get calibrated scale from Redux
 
   const handleWallMouseEnter = (wallId) => {
     setHoveredWallId(wallId);
@@ -48,8 +51,8 @@ const WallRenderer = ({
   };
 
   const getWallThickness = (wall) => {
-    // Convert mm to pixels (assuming 1mm = 1px at 100% scale)
-    return (wall.thickness / 1000) * 100; // Convert mm to meters, then to pixels
+    // Convert mm to pixels using calibrated scale
+    return (wall.thickness / 1000) * pixelsPerMeter; // Convert mm to meters, then to pixels using calibrated scale
   };
 
   const renderWall = (wall) => {

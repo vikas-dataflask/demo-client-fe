@@ -8,10 +8,13 @@ import {
 } from "../../redux/features/app/floorSlice";
 import { setRect } from "../../redux/features/app/FloorPlanSlice";
 import { convertPixelsToMeters, convertMetersToPixels } from "../../utils/unitConversion";
+import { useSelector } from "react-redux";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 
 const FreehandFloorModal = ({ floor, onClose, onSave, isNewFloor = false }) => {
   console.log('FreehandFloorModal: Component rendered with props:', { floor, onClose, onSave, isNewFloor });
   const dispatch = useDispatch();
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -29,15 +32,15 @@ const FreehandFloorModal = ({ floor, onClose, onSave, isNewFloor = false }) => {
   useEffect(() => {
     if (floor) {
       setFormData({
-        name: floor.name || `Floor ${Date.now()}`,
-        widthInMeters: floor.widthInMeters || convertPixelsToMeters(floor.width),
-        heightInMeters: floor.heightInMeters || convertPixelsToMeters(floor.height),
+        name: floor.name || "",
+        widthInMeters: floor.widthInMeters || convertPixelsToMeters(floor.width, pixelsPerMeter),
+        heightInMeters: floor.heightInMeters || convertPixelsToMeters(floor.height, pixelsPerMeter),
         floorHeight: floor.floorHeight || 3200,
         slabThickness: floor.slabThickness || 200,
         material: floor.material || "RCC",
       });
     }
-  }, [floor]);
+  }, [floor, pixelsPerMeter]);
 
   // Material options
   const materialOptions = [
@@ -57,12 +60,17 @@ const FreehandFloorModal = ({ floor, onClose, onSave, isNewFloor = false }) => {
     if (formData.name.length < 2) {
       return "Floor name must be at least 2 characters long";
     }
-    if (formData.widthInMeters <= 0) {
-      return "Width must be greater than 0";
+    
+    // Only validate dimensions for rectangle shapes
+    if (floor.shape !== 'polygon') {
+      if (formData.widthInMeters <= 0) {
+        return "Width must be greater than 0";
+      }
+      if (formData.heightInMeters <= 0) {
+        return "Height must be greater than 0";
+      }
     }
-    if (formData.heightInMeters <= 0) {
-      return "Height must be greater than 0";
-    }
+    
     return null;
   };
 
@@ -91,21 +99,30 @@ const FreehandFloorModal = ({ floor, onClose, onSave, isNewFloor = false }) => {
     setIsSaving(true);
     
     try {
-      // Convert meters back to pixels
-      const widthPx = convertMetersToPixels(formData.widthInMeters);
-      const heightPx = convertMetersToPixels(formData.heightInMeters);
-      const areaInMeters = formData.widthInMeters * formData.heightInMeters;
+      let widthPx, heightPx, areaInMeters;
+      
+      if (floor.shape === 'polygon') {
+        // For polygon shapes, use existing dimensions and area
+        widthPx = floor.width || 0;
+        heightPx = floor.height || 0;
+        areaInMeters = floor.areaSqM || 0;
+      } else {
+        // For rectangle shapes, convert meters back to pixels
+        widthPx = convertMetersToPixels(formData.widthInMeters, pixelsPerMeter);
+        heightPx = convertMetersToPixels(formData.heightInMeters, pixelsPerMeter);
+        areaInMeters = formData.widthInMeters * formData.heightInMeters;
+      }
 
       // Create complete floor data
       const completeFloorData = {
         ...floor,
         name: formData.name,
-        shape: 'rectangle', // Add missing shape field
-        description: `${formData.name} - rectangle floor`, // Add missing description field
+        shape: floor.shape || 'rectangle', // Use existing shape or default to rectangle
+        description: `${formData.name} - ${floor.shape || 'rectangle'} floor`, // Add missing description field
         width: widthPx,
         height: heightPx,
-        widthInMeters: formData.widthInMeters,
-        heightInMeters: formData.heightInMeters,
+        widthInMeters: floor.shape === 'polygon' ? undefined : formData.widthInMeters,
+        heightInMeters: floor.shape === 'polygon' ? undefined : formData.heightInMeters,
         areaSqM: areaInMeters,
         floorHeight: formData.floorHeight,
         slabThickness: formData.slabThickness,
@@ -126,11 +143,13 @@ const FreehandFloorModal = ({ floor, onClose, onSave, isNewFloor = false }) => {
       if (floor.currentFloor) {
         const updatedFloor = {
           ...floor.currentFloor,
+          name: formData.name, // Update the floor's name with the user-entered name
           shapes: [...(floor.currentFloor.shapes || []), completeFloorData],
           updatedAt: new Date().toISOString()
         };
         dispatch(updateFloor({ id: floor.currentFloor.id, updates: updatedFloor }));
         console.log('Editor: Added floor shape to current floor from freehand modal:', completeFloorData);
+        console.log('Editor: Updated floor name to:', formData.name);
       }
       
       // Set the created floor as selected object
@@ -171,7 +190,9 @@ const FreehandFloorModal = ({ floor, onClose, onSave, isNewFloor = false }) => {
   };
 
   // Calculate floor area
-  const floorArea = formData.widthInMeters * formData.heightInMeters;
+  const floorArea = floor.shape === 'polygon' 
+    ? (floor.areaSqM || 0) 
+    : formData.widthInMeters * formData.heightInMeters;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -180,7 +201,7 @@ const FreehandFloorModal = ({ floor, onClose, onSave, isNewFloor = false }) => {
         {console.log('FreehandFloorModal: Rendering modal content')}
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-900">
-            Finalize Floor Dimensions
+            {floor.shape === 'polygon' ? 'Finalize Polygon Floor' : 'Finalize Floor Dimensions'}
           </h2>
           <button
             onClick={handleCancel}
@@ -211,36 +232,53 @@ const FreehandFloorModal = ({ floor, onClose, onSave, isNewFloor = false }) => {
           </div>
 
           {/* Floor Dimensions (Editable) */}
-          <div className="grid grid-cols-2 gap-4">
+          {floor.shape === 'polygon' ? (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Width (m) *
+                Polygon Area (m²)
               </label>
               <input
-                type="number"
-                value={formData.widthInMeters}
-                onChange={(e) => handleInputChange('widthInMeters', parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                step="0.1"
-                min="0.1"
-                required
+                type="text"
+                value={floorArea.toFixed(2)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                readOnly
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Area calculated from {floor.points?.length || 0} polygon points
+              </p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Height (m) *
-              </label>
-              <input
-                type="number"
-                value={formData.heightInMeters}
-                onChange={(e) => handleInputChange('heightInMeters', parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                step="0.1"
-                min="0.1"
-                required
-              />
-            </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Width (m) *
+                </label>
+                <input
+                  type="number"
+                  value={formData.widthInMeters}
+                  onChange={(e) => handleInputChange('widthInMeters', parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  step="0.1"
+                    min="0.1"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Height (m) *
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.heightInMeters}
+                    onChange={(e) => handleInputChange('heightInMeters', parseFloat(e.target.value) || 0)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    step="0.1"
+                    min="0.1"
+                    required
+                  />
+                </div>
+              </div>
+            )}
 
           {/* Floor Area (Calculated) */}
           <div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 
-const CreateFloorModal = ({ isOpen, onClose, onCreateFloor }) => {
+const CreateFloorModal = ({ isOpen, onClose, onCreateFloor, pixelsPerMeter = 100 }) => {
   const [dimensions, setDimensions] = useState({
     length: '',
     width: '',
@@ -23,12 +23,12 @@ const CreateFloorModal = ({ isOpen, onClose, onCreateFloor }) => {
         shape: 'rectangle',
         x: x || 0,
         y: y || 0,
-        width: length * 100, // Convert meters to pixels (100 pixels per meter)
-        height: width * 100,
+        width: length * pixelsPerMeter, // Convert meters to pixels using calibrated scale
+        height: width * pixelsPerMeter,
         areaSqM: length * width,
         source: 'manual',
         id: 'floor-1',
-        name: 'Ground Floor',
+        name: '',
         floorHeight: 3.2,
         slabThickness: 200,
         material: 'RCC'

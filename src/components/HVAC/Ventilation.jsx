@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 import { ReloadIcon } from "../../icons/ReloadIcon";
 import {
   useSaveVentilationDataMutation,
@@ -12,6 +13,7 @@ import FloorPreview from "../shared/FloorPreview";
 const VentilationForm = () => {
   const { projectId } = useParams();
   const rooms = useSelector((state) => state.newRooms?.rooms || []);
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter);
 
   const [formData, setFormData] = useState({
     room: "",
@@ -60,9 +62,8 @@ const VentilationForm = () => {
     const storeRoom = rooms.find((r) => r.name === selectedRoom);
 
     if (storeRoom) {
-      // Convert room dimensions from pixels to meters (assuming 100px = 1m like in other components)
-      const GRID_SIZE = 100;
-      const convertPixelsToMeters = (pixels) => pixels / GRID_SIZE;
+      // Convert room dimensions from pixels to meters using calibrated scale
+      const convertPixelsToMeters = (pixels) => pixels / pixelsPerMeter;
       
       const roomArea = storeRoom.width && storeRoom.height 
         ? convertPixelsToMeters(storeRoom.width) * convertPixelsToMeters(storeRoom.height)
@@ -168,8 +169,7 @@ const VentilationForm = () => {
                   <option value="">Select Room</option>
                   {(() => {
                     // Remove duplicates and show room dimensions
-                    const GRID_SIZE = 100;
-                    const convertPixelsToMeters = (pixels) => pixels / GRID_SIZE;
+                    const convertPixelsToMeters = (pixels) => pixels / pixelsPerMeter;
                     
                     const uniqueRooms = rooms.filter(
                       (room, index, self) =>

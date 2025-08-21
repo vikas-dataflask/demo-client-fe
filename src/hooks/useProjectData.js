@@ -276,7 +276,7 @@ export const useProjectData = (projectId) => {
         
         return {
           id: floor._id || floor.id,
-          name: floor.name || 'Unnamed Floor',
+          name: floor.name || '',
           level: floor.level || 0,
           height: floor.height || 3200,
           shapes: shapes, // Use converted shapes

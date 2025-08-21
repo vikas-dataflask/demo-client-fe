@@ -28,6 +28,8 @@ import {
   setFloor,
   clearFloor,
   updateFloor,
+  addFloor,
+  setCurrentFloorId,
 } from "../../../redux/features/app/floorSlice";
 import { Eye, EyeOff } from "lucide-react";
 import {
@@ -39,6 +41,7 @@ import {
   formatMeasurement,
   convertPixelsToMeters,
 } from "../../../utils/unitConversion";
+import { selectPixelsPerMeter } from "../../../redux/features/app/calibrationSlice";
 import CreateFloorModal from "./CreateFloorModal";
 import FloorManagement from "./FloorManagement";
 
@@ -65,6 +68,7 @@ const FloorEditorSidebar = ({
   const currentFloor = floors.find((f) => f.id === currentFloorId);
   const [selectedFile, setSelectedFile] = useState(null);
   const dispatch = useDispatch();
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter);
 
   // Debug logging
   console.log("FloorEditorSidebar: currentFloor", currentFloor);
@@ -186,29 +190,20 @@ const FloorEditorSidebar = ({
 
   // Floor creation functions
   const handleDrawFloor = () => {
-    if (!currentFloorId) {
-      alert("Please select a floor first before creating floor shapes.");
-      return;
-    }
+    // Remove the currentFloorId check - allow floor creation from the start
     // Default mode: rectangle drawing is auto-active, no need to set drawing mode
     dispatch(setFloorMode("rectangle"));
     dispatch(setIsDrawingFloor(false)); // Let it auto-activate on mouse down
   };
 
   const handlePolygonMode = () => {
-    if (!currentFloorId) {
-      alert("Please select a floor first before creating floor shapes.");
-      return;
-    }
+    // Remove the currentFloorId check - allow floor creation from the start
     dispatch(setFloorMode("polygon"));
     dispatch(setIsDrawingFloor(true));
   };
 
   const handleManualEntry = () => {
-    if (!currentFloorId) {
-      alert("Please select a floor first before creating floor shapes.");
-      return;
-    }
+    // Remove the currentFloorId check - allow floor creation from the start
     // This will trigger the modal in the Editor component
     dispatch(setFloorMode("manual"));
     dispatch(setIsDrawingFloor(false));
@@ -284,11 +279,18 @@ const FloorEditorSidebar = ({
                 Floor Plan Updated
               </div>
             </div>
-          ) : (
+          ) : currentFloorId ? (
             <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
               <LaptopMinimal className="text-amber-500 h-4 w-4" />
               <div className="text-sm font-medium text-amber-700">
-                Waiting for Input
+                Floor Selected - Ready for Editing
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              <Plus className="text-blue-500 h-4 w-4" />
+              <div className="text-sm font-medium text-blue-700">
+                No Floor Selected - Use Creation Tools
               </div>
             </div>
           )}
@@ -403,11 +405,11 @@ const FloorEditorSidebar = ({
             <div className="flex items-center gap-2 mb-2">
               <Square className="h-4 w-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-800">
-                Auto-Active Floor Drawing
+                Floor Creation Tools Active
               </span>
             </div>
             <p className="text-xs text-blue-700">
-              Click and drag anywhere on the canvas to create a new floor. No button click required.
+              All floor creation tools are now active from the start. You can create floors even when none exist.
             </p>
           </div>
 
@@ -416,11 +418,8 @@ const FloorEditorSidebar = ({
             {/* Polygon Mode */}
             <button
               onClick={handlePolygonMode}
-              disabled={!currentFloorId}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 text-sm w-full ${
-                !currentFloorId
-                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                  : isDrawingFloor && floorMode === "polygon"
+                isDrawingFloor && floorMode === "polygon"
                   ? "bg-purple-100 hover:bg-purple-200 text-purple-700 border-purple-300 shadow-sm"
                   : "bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 hover:shadow-sm"
               }`}
@@ -428,16 +427,25 @@ const FloorEditorSidebar = ({
               <Hexagon className="h-4 w-4" />
               <span>Polygon Mode</span>
             </button>
+            
+            {/* Polygon Mode Instructions */}
+            {isDrawingFloor && floorMode === "polygon" && (
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs text-purple-700">
+                <div className="font-medium mb-1">Polygon Drawing Instructions:</div>
+                <ul className="space-y-1">
+                  <li>• Click anywhere on the canvas to add points</li>
+                  <li>• Live preview lines will show as you move the mouse</li>
+                  <li>• Double-click when you have 3+ points to finish</li>
+                  <li>• Last point will merge with closest existing point if nearby</li>
+                  <li>• Use the Cancel button to start over</li>
+                </ul>
+              </div>
+            )}
 
             {/* Manual Entry */}
             <button
               onClick={handleManualEntry}
-              disabled={!currentFloorId}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 text-sm w-full ${
-                !currentFloorId
-                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                  : "bg-green-50 hover:bg-green-100 text-green-700 border-green-200 hover:shadow-sm"
-              }`}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 text-sm w-full bg-green-50 hover:bg-green-100 text-green-700 border-green-200 hover:shadow-sm"
             >
               <Ruler className="h-4 w-4" />
               <span>Enter Floor Dimensions</span>
@@ -446,10 +454,6 @@ const FloorEditorSidebar = ({
             {/* Test Floor */}
             <button
               onClick={() => {
-                if (!currentFloorId) {
-                  alert("Please select a floor first before creating floor shapes.");
-                  return;
-                }
                 const testFloorShape = {
                   id: `shape-${Date.now()}`,
                   name: "Test Floor",
@@ -470,7 +474,7 @@ const FloorEditorSidebar = ({
                 };
                 console.log("FloorEditorSidebar: Creating test floor shape", testFloorShape);
 
-                // Add shape to current floor
+                // Add shape to current floor if it exists, otherwise create a new floor
                 if (currentFloor) {
                   const updatedFloor = {
                     ...currentFloor,
@@ -480,6 +484,24 @@ const FloorEditorSidebar = ({
                   dispatch(
                     updateFloor({ id: currentFloor.id, updates: updatedFloor })
                   );
+                } else {
+                  // Create a new floor if none exists
+                  const newFloor = {
+                    id: `floor-${Date.now()}`,
+                    name: "Ground Floor",
+                    level: 0,
+                    height: 3200,
+                    shapes: [testFloorShape],
+                    canvasSettings: {
+                      scale: 1,
+                      position: { x: 0, y: 0 },
+                      grid: true
+                    },
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+                  dispatch(addFloor(newFloor));
+                  dispatch(setCurrentFloorId(newFloor.id));
                 }
 
                 // Trigger properties panel opening
@@ -488,12 +510,7 @@ const FloorEditorSidebar = ({
                   onFloorCreated(testFloorShape);
                 }
               }}
-              disabled={!currentFloorId}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 text-sm w-full ${
-                !currentFloorId
-                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                  : "bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200 hover:shadow-sm"
-              }`}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 text-sm w-full bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200 hover:shadow-sm"
             >
               <Square className="h-4 w-4" />
               <span>Create Test Floor</span>
@@ -577,7 +594,7 @@ const FloorEditorSidebar = ({
               </div>
               <input
                 type="text"
-                value={currentFloor.name || "Ground Floor"}
+                value={currentFloor.name || ""}
                 onChange={(e) => {
                   dispatch(
                     updateFloor({
@@ -609,11 +626,11 @@ const FloorEditorSidebar = ({
                       min="0.01"
                       value={
                         currentFloor.shapes[0]?.widthInMeters || 
-                        (currentFloor.shapes[0]?.width ? (currentFloor.shapes[0].width / 100).toFixed(2) : "0.00")
+                        (currentFloor.shapes[0]?.width ? (currentFloor.shapes[0].width / pixelsPerMeter).toFixed(2) : "0.00")
                       }
                       onChange={(e) => {
                         const widthInMeters = parseFloat(e.target.value) || 0;
-                        const widthInPixels = widthInMeters * 100; // Convert to pixels (100px = 1m)
+                        const widthInPixels = widthInMeters * pixelsPerMeter; // Convert to pixels using calibrated scale
                         
                         // Update the first shape's dimensions
                         const updatedShapes = currentFloor.shapes.map((shape, index) => 
@@ -621,7 +638,7 @@ const FloorEditorSidebar = ({
                             ...shape,
                             width: widthInPixels,
                             widthInMeters: widthInMeters,
-                            areaSqM: widthInMeters * (shape.heightInMeters || shape.height / 100)
+                            areaSqM: widthInMeters * (shape.heightInMeters || shape.height / pixelsPerMeter)
                           } : shape
                         );
                         
@@ -654,11 +671,11 @@ const FloorEditorSidebar = ({
                       min="0.01"
                       value={
                         currentFloor.shapes[0]?.heightInMeters || 
-                        (currentFloor.shapes[0]?.height ? (currentFloor.shapes[0].height / 100).toFixed(2) : "0.00")
+                        (currentFloor.shapes[0]?.height ? (currentFloor.shapes[0].height / pixelsPerMeter).toFixed(2) : "0.00")
                       }
                       onChange={(e) => {
                         const heightInMeters = parseFloat(e.target.value) || 0;
-                        const heightInPixels = heightInMeters * 100; // Convert to pixels (100px = 1m)
+                        const heightInPixels = heightInMeters * pixelsPerMeter; // Convert to pixels using calibrated scale
                         
                         // Update the first shape's dimensions
                         const updatedShapes = currentFloor.shapes.map((shape, index) => 
@@ -666,7 +683,7 @@ const FloorEditorSidebar = ({
                             ...shape,
                             height: heightInPixels,
                             heightInMeters: heightInMeters,
-                            areaSqM: (shape.widthInMeters || shape.width / 100) * heightInMeters
+                            areaSqM: (shape.widthInMeters || shape.width / pixelsPerMeter) * heightInMeters
                           } : shape
                         );
                         
@@ -698,8 +715,8 @@ const FloorEditorSidebar = ({
                       
                       const totalArea = currentFloor.shapes.reduce((total, shape) => {
                         if (shape.shape === 'rectangle') {
-                          const widthInM = shape.widthInMeters || (shape.width / 100);
-                          const heightInM = shape.heightInMeters || (shape.height / 100);
+                          const widthInM = shape.widthInMeters || (shape.width / pixelsPerMeter);
+                          const heightInM = shape.heightInMeters || (shape.height / pixelsPerMeter);
                           return total + (widthInM * heightInM);
                         } else if (shape.shape === 'polygon') {
                           return total + (shape.areaSqM || 0);
@@ -815,8 +832,8 @@ const FloorEditorSidebar = ({
                   
                   const totalArea = currentFloor.shapes.reduce((total, shape) => {
                     if (shape.shape === 'rectangle') {
-                      const widthInM = shape.widthInMeters || (shape.width / 100);
-                      const heightInM = shape.heightInMeters || (shape.height / 100);
+                      const widthInM = shape.widthInMeters || (shape.width / pixelsPerMeter);
+                      const heightInM = shape.heightInMeters || (shape.height / pixelsPerMeter);
                       return total + (widthInM * heightInM);
                     } else if (shape.shape === 'polygon') {
                       return total + (shape.areaSqM || 0);
@@ -885,11 +902,12 @@ const FloorEditorSidebar = ({
       </div>
 
       {/* Create Floor Modal */}
-      <CreateFloorModal
-        isOpen={showCreateFloorModal}
-        onClose={() => setShowCreateFloorModal(false)}
-        onCreateFloor={handleCreateFloor}
-      />
+              <CreateFloorModal
+          isOpen={showCreateFloorModal}
+          onClose={() => setShowCreateFloorModal(false)}
+          onCreateFloor={handleCreateFloor}
+          pixelsPerMeter={pixelsPerMeter}
+        />
     </div>
   );
 };

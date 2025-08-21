@@ -28,7 +28,7 @@ export const floorRoomApi = createApi({
     // Floor endpoints
     getFloorsByProject: builder.query({
       query: (projectId) => {
-        console.log('🔍 API: Fetching floors for projectId---------------------:', _id);
+        console.log('🔍 API: Fetching floors for projectId---------------------:', projectId);
         return `/floors?projectId=${projectId}`;
       },
       transformResponse: (response, meta, arg) => {

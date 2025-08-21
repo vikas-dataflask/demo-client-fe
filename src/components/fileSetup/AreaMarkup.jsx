@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Layer, Rect, Line, Text, Image, Group, Circle } from "react-konva";
 import AreaMarkupSidebar from "./AreaMarkupSideBar";
@@ -39,14 +38,19 @@ import {
   convertRoomFromBackendFormat,
 } from "../../utils/floorRoomApi";
 import { getRoomsByFloor } from "../../utils/floorRoomApi";
-import { createRooms, updateRoomPosition as updateNewRoomPosition, clearRooms } from "../../redux/features/app/newRoomSlice";
+import {
+  createRooms,
+  updateRoomPosition as updateNewRoomPosition,
+  clearRooms,
+} from "../../redux/features/app/newRoomSlice";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 
 const AreaMarkup = () => {
   const { projectId } = useParams();
   const dispatch = useDispatch();
   const { data, isLoading, isError } = useGetProjectListByIdQuery(projectId);
 
-  const [created,setCreated]= useState(false)
+  const [created, setCreated] = useState(false);
 
   // Room drawing state
   const [isDrawingRoom, setIsDrawingRoom] = useState(false);
@@ -72,64 +76,71 @@ const AreaMarkup = () => {
   const currentFloor = floors.find((f) => f.id === currentFloorId);
   const selectedScale = useSelector((state) => state.project.scale);
   const walls = useSelector((state) => state.walls.walls);
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter); // Get calibrated scale from Redux
 
   // Get PNG data from Redux state (same as Editor.jsx)
   const dxfData = useSelector((state) => state.floor.floor_dxf) || {};
 
   // Handle PNG image from PDF conversion (same logic as Editor.jsx)
   useEffect(() => {
-    console.log('🎯 AreaMarkup: PNG image effect triggered', {
+    console.log("🎯 AreaMarkup: PNG image effect triggered", {
       hasDxfData: !!dxfData,
       source: dxfData?.source,
       hasPng: !!dxfData?.png,
-      pngType: dxfData?.png ? typeof dxfData.png : 'none'
+      pngType: dxfData?.png ? typeof dxfData.png : "none",
     });
-    
+
     // Clear any previous errors
     setPngError(null);
-    
+
     if (dxfData?.source === "pdf" && dxfData?.png) {
-      console.log('🎯 AreaMarkup: Processing PNG data for PDF source');
-      
+      console.log("🎯 AreaMarkup: Processing PNG data for PDF source");
+
       // Convert base64 or buffer to image
       const img = new window.Image();
-      
+
       img.onload = () => {
-        console.log('🎯 AreaMarkup: PNG image loaded successfully', {
+        console.log("🎯 AreaMarkup: PNG image loaded successfully", {
           width: img.width,
-          height: img.height
+          height: img.height,
         });
         setPngDimensions({
           width: img.width,
-          height: img.height
+          height: img.height,
         });
         setPngImage(img);
       };
-      
+
       img.onerror = (error) => {
-        console.error('🎯 AreaMarkup: PNG image failed to load:', error);
-        setPngError('Failed to load PNG image');
+        console.error("🎯 AreaMarkup: PNG image failed to load:", error);
+        setPngError("Failed to load PNG image");
         setPngImage(null);
         setPngDimensions({ width: 0, height: 0 });
       };
-      
+
       // Handle different PNG data formats
-      if (typeof dxfData.png === 'string') {
-        console.log('🎯 AreaMarkup: PNG is base64 string, length:', dxfData.png.length);
+      if (typeof dxfData.png === "string") {
+        console.log(
+          "🎯 AreaMarkup: PNG is base64 string, length:",
+          dxfData.png.length
+        );
         // If it's a base64 string
         img.src = dxfData.png;
       } else if (dxfData.png instanceof ArrayBuffer) {
-        console.log('🎯 AreaMarkup: PNG is ArrayBuffer, size:', dxfData.png.byteLength);
+        console.log(
+          "🎯 AreaMarkup: PNG is ArrayBuffer, size:",
+          dxfData.png.byteLength
+        );
         // If it's a buffer, convert to blob URL
-        const blob = new Blob([dxfData.png], { type: 'image/png' });
+        const blob = new Blob([dxfData.png], { type: "image/png" });
         const url = URL.createObjectURL(blob);
         img.src = url;
-        
+
         // Cleanup function
         return () => URL.revokeObjectURL(url);
       }
     } else {
-      console.log('🎯 AreaMarkup: No PNG data available, clearing image state');
+      console.log("🎯 AreaMarkup: No PNG data available, clearing image state");
       setPngImage(null);
       setPngDimensions({ width: 0, height: 0 });
     }
@@ -137,11 +148,11 @@ const AreaMarkup = () => {
 
   // Debug logging for PNG state
   useEffect(() => {
-    console.log('🎯 AreaMarkup: PNG state updated', {
+    console.log("🎯 AreaMarkup: PNG state updated", {
       hasPngImage: !!pngImage,
       pngDimensions,
       hasDxfData: !!dxfData,
-      source: dxfData?.source
+      source: dxfData?.source,
     });
   }, [pngImage, pngDimensions, dxfData]);
 
@@ -228,11 +239,11 @@ const AreaMarkup = () => {
 
           // Set rooms from backend (this replaces all existing rooms)
           dispatch(setRooms(frontendRooms));
-          
+
           // Also update the newRooms slice to keep them in sync
           // Clear existing rooms first to avoid duplicates
           dispatch(clearRooms());
-          frontendRooms.forEach(room => {
+          frontendRooms.forEach((room) => {
             dispatch(createRooms(room));
           });
         } catch (error) {
@@ -470,7 +481,7 @@ const AreaMarkup = () => {
     // Store initial position for reference
     e.target.setAttrs({
       originalX: room.x,
-      originalY: room.y
+      originalY: room.y,
     });
   };
 
@@ -478,30 +489,36 @@ const AreaMarkup = () => {
     // Get the new position from the Konva object
     const newX = e.target.x();
     const newY = e.target.y();
-    
-    console.log("Room drag move:", { roomId: room.id, newX, newY, roomX: room.x, roomY: room.y });
-    
+
+    console.log("Room drag move:", {
+      roomId: room.id,
+      newX,
+      newY,
+      roomX: room.x,
+      roomY: room.y,
+    });
+
     // Update the room object locally for immediate UI update
     room.x = newX;
     room.y = newY;
-    
+
     // Force a re-render by updating the room in Redux immediately
     dispatch(updateRoomPosition({ id: room.id, x: newX, y: newY }));
     dispatch(updateNewRoomPosition({ id: room.id, x: newX, y: newY }));
-    
+
     // Force a re-render by incrementing the counter
-    setDragUpdateCounter(prev => prev + 1);
+    setDragUpdateCounter((prev) => prev + 1);
   };
 
   const handleRoomDragEnd = (e, room) => {
     // Get the new position from the Konva object
     const newX = e.target.x();
     const newY = e.target.y();
-    
-    console.log("Room drag end:", { 
-      roomId: room.id, 
-      from: { x: room.x, y: room.y }, 
-      to: { x: newX, y: newY } 
+
+    console.log("Room drag end:", {
+      roomId: room.id,
+      from: { x: room.x, y: room.y },
+      to: { x: newX, y: newY },
     });
 
     // Update room position in both Redux slices
@@ -520,35 +537,41 @@ const AreaMarkup = () => {
   return (
     <div className="flex">
       <div className="w-[340px] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
-        <AreaMarkupSidebar setCreated={setCreated}/>
-        
+        <AreaMarkupSidebar setCreated={setCreated} />
+
         {/* PNG Status Indicator */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
           <h4 className="font-medium text-gray-700 mb-2">PNG Image Status</h4>
           {dxfData?.source === "pdf" ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  pngError ? 'bg-red-500' : 
-                  pngImage ? 'bg-green-500' : 
-                  'bg-yellow-500'
-                }`}></div>
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    pngError
+                      ? "bg-red-500"
+                      : pngImage
+                      ? "bg-green-500"
+                      : "bg-yellow-500"
+                  }`}
+                ></div>
                 <span className="text-xs">
-                  {pngError ? 'PNG Error' : 
-                   pngImage ? 'PNG Loaded' : 
-                   'PNG Loading...'}
+                  {pngError
+                    ? "PNG Error"
+                    : pngImage
+                    ? "PNG Loaded"
+                    : "PNG Loading..."}
                 </span>
               </div>
               {pngImage && (
                 <div className="text-xs text-gray-600">
-                  <div>Dimensions: {pngDimensions.width} × {pngDimensions.height}</div>
+                  <div>
+                    Dimensions: {pngDimensions.width} × {pngDimensions.height}
+                  </div>
                   <div>Source: PDF Conversion</div>
                 </div>
               )}
               {pngError && (
-                <div className="text-xs text-red-600">
-                  {pngError}
-                </div>
+                <div className="text-xs text-red-600">{pngError}</div>
               )}
               {dxfData?.png && !pngImage && !pngError && (
                 <div className="text-xs text-orange-600">
@@ -589,7 +612,8 @@ const AreaMarkup = () => {
               <p className="text-gray-600 mb-4">
                 {pngImage ? (
                   <>
-                    PNG background is visible, but please create a floor in the Floor Editor page first to start marking up areas.
+                    PNG background is visible, but please create a floor in the
+                    Floor Editor page first to start marking up areas.
                   </>
                 ) : (
                   "Please create a floor in the Floor Editor page first."
@@ -619,13 +643,13 @@ const AreaMarkup = () => {
                 </p>
               </div>
             )}
-            
+
             <CanvasWrapper
               // onMouseDown={handleMouseDown}
               // onMouseMove={handleMouseMove}
               // onMouseUp={handleMouseUp}
               onMouseDown={created ? undefined : handleMouseDown}
-              onMouseMove={created ? undefined : handleMouseMove }
+              onMouseMove={created ? undefined : handleMouseMove}
               onMouseUp={created ? undefined : handleMouseUp}
             >
               <Layer>
@@ -642,7 +666,7 @@ const AreaMarkup = () => {
                       opacity={0.7}
                       listening={false}
                     />
-                    
+
                     {/* PNG bounds indicator for debugging */}
                     <Rect
                       x={(10000 - pngDimensions.width) / 2 - 5}
@@ -654,7 +678,7 @@ const AreaMarkup = () => {
                       strokeWidth={2}
                       cornerRadius={3}
                       listening={false}
-                      draggable={created} 
+                      draggable={created}
                     />
                   </Group>
                 )}
@@ -684,7 +708,7 @@ const AreaMarkup = () => {
                           stroke="black"
                           strokeWidth={2}
                           listening={false}
-                          draggable={created} 
+                          draggable={created}
                         />
                       );
                     } else if (shape.shape === "polygon" && shape.points) {
@@ -722,12 +746,18 @@ const AreaMarkup = () => {
                   const centerY = room.y + room.height / 2;
                   const areaInMeters = calculateAreaInMeters(
                     room.width,
-                    room.height
+                    room.height,
+                    pixelsPerMeter
                   );
 
                   // Debug logging for room positions during render
                   if (dragUpdateCounter > 0) {
-                    console.log(`Rendering room ${room.id}:`, { x: room.x, y: room.y, centerX, centerY });
+                    console.log(`Rendering room ${room.id}:`, {
+                      x: room.x,
+                      y: room.y,
+                      centerX,
+                      centerY,
+                    });
                   }
 
                   // Determine fill color based on false ceiling status
@@ -737,11 +767,11 @@ const AreaMarkup = () => {
                     ? "rgba(255, 0, 255, 0.5)"
                     : "rgba(100, 200, 100, 0.5)"; // Magenta for false ceiling, green for normal
 
-
-
                   return (
                     <React.Fragment
-                      key={`${room.id || room._id || `room-${index}`}-${room.x}-${room.y}-${dragUpdateCounter}`}
+                      key={`${room.id || room._id || `room-${index}`}-${
+                        room.x
+                      }-${room.y}-${dragUpdateCounter}`}
                     >
                       <Rect
                         {...room}
@@ -751,7 +781,7 @@ const AreaMarkup = () => {
                         listening={true}
                         onClick={() => handleRoomClick(room)}
                         onTap={() => handleRoomClick(room)}
-                        draggable={created} 
+                        draggable={created}
                         onDragStart={(e) => handleRoomDragStart(e, room)}
                         onDragMove={(e) => handleRoomDragMove(e, room)}
                         onDragEnd={(e) => handleRoomDragEnd(e, room)}
@@ -786,13 +816,11 @@ const AreaMarkup = () => {
                     stroke="green"
                     strokeWidth={2}
                     dash={[5, 5]}
-                    draggable={created} 
+                    draggable={created}
                   />
                 )}
               </Layer>
             </CanvasWrapper>
-
-
           </div>
         )}
 

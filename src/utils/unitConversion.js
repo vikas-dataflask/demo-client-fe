@@ -23,14 +23,34 @@ export const convertDxfUnitsToMeters = (value, dxfUnit = 'METERS') => {
   return value * conversionFactor;
 };
 
-// Helper function to convert meters to pixels
-export const convertMetersToPixels = (meters) => {
-  return meters * UNIT_CONVERSION_CONSTANTS.PIXELS_PER_METER;
+// Helper function to convert meters to pixels using calibrated scale
+export const convertMetersToPixels = (meters, pixelsPerMeter = UNIT_CONVERSION_CONSTANTS.PIXELS_PER_METER) => {
+  return meters * pixelsPerMeter;
 };
 
-// Helper function to convert pixels to meters
-export const convertPixelsToMeters = (pixels) => {
-  return pixels / UNIT_CONVERSION_CONSTANTS.PIXELS_PER_METER;
+// Helper function to convert pixels to meters using calibrated scale
+export const convertPixelsToMeters = (pixels, pixelsPerMeter = UNIT_CONVERSION_CONSTANTS.PIXELS_PER_METER) => {
+  return pixels / pixelsPerMeter;
+};
+
+// Helper function to get calibrated pixels per meter from Redux store
+export const getCalibratedPixelsPerMeter = (store) => {
+  if (store && store.getState && store.getState().calibration) {
+    return store.getState().calibration.pixelsPerMeter || UNIT_CONVERSION_CONSTANTS.PIXELS_PER_METER;
+  }
+  return UNIT_CONVERSION_CONSTANTS.PIXELS_PER_METER;
+};
+
+// Helper function to convert meters to pixels using current calibrated scale
+export const convertMetersToPixelsCalibrated = (meters, store) => {
+  const pixelsPerMeter = getCalibratedPixelsPerMeter(store);
+  return convertMetersToPixels(meters, pixelsPerMeter);
+};
+
+// Helper function to convert pixels to meters using current calibrated scale
+export const convertPixelsToMetersCalibrated = (pixels, store) => {
+  const pixelsPerMeter = getCalibratedPixelsPerMeter(store);
+  return convertPixelsToMeters(pixels, pixelsPerMeter);
 };
 
 // Helper function to convert between different display units
