@@ -84,7 +84,7 @@ export const latestAdminApi = createApi({
     }),
 
     getFloorsByBuildingType: builder.query({
-      query: (buildingTypeId) => `/api/floors?buildingType=${buildingTypeId}`,
+      query: (buildingTypeId) => `/api/floors?building_type_id=${buildingTypeId}`,
       providesTags: ["Floor"],
     }),
 

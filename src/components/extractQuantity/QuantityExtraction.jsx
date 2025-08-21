@@ -26,10 +26,18 @@ const serviceLayers = {
   ],
   PLUMBING: ["BUTTERFLY VALVE", "NON RETURN VALVE"],
 };
-// Build list of options: “All” + each service
+
+// Build list of options: "All" + each service
 const serviceKeys = ["All", ...Object.keys(serviceLayers)];
-// Flatten for “All”
+// Flatten for "All"
 const allBases = Array.from(new Set(Object.values(serviceLayers).flat()));
+
+// Debug logging for service layers and bases
+console.log("=== Service Layers Configuration ===");
+console.log("serviceLayers:", serviceLayers);
+console.log("serviceKeys:", serviceKeys);
+console.log("allBases:", allBases);
+console.log("===================================");
 
 // Color map for table headers
 const colorMap = {
@@ -113,13 +121,22 @@ export default function QuantityExtraction() {
   // Helper to get base name from full layer name
   const getBaseNameFromLayer = useCallback((fullLayerName, currentService) => {
     if (!fullLayerName) return null;
+    
+    console.log(`getBaseNameFromLayer: "${fullLayerName}" with service "${currentService}"`);
+    
     const basesToCheck =
       currentService === "All" ? allBases : serviceLayers[currentService] || [];
+    
+    console.log("Bases to check:", basesToCheck);
+    
     for (const base of basesToCheck) {
       if (fullLayerName.toUpperCase().includes(base.toUpperCase())) {
+        console.log(`Found match: "${fullLayerName}" matches base "${base}"`);
         return base;
       }
     }
+    
+    console.log(`No match found for: "${fullLayerName}"`);
     return null;
   }, []);
 
@@ -152,41 +169,48 @@ export default function QuantityExtraction() {
     (data) => {
       if (!data) return [];
 
+      console.log("=== parseAndMapInitialData Debug ===");
+      console.log("Input data:", data);
+      console.log("Data type:", Array.isArray(data) ? "Array" : "Object");
+
       let processedItems = [];
 
       // Case 1: Data is `extracted_quantities_data` (array of detailed objects)
       if (Array.isArray(data)) {
-        processedItems = data.map((item) => ({
-          id:
-            item.id ||
-            `${item.layerName || item.layer}-${Math.random()
-              .toString(36)
-              .substr(2, 9)}`, // Ensure unique ID
-          layer: item.layerName || item.layer, // Use layerName for display/logic, fall back to layer
-          qty: item.quantity || item.qty, // Prioritize 'quantity' from saved, then 'qty' from DXF parse
-          base:
-            item.base ||
-            getBaseNameFromLayer(item.layerName || item.layer, "All"), // Ensure base is set
-          description: item.description || "",
-          remark: item.remark || "",
-          attributes: {
-            // Ensure attributes are flat key:value, merge existing or default
-            ...getAttributesForLayer(
-              item.layerName || item.layer,
-              item.base ||
-                getBaseNameFromLayer(item.layerName || item.layer, "All")
-            ), // Default attributes
-            ...item.attributes, // Override with saved attributes
-            quantity:
-              item.quantity !== undefined
-                ? item.quantity
-                : item.qty !== undefined
-                ? item.qty
-                : "", // Ensure quantity is explicit in attributes
-            layerName: item.layerName || item.layer, // Ensure layerName is explicit in attributes
-          },
-          entities: item.entities || [], // Keep entities if they exist (from DXF parsing)
-        }));
+        console.log("Processing extracted_quantities_data array");
+        processedItems = data.map((item) => {
+          const base = item.base || getBaseNameFromLayer(item.layerName || item.layer, "All");
+          console.log(`Item: ${item.layerName || item.layer} -> Base: ${base}`);
+          
+          return {
+            id:
+              item.id ||
+              `${item.layerName || item.layer}-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`, // Ensure unique ID
+            layer: item.layerName || item.layer, // Use layerName for display/logic, fall back to layer
+            qty: item.quantity || item.qty, // Prioritize 'quantity' from saved, then 'qty' from DXF parse
+            base: base, // Ensure base is set
+            description: item.description || "",
+            remark: item.remark || "",
+            attributes: {
+              // Ensure attributes are flat key:value, merge existing or default
+              ...getAttributesForLayer(
+                item.layerName || item.layer,
+                base
+              ), // Default attributes
+              ...item.attributes, // Override with saved attributes
+              quantity:
+                item.quantity !== undefined
+                  ? item.quantity
+                  : item.qty !== undefined
+                  ? item.qty
+                  : "", // Ensure quantity is explicit in attributes
+              layerName: item.layerName || item.layer, // Ensure layerName is explicit in attributes
+            },
+            entities: item.entities || [], // Keep entities if they exist (from DXF parsing)
+          };
+        });
       }
       // Case 2: Data is `grouped_layers` (object mapping base names to objects of layer counts)
       else if (
@@ -194,6 +218,7 @@ export default function QuantityExtraction() {
         typeof data === "object" &&
         Object.keys(data).length > 0
       ) {
+        console.log("Processing grouped_layers object");
         for (const baseName in data) {
           if (data.hasOwnProperty(baseName)) {
             const layersInBase = data[baseName]; // e.g., {"CEILING SUSPENDED UNIT 2.5 TR": 2, "CEILING SUSPENDED UNIT 1.5 TR": 2}
@@ -201,6 +226,8 @@ export default function QuantityExtraction() {
               if (layersInBase.hasOwnProperty(layerNameInGrouped)) {
                 const quantity = layersInBase[layerNameInGrouped];
                 const base = getBaseNameFromLayer(layerNameInGrouped, "All"); // Derive base from full layer name
+                
+                console.log(`Layer: ${layerNameInGrouped} -> Base: ${base}`);
 
                 const attributes = getAttributesForLayer(
                   layerNameInGrouped,
@@ -224,6 +251,11 @@ export default function QuantityExtraction() {
           }
         }
       }
+      
+      console.log("Processed items:", processedItems.length);
+      console.log("Sample processed item:", processedItems[0]);
+      console.log("================================");
+      
       return processedItems;
     },
     [getBaseNameFromLayer, getAttributesForLayer]
@@ -258,12 +290,14 @@ export default function QuantityExtraction() {
       setActiveLayer(null);
       setActiveLayerData(null);
 
-      // Set selectedService based on project data
-      if (qeProjectData.service) {
-        setSelectedService(qeProjectData.service);
-      } else {
-        setSelectedService("All"); // Default if service is not found
-      }
+      // Always start with "All" service to show all data initially
+      setSelectedService("All");
+      
+      // Reset selected base to show all bases initially
+      setSelectedBase([]);
+      
+      console.log("Initialized with data:", dataToInitialize.length, "items");
+      console.log("Service set to 'All' initially");
     }
   }, [qeProjectData, parseAndMapInitialData]);
 
@@ -441,9 +475,17 @@ export default function QuantityExtraction() {
         ? allBases
         : serviceLayers[selectedService] || [];
 
+    console.log("=== buildTableSections Debug ===");
+    console.log("selectedService:", selectedService);
+    console.log("currentBases:", currentBases);
+    console.log("selectedBase:", selectedBase);
+    console.log("editableRawData length:", editableRawData.length);
+    console.log("editableRawData sample:", editableRawData.slice(0, 2));
+
     // Filter and group data for table display
     editableRawData.forEach((item) => {
       const itemBase = item.base || getBaseNameFromLayer(item.layer, "All"); // Ensure base is determined if not explicitly set
+      
       // Filter by selected service, available bases, and selected bases from the sidebar
       if (
         itemBase &&
@@ -456,6 +498,11 @@ export default function QuantityExtraction() {
         sections[itemBase].push(item);
       }
     });
+
+    console.log("Final sections:", Object.keys(sections));
+    console.log("Sections with data:", Object.entries(sections).map(([key, items]) => [key, items.length]));
+    console.log("================================");
+
     // Sort sections by base name
     const sortedSections = {};
     Object.keys(sections)
