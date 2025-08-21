@@ -12,6 +12,7 @@ import {
   setRooms,
   updateRoomProperties,
   removeRoom,
+  updateRoomPosition,
 } from "../../redux/features/app/roomSlice";
 import {
   setCurrentFloorId,
@@ -38,12 +39,14 @@ import {
   convertRoomFromBackendFormat,
 } from "../../utils/floorRoomApi";
 import { getRoomsByFloor } from "../../utils/floorRoomApi";
-import { createRooms } from "../../redux/features/app/newRoomSlice";
+import { createRooms, updateRoomPosition as updateNewRoomPosition, clearRooms } from "../../redux/features/app/newRoomSlice";
 
 const AreaMarkup = () => {
   const { projectId } = useParams();
   const dispatch = useDispatch();
   const { data, isLoading, isError } = useGetProjectListByIdQuery(projectId);
+
+  const [created,setCreated]= useState(false)
 
   // Room drawing state
   const [isDrawingRoom, setIsDrawingRoom] = useState(false);
@@ -52,6 +55,7 @@ const AreaMarkup = () => {
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [newlyCreatedRoom, setNewlyCreatedRoom] = useState(null);
   const [showWallEditor, setShowWallEditor] = useState(false);
+  const [dragUpdateCounter, setDragUpdateCounter] = useState(0);
 
   // PNG image state for PDF conversions (same as Editor.jsx)
   const [pngImage, setPngImage] = useState(null);
@@ -173,6 +177,7 @@ const AreaMarkup = () => {
     isError,
     projectId,
     hasFloor,
+    dragUpdateCounter,
   ]);
 
   // Reset rooms when component mounts or when floor changes
@@ -223,7 +228,16 @@ const AreaMarkup = () => {
 
           // Set rooms from backend (this replaces all existing rooms)
           dispatch(setRooms(frontendRooms));
-        } catch (error) {}
+          
+          // Also update the newRooms slice to keep them in sync
+          // Clear existing rooms first to avoid duplicates
+          dispatch(clearRooms());
+          frontendRooms.forEach(room => {
+            dispatch(createRooms(room));
+          });
+        } catch (error) {
+          console.error("Error loading rooms:", error);
+        }
       };
 
       loadRooms();
@@ -451,10 +465,62 @@ const AreaMarkup = () => {
     dispatch(setHighlightedWalls([room.id]));
   };
 
+  // Room drag handlers
+  const handleRoomDragStart = (e, room) => {
+    // Store initial position for reference
+    e.target.setAttrs({
+      originalX: room.x,
+      originalY: room.y
+    });
+  };
+
+  const handleRoomDragMove = (e, room) => {
+    // Get the new position from the Konva object
+    const newX = e.target.x();
+    const newY = e.target.y();
+    
+    console.log("Room drag move:", { roomId: room.id, newX, newY, roomX: room.x, roomY: room.y });
+    
+    // Update the room object locally for immediate UI update
+    room.x = newX;
+    room.y = newY;
+    
+    // Force a re-render by updating the room in Redux immediately
+    dispatch(updateRoomPosition({ id: room.id, x: newX, y: newY }));
+    dispatch(updateNewRoomPosition({ id: room.id, x: newX, y: newY }));
+    
+    // Force a re-render by incrementing the counter
+    setDragUpdateCounter(prev => prev + 1);
+  };
+
+  const handleRoomDragEnd = (e, room) => {
+    // Get the new position from the Konva object
+    const newX = e.target.x();
+    const newY = e.target.y();
+    
+    console.log("Room drag end:", { 
+      roomId: room.id, 
+      from: { x: room.x, y: room.y }, 
+      to: { x: newX, y: newY } 
+    });
+
+    // Update room position in both Redux slices
+    dispatch(updateRoomPosition({ id: room.id, x: newX, y: newY }));
+    dispatch(updateNewRoomPosition({ id: room.id, x: newX, y: newY }));
+
+    // Update the room object locally for immediate UI update
+    room.x = newX;
+    room.y = newY;
+
+    // Reset the Konva object position to 0 since we're managing position through props
+    e.target.x(0);
+    e.target.y(0);
+  };
+
   return (
     <div className="flex">
       <div className="w-[340px] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
-        <AreaMarkupSidebar />
+        <AreaMarkupSidebar setCreated={setCreated}/>
         
         {/* PNG Status Indicator */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
@@ -555,9 +621,12 @@ const AreaMarkup = () => {
             )}
             
             <CanvasWrapper
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
+              // onMouseDown={handleMouseDown}
+              // onMouseMove={handleMouseMove}
+              // onMouseUp={handleMouseUp}
+              onMouseDown={created ? undefined : handleMouseDown}
+              onMouseMove={created ? undefined : handleMouseMove }
+              onMouseUp={created ? undefined : handleMouseUp}
             >
               <Layer>
                 {/* Render PNG image as background layer (same as Editor.jsx) */}
@@ -585,6 +654,7 @@ const AreaMarkup = () => {
                       strokeWidth={2}
                       cornerRadius={3}
                       listening={false}
+                      draggable={created} 
                     />
                   </Group>
                 )}
@@ -614,6 +684,7 @@ const AreaMarkup = () => {
                           stroke="black"
                           strokeWidth={2}
                           listening={false}
+                          draggable={created} 
                         />
                       );
                     } else if (shape.shape === "polygon" && shape.points) {
@@ -654,6 +725,11 @@ const AreaMarkup = () => {
                     room.height
                   );
 
+                  // Debug logging for room positions during render
+                  if (dragUpdateCounter > 0) {
+                    console.log(`Rendering room ${room.id}:`, { x: room.x, y: room.y, centerX, centerY });
+                  }
+
                   // Determine fill color based on false ceiling status
                   const hasFalseCeiling =
                     room.falseCeiling && room.falseCeiling.trim() !== "";
@@ -661,9 +737,11 @@ const AreaMarkup = () => {
                     ? "rgba(255, 0, 255, 0.5)"
                     : "rgba(100, 200, 100, 0.5)"; // Magenta for false ceiling, green for normal
 
+
+
                   return (
                     <React.Fragment
-                      key={room.id || room._id || `room-${index}`}
+                      key={`${room.id || room._id || `room-${index}`}-${room.x}-${room.y}-${dragUpdateCounter}`}
                     >
                       <Rect
                         {...room}
@@ -673,6 +751,10 @@ const AreaMarkup = () => {
                         listening={true}
                         onClick={() => handleRoomClick(room)}
                         onTap={() => handleRoomClick(room)}
+                        draggable={created} 
+                        onDragStart={(e) => handleRoomDragStart(e, room)}
+                        onDragMove={(e) => handleRoomDragMove(e, room)}
+                        onDragEnd={(e) => handleRoomDragEnd(e, room)}
                       />
                       <Text
                         x={centerX}
@@ -704,6 +786,7 @@ const AreaMarkup = () => {
                     stroke="green"
                     strokeWidth={2}
                     dash={[5, 5]}
+                    draggable={created} 
                   />
                 )}
               </Layer>
