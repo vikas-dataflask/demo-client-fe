@@ -75,27 +75,47 @@ const Condenser = () => {
   useEffect(() => {
     if (savedData?.data) {
       const data = savedData.data;
-      setFormData({
-        chillerTonnage: data.chillerTonnage || 100,
-        flowRateLps: data.flowRateLps || 18.9,
-        pipeInnerDiameterMm: data.pipeInnerDiameterMm || 100,
-        mode: data.mode || "data",
-        fluidType: data.fluidType || "water",
-        temperatureC: data.temperatureC || 25,
-        systemType: data.systemType || "condenser-pump-outlet-riser",
-        systemLosses: data.systemLosses || 0, // ✅ NEW
-        pipeFrictionLoss: data.pipeFrictionLoss || 0, // ✅ NEW
-        coolingTowerLoss: data.coolingTowerLoss || 0, // ✅ NEW
-      });
+      console.log("🔄 Restoring saved condenser data:", data);
+      
+      // Restore input form data
+      if (data.input_data) {
+        console.log("📝 Restoring input form data:", data.input_data);
+        setFormData({
+          chillerTonnage: data.input_data.chillerTonnage || 100,
+          flowRateLps: data.input_data.flowRateLps || 18.9,
+          pipeInnerDiameterMm: data.input_data.pipeInnerDiameterMm || 100,
+          mode: data.input_data.mode || "data",
+          fluidType: data.input_data.fluidType || "water",
+          temperatureC: data.input_data.temperatureC || 25,
+          systemType: data.input_data.systemType || "condenser-pump-outlet-riser",
+          systemLosses: data.input_data.systemLosses || 0,
+          pipeFrictionLoss: data.input_data.pipeFrictionLoss || 0,
+          coolingTowerLoss: data.input_data.coolingTowerLoss || 0,
+        });
+
+        // Restore fitting-related data
+        if (data.input_data.fittings) {
+          console.log("🔧 Restoring fitting losses:", data.input_data.fittings);
+          setFittingLosses(data.input_data.fittings);
+        }
+        if (data.input_data.fittingVelocity) {
+          setFittingVelocity(data.input_data.fittingVelocity.toString());
+        }
+        if (data.input_data.airDensity) {
+          setAirDensity(data.input_data.airDensity.toString());
+        }
+        if (data.input_data.fittingLossPa) {
+          setSumTotalFittingLoss(data.input_data.fittingLossPa);
+        }
+      }
 
       // Restore calculation results if available
-      if (data.totalEquivalentLength || data.headLoss || data.message) {
-        setResult({
-          totalEquivalentLength: data.totalEquivalentLength,
-          headLoss: data.headLoss,
-          message: data.message,
-        });
+      if (data.result_data) {
+        console.log("📊 Restoring calculation results:", data.result_data);
+        setResult(data.result_data);
       }
+      
+      console.log("✅ Condenser data restoration completed");
     }
   }, [savedData]);
 
@@ -181,6 +201,9 @@ const Condenser = () => {
       fluidType: "water",
       temperatureC: 25,
       systemType: "condenser-pump-outlet-riser",
+      systemLosses: 0,
+      pipeFrictionLoss: 0,
+      coolingTowerLoss: 0,
     });
     setResult(null);
     setFittingLosses({});
@@ -189,6 +212,9 @@ const Condenser = () => {
     setFittingVelocity("");
     setAirDensity("");
     setSumTotalFittingLoss(null);
+    
+    // Show reset confirmation
+    console.log("Form reset to default values");
   };
 
   // Fittings-related functions
@@ -329,7 +355,9 @@ const Condenser = () => {
               <h2 className="text-[15px] font-semibold text-gray-800">
                 Condenser Pressure Drop
               </h2>
-              <p className="text-xs text-gray-400">Updated: Just now</p>
+              <p className="text-xs text-gray-400">
+                {loadLoading ? "Loading..." : savedData?.data ? "Data loaded from database" : "No saved data"}
+              </p>
             </div>
             <button
               className="w-[24px] h-[24px] bg-[#0083EE] text-white rounded-md flex items-center justify-center hover:bg-[#1C78DC] transition"
@@ -355,29 +383,87 @@ const Condenser = () => {
         {/* Scrollable form */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-4xl mx-auto">
+            {/* Loading and Error States */}
+            {loadLoading && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Loading saved data...
+                </div>
+              </div>
+            )}
+
+            {loadError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                <div className="flex items-center gap-2 text-red-700">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Error loading saved data: {loadError.message || "Unknown error"}
+                </div>
+              </div>
+            )}
+
+            {savedData?.data && !loadLoading && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-md">
+                <div className="flex items-center gap-2 text-green-700">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Data loaded successfully! Form has been auto-filled with saved values.
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl font-bold text-gray-800">
                 Condenser Pressure Drop Calculator
               </h1>
-              <button
-                onClick={resetForm}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+              <div className="flex gap-2">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
+                  title="Refresh page and reload data from database"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-                Reset
-              </button>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  Refresh
+                </button>
+                <button
+                  onClick={resetForm}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                  title="Reset form to default values"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  Reset
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -1019,30 +1105,7 @@ const Condenser = () => {
                 </span>
               </div>
 
-              {/* Main Result */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                  Calculation Summary
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-md">
-                    <div className="text-sm text-blue-600 font-medium">
-                      Estimated Pressure Drop
-                    </div>
-                    <div className="text-2xl font-bold text-blue-800">
-                      {result.estimatedDropKpa || "N/A"} kPa
-                    </div>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-md">
-                    <div className="text-sm text-green-600 font-medium">
-                      Calculation Mode
-                    </div>
-                    <div className="text-lg font-semibold text-green-800 capitalize">
-                      {result.mode || "N/A"}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              
 
               {/* Input Parameters */}
               <div className="bg-white rounded-lg shadow-md p-6">

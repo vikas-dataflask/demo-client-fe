@@ -320,11 +320,11 @@ export const apiSlice = createApi({
     calculateCondenser: builder.mutation({
       // New: Condenser Mutation
       query: (body) => ({
-        url: `condenser`,
+        url: `condenser/calculate`,
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Condenser"], // Add a new tag for Chiller
+      invalidatesTags: ["Condenser"], // Add a new tag for Condenser
     }),
 
     // Fitting losses calculation endpoint
