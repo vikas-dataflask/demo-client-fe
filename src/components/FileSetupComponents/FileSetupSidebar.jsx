@@ -3,6 +3,7 @@ import AreaMarkupIcon from "../../icons/AreaMarkupIcon";
 import DoorMarkupIcon from "../../icons/DoorMarkupIcon";
 import AssignMaterialIcon from "../../icons/AssignMaterialIcon";
 import AIFileProcessorIcon from "../../icons/AIFileProcessorIcon";
+import VediIcon from "../../icons/VediIcon";
 import { SquareChevronLeft, SquareChevronRight } from "lucide-react";
 
 function FileSetupSidebar({ activeSection, setActiveSection, setOpen, open }) {
@@ -12,6 +13,7 @@ function FileSetupSidebar({ activeSection, setActiveSection, setOpen, open }) {
     { icon: <DoorMarkupIcon />, id: "door-markup" },
     { icon: <AssignMaterialIcon />, id: "assign-material" },
     { icon: <AIFileProcessorIcon />, id: "ai-file-processor" },
+    { icon: <VediIcon />, id: "vedi-pdf-processor" },
   ];
 
   return (

@@ -10,6 +10,7 @@ import AreaMarkup from "../components/fileSetup/AreaMarkup";
 import DoorMarkup from "../components/fileSetup/DoorMarkup";
 import AIFileProcessor from "../components/fileSetup/AIFileProcessor";
 import AssignMaterial from "../components/fileSetup/AssignMaterial";
+import VediPDFProcessor from "../components/FileSetupComponents/VediPDFProcessor";
 
 export default function FileSetupPage() {
   const { projectId } = useParams();
@@ -105,6 +106,8 @@ export default function FileSetupPage() {
         return <AssignMaterial />;
       case "ai-file-processor":
         return <AIFileProcessor />;
+      case "vedi-pdf-processor":
+        return <VediPDFProcessor />;
 
       default:
         return <FloorEditor open={open} projectId={projectId} />;
@@ -113,14 +116,14 @@ export default function FileSetupPage() {
 
   return (
     <EditorLayout>
-      <div className="flex overflow-hidden">
+      <div className="flex h-full overflow-hidden">
         <FileSetupSidebar
           activeSection={activeSection}
           setActiveSection={setActiveSection}
           setOpen={setOpen}
           open={open}
         />
-        <div className="flex overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           {/* Debug panel for testing */}
           {/* {process.env.NODE_ENV === 'development' && (
              <div className="fixed top-4 right-4 bg-white border border-gray-300 rounded-lg p-4 shadow-lg z-50">

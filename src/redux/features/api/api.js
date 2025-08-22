@@ -827,6 +827,16 @@ export const apiSlice = createApi({
         // RTK Query will automatically set the correct headers for FormData
       }),
     }),
+
+    // Vedi API endpoint for PDF processing and design parameter extraction
+    processVediPDF: builder.mutation({
+      query: (formData) => ({
+        url: "vedi",
+        method: "POST",
+        body: formData,
+        // RTK Query will automatically set the correct headers for FormData
+      }),
+    }),
   }),
 });
 
@@ -941,4 +951,5 @@ export const {
   useDeleteProfilePicMutation,
   useChangePasswordMutation,
   useConvertFileMutation,
+  useProcessVediPDFMutation,
 } = apiSlice;
