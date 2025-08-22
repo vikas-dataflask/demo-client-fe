@@ -39,11 +39,8 @@ import circuitingSummaryReducer from "./features/app/circuitingSummarySlice";
 import powerCircuitingReducer from "./features/app/powerCircuitingSlice";
 import aiRoomDataReducer from "./features/app/aiRoomDataSlice";
 import { adminApiSlice } from "./features/api/adminApi";
-<<<<<<< Updated upstream
-=======
 import calibrationReducer from "./features/app/calibrationSlice";
 
->>>>>>> Stashed changes
 const userFromStorage = JSON.parse(localStorage.getItem("user"));
 
 const persistConfig = {
@@ -59,11 +56,8 @@ const persistConfig = {
     "power",
     "powerCircuiting",
     "circuiting",
-<<<<<<< Updated upstream
     "aiRoomData",
-=======
     "calibration", // Added calibration for persistent scale settings
->>>>>>> Stashed changes
   ], // Added circuiting for lighting zones
 };
 
@@ -87,11 +81,9 @@ const rootReducer = combineReducers({
   circuiting: circuitingReducer,
   circuitingSummary: circuitingSummaryReducer,
   powerCircuiting: powerCircuitingReducer,
-<<<<<<< Updated upstream
+
   aiRoomData: aiRoomDataReducer,
-=======
   calibration: calibrationReducer,
->>>>>>> Stashed changes
 
   [apiSlice.reducerPath]: apiSlice.reducer,
   [backofficeApi.reducerPath]: backofficeApi.reducer,
