@@ -6,6 +6,7 @@ import FileSetupPage from "./pages/FileSetupPage";
 import HVACPage from "./pages/HVACPage";
 import ThreeDPage from "./pages/ThreeDPage";
 import TestPage from "./pages/TestPage";
+import StructurePage from "./pages/StructurePage";
 
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -296,6 +297,22 @@ function App() {
           }
         />
         <Route path="/test" element={<TestPage />} />
+        <Route
+        path="/structure"
+        element={
+          <PrivateRoute>
+            <StructurePage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/project/:projectId/structure"
+        element={
+          <PrivateRoute>
+            <StructurePage />
+          </PrivateRoute>
+        }
+      />
         <Route
           path="/new-admin-api-test"
           element={

@@ -220,10 +220,10 @@ const BreakerSizingForm = () => {
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white flex justify-between items-start px-4 pt-3 pb-2 border-b border-[#E5E7EB]">
           <div>
-            <h1 className="text-[14px] font-semibold text-black leading-none">
+            <h1 className="text-2xl font-semibold text-black leading-none">
               Breaker Sizing
             </h1>
-            <p className="text-[11px] text-gray-400 mt-[2px]">
+            <p className="text-sm text-gray-400 mt-[2px]">
               Autofill & Save Enabled
             </p>
           </div>
@@ -236,7 +236,7 @@ const BreakerSizingForm = () => {
 
         {/* Panel Selection */}
         <div className="mb-3">
-          <label className="block text-xs font-medium text-[#5B5B5B] mb-1">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
             Select Panel
           </label>
           <select
@@ -255,7 +255,7 @@ const BreakerSizingForm = () => {
 
         {/* Equipment Selection */}
         <div className="mb-3">
-          <label className="block text-xs font-medium text-[#5B5B5B] mb-1">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
             Select Connected Equipments
           </label>
           <select
@@ -274,7 +274,7 @@ const BreakerSizingForm = () => {
 
         {/* Connected Load */}
         <div className="mb-3">
-          <label className="block text-xs font-medium text-[#5B5B5B] mb-1">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
             Connected Load
           </label>
           <div className="flex items-center gap-2">
@@ -286,14 +286,14 @@ const BreakerSizingForm = () => {
               placeholder="Enter value"
             />
             <div className="w-14 h-8 flex items-center justify-center rounded-md border border-[#E4E4E7] bg-gray-200 text-sm text-gray-600">
-              KW
+              W
             </div>
           </div>
         </div>
 
         {/* System Voltage */}
         <div className="mb-3">
-          <label className="block text-xs font-medium text-[#5B5B5B] mb-1">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
             System Voltage
           </label>
           <div className="flex items-center gap-2">
@@ -312,7 +312,7 @@ const BreakerSizingForm = () => {
 
         {/* Power Factor */}
         <div className="mb-3">
-          <label className="block text-xs font-medium text-[#5B5B5B] mb-1">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
             Power Factor
           </label>
           <input
@@ -329,7 +329,7 @@ const BreakerSizingForm = () => {
 
         {/* Load Factor */}
         <div className="mb-3">
-          <label className="block text-xs font-medium text-[#5B5B5B] mb-1">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
             Load Factor
           </label>
           <input
@@ -346,7 +346,7 @@ const BreakerSizingForm = () => {
 
         {/* Demand Factor */}
         <div className="mb-3">
-          <label className="block text-xs font-medium text-[#5B5B5B] mb-1">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
             Demand Factor
           </label>
           <input
@@ -363,7 +363,7 @@ const BreakerSizingForm = () => {
 
         {/* Spare Capacity */}
         <div className="mb-3">
-          <label className="block text-xs font-medium text-[#5B5B5B] mb-1">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
             Spare Capacity (0 or 1)
           </label>
           <input

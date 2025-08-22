@@ -590,7 +590,7 @@ const CircuitingControlPanel = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2 w-[440px] h-full overflow-y-auto">
+    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2 w-[400px] h-[90vh] overflow-y-auto">
       {/* Header */}
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-800 mb-2">

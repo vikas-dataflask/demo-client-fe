@@ -25,6 +25,10 @@ const CableSizingForm = () => {
   });
 
   const [result, setResult] = useState(null);
+  const [cable, setCable] = useState("");
+  const [equipment, setEquipment] = useState("");
+  const [equipmenttwo, setEquipmenttwo] = useState("");
+
   const [error, setError] = useState("");
   const [showReference, setShowReference] = useState(false);
   const [bulkMode, setBulkMode] = useState(false);
@@ -36,6 +40,27 @@ const CableSizingForm = () => {
       voltage: 230,
     },
   ]);
+
+  const cableOptions = [
+    { value: "HRFC", label: "Heat-Resistant Flexible Cable" },
+    { value: "LSZH", label: "Low Smoke Zero Halogen (LSZH) Cable" },
+    { value: "FRLS", label: "Fire-Resistant Cable (FR / FRLS)" },
+    { value: "XLPE", label: "Armoured Cable (SWA / XLPE)" },
+  ];
+
+  const equipmentOptions = [
+    { value: "Lighting", label: "Lighting" },
+    { value: "Fan", label: "Fan" },
+    { value: "Motor", label: "Motor" },
+    { value: "Other", label: "Other" },
+  ];
+
+  const equipmentTwoOptions = [
+    { value: "Lighting", label: "Lighting" },
+    { value: "Fan", label: "Fan" },
+    { value: "Motor", label: "Motor" },
+    { value: "Other", label: "Other" },
+  ];
 
   // Get token from user object in localStorage (matching app authentication pattern)
   const storedUser = localStorage.getItem("user");
@@ -319,9 +344,9 @@ const CableSizingForm = () => {
   }
 
   return (
-    <div className="w-[440px] h-[90vh] bg-white p-6 space-y-6">
+    <div className="w-[400px] h-[90vh] bg-white p-6 space-y-6">
       {/* --- Header --- */}
-      <div className="bg-white w-[400px] rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white w-[360px] rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center space-x-3">
           <Calculator className="w-8 h-8 text-blue-600" />
           <div>
@@ -337,7 +362,7 @@ const CableSizingForm = () => {
       </div>
 
       {/* --- Mode Toggle --- */}
-      <div className="bg-white w-[400px] rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white w-[36  0px] rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex items-center space-x-4">
           <label className="flex items-center">
             <input
@@ -360,8 +385,64 @@ const CableSizingForm = () => {
         </div>
       </div>
 
+
+      <div className="mb-3">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
+            Cable type
+          </label>
+          <select
+            value={cable}
+            onChange={(e) => setCable(e.target.value)}
+            className="w-[95%] border border-gray-200 rounded-md px-3 py-2 text-[13px] text-gray-700 bg-gray-200 focus:outline-none focus:border-[#0083EE]"
+          >
+            <option value="">Select</option>
+            {cableOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
+            Select Equipment
+          </label>
+          <select
+            value={equipment}
+            onChange={(e) => setEquipment(e.target.value)}
+            className="w-[95%] border border-gray-200 rounded-md px-3 py-2 text-[13px] text-gray-700 bg-gray-200 focus:outline-none focus:border-[#0083EE]"
+          >
+            <option value="">Select</option>
+            {equipmentOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Equipment Selection */}
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-[#5B5B5B] mb-1">
+            Select Connected Equipments
+          </label>
+          <select
+            value={equipmenttwo}
+            onChange={(e) => setEquipmenttwo(e.target.value)}
+            className="w-[95%] border border-gray-200 rounded-md px-3 py-2 text-[13px] text-gray-700 bg-gray-200 focus:outline-none focus:border-[#0083EE]"
+          >
+            <option value="">Select</option>
+            {equipmentTwoOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
       {/* --- Input Form --- */}
-      <div className="bg-white w-[400px] rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white w-[360px] rounded-lg shadow-sm border border-gray-200 p-6">
         {!bulkMode ? (
           // ✅ Single Circuit Form
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -532,14 +613,17 @@ const CableSizingForm = () => {
             Reset
           </button>
 
-          <button
+          
+        </div>
+        <div className="p-2">
+        <button
             onClick={() => setShowReference(!showReference)}
-            className="flex items-center space-x-2 px-2 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            className="flex items-center space-x-2 px-2 py-4 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
           >
             <Info className="w-5 h-5" />
             <span>Reference Data</span>
           </button>
-        </div>
+          </div>
       </div>
 
       {/* --- Reference Data --- */}

@@ -536,7 +536,7 @@ const AreaMarkup = () => {
 
   return (
     <div className="flex">
-      <div className="w-[340px] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
+      <div className="w-[400px] h-[90vh] bg-white border-r border-gray-300 px-2 font-sans text-[13px] text-[#4B5563] overflow-auto">
         <AreaMarkupSidebar setCreated={setCreated} />
 
         {/* PNG Status Indicator */}

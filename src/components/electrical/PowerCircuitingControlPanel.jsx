@@ -181,7 +181,7 @@ const PowerCircuitingControlPanel = () => {
   };
 
   return (
-    <div className="bg-white w-[440px] rounded-lg shadow-lg border border-gray-200 p-4 h-[90vh] overflow-y-auto">
+    <div className="bg-white w-[380px] rounded-lg shadow-lg border border-gray-200 p-4 h-[90vh] overflow-y-auto">
       {/* Header */}
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-800 mb-2">

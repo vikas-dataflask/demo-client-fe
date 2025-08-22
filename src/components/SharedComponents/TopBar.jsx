@@ -4,6 +4,7 @@ import FileSetup from "../../icons/FileSetup";
 import FireFightIcon from "../../icons/FireFightIcon";
 import HvacIcon from "../../icons/HvacIcon";
 import PlumbingIcon from "../../icons/PlumbingIcon";
+import StructureIcon from "../../icons/StructureIcon";
 import { useGetProjectListQuery } from "../../redux/features/api/api";
 import { ArrowLeft } from "lucide-react";
 
@@ -20,6 +21,7 @@ export default function TopBar() {
     { label: "HVAC", icon: <HvacIcon />, path: "hvac" },
     { label: "Fire Fight", icon: <FireFightIcon />, path: "fire-fight" },
     { label: "Plumbing", icon: <PlumbingIcon />, path: "plumbing" },
+    { label: "Structure", icon: <StructureIcon />, path: "structure" },
   ];
 
   return (

@@ -290,7 +290,7 @@ const AHU = ({ projectName, activity }) => {
     <div className="flex  h-[90vh] bg-white">
       {/* Left Panel - Input Form */}
       <div className="flex-1 p-6 overflow-y-auto">
-        <div className="w-[400px]">
+        <div className="w-[350px]">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold text-gray-800">
               AHU Pressure Drop Calculator

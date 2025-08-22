@@ -39,14 +39,14 @@ export default function ElectricalPage() {
         return <EarthmatCalculator />;
       case "circuiting":
         return (
-          <div className="flex-1 p-4">
+          <div className="flex-1 ">
             <div className="h-full">
               <h1 className="text-2xl font-bold text-gray-800 mb-4">
                 Circuiting Management
               </h1>
               <div className="flex gap-4 h-[calc(100vh-120px)]">
                 {/* Circuiting Control Panel - Fixed width of 440px */}
-                <div className="w-[440px] flex-shrink-0">
+                <div className="w-[390px] flex-shrink-0">
                   <CircuitingControlPanel />
                 </div>
                 

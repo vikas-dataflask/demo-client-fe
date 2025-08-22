@@ -625,9 +625,9 @@ const DialuxForm = () => {
   };
 
   return (
-    <div className="flex h-[85vh]">
-      <div className=" bg-white p-6 overflow-y-auto">
-        <div className="mb-6">
+    <div className="flex  h-[85vh] ">
+      <div className=" bg-white w-[400px] p-6 overflow-y-auto">
+        <div className="mb-6 ">
           <h2 className="text-xl font-semibold text-gray-800 mb-2">
             Lighting Design
           </h2>

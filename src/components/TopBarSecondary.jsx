@@ -7,6 +7,7 @@ import FireFightIcon from "../icons/FireFightIcon";
 import PlumbingIcon from "../icons/PlumbingIcon";
 import { useGetProjectListQuery } from "../redux/features/api/api";
 import HvacIcon from "../icons/HvacIcon";
+import StructureIcon from "../icons/StructureIcon";
 
 export default function TopBarSecondary() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function TopBarSecondary() {
     { label: "HVAC", icon: <HvacIcon />, path: "hvac" },
     { label: "Fire Fight", icon: <FireFightIcon />, path: "fire-fight" },
     { label: "Plumbing", icon: <PlumbingIcon />, path: "plumbing" },
+    { label: "Structure", icon: <StructureIcon />, path: "structure" },
   ];
 
   return (

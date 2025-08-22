@@ -200,7 +200,7 @@ const PlumbingHeadLossForm = ({ setData }) => {
   return (
     <div className="flex h-[92vh]">
       {/* Left Sidebar - Form */}
-      <div className="flex-1 w-[440px] bg-white border-r border-gray-300 text-sm font-medium flex flex-col ">
+      <div className="flex-1 w-[400px] bg-white border-r border-gray-300 text-sm font-medium flex flex-col ">
         {/* Header */}
         <div className="p-4 pb-0 border-b border-gray-200">
           <div className="flex justify-between items-start">

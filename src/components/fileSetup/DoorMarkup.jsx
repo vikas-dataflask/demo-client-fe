@@ -298,7 +298,7 @@ const DoorMarkup = () => {
   return (
     <div className="flex">
       {/* Sidebar */}
-      <div className="w-[340px] h-[90vh] border-r border-gray-300 bg-white p-4 text-sm font-medium overflow-y-auto">
+      <div className="w-[400px] h-[90vh] border-r border-gray-300 bg-white p-4 text-sm font-medium overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
           <div>

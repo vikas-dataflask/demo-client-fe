@@ -208,11 +208,11 @@ const PowerForm = ({ roomOptions = [], onSubmit }) => {
 
   return (
     <div className="flex h-screen">
-      <div className="w-[440px] h-[90vh] bg-white border-r border-gray-300 px-4 font-sans text-[13px] text-[#4B5563] overflow-auto">
+      <div className="w-[400px] h-[90vh] bg-white border-r border-gray-300 px-4 font-sans text-[13px] text-[#4B5563] overflow-auto">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white flex justify-between items-start py-4 pb-3 border-b border-[#E5E7EB]">
           <div>
-            <h1 className="text-[16px] font-semibold text-black leading-none">
+            <h1 className="text-2xl font-semibold text-black leading-none">
               Power Devices
             </h1>
             <p className="text-[11px] text-gray-400 mt-[2px]">

@@ -188,14 +188,14 @@ const PowerDbDetailForm = () => {
   return (
     <div className="flex h-screen">
       {/* Power Section */}
-      <div className="w-[440px] h-[92vh] bg-white border-r border-gray-300 p-4 font-sans text-[13px] text-[#4B5563] overflow-auto">
+      <div className="w-[400px] h-[92vh] bg-white border-r border-gray-300 p-4 font-sans text-[13px] text-[#4B5563] overflow-auto">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-white flex justify-between items-start px-4 pt-3 pb-2 border-b border-[#E5E7EB]">
           <div>
-            <h1 className="text-[14px] font-semibold text-black leading-none">
+            <h1 className="text-2xl font-semibold text-black leading-none">
               Power DB Detail
             </h1>
-            <p className="text-[11px] text-gray-400 mt-[2px]">
+            <p className="text-sm text-gray-400 mt-[2px]">
               Multi-DB Power Zone Management
             </p>
           </div>
@@ -257,9 +257,9 @@ const PowerDbDetailForm = () => {
 
         {/* Zone Selection First */}
         <div className="mt-3">
-          <p className="text-[11px] text-black mb-1">Select Power Zone</p>
+          <p className="text-sm text-black mb-1">Select Power Zone</p>
           {powerZoneManagement.length === 0 ? (
-            <div className="w-[95%] p-3 bg-yellow-50 border border-yellow-200 rounded-md text-[11px] text-yellow-800">
+            <div className="w-[95%] p-3 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-800">
               <p>
                 <strong>No power zones available!</strong>
               </p>

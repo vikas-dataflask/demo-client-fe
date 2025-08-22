@@ -257,7 +257,7 @@ const FloorEditorSidebar = ({
   };
 
   return (
-    <div className="bg-white w-[350px] h-[90vh] border-r border-gray-300 overflow-y-auto">
+    <div className="bg-white w-[400px] h-[90vh] border-r border-gray-300 overflow-y-auto">
       <div className="mt-6 mx-4 flex flex-col gap-6">
         {/* Header Section */}
         <div className="border-b border-gray-300 pb-6">

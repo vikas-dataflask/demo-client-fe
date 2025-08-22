@@ -373,12 +373,12 @@ const AIFileProcessor = () => {
   };
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex overflow-hidden">
+    <div className="h-[92vh] w-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex overflow-hidden">
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Enhanced Header Section */}
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white p-6 flex-shrink-0 shadow-2xl relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/10"></div>
+        <div className="w-[400px] bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white p-6 flex-shrink-0 shadow-2xl relative overflow-hidden">
+          <div className=" absolute inset-0 bg-black/10"></div>
           <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-24 translate-x-24"></div>
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-16 -translate-x-16"></div>
           
@@ -400,7 +400,7 @@ const AIFileProcessor = () => {
         </div>
 
         {/* Scrollable Content Container */}
-        <div className="flex-1 overflow-y-auto" ref={mainContentRef}>
+        <div className=" w-[400px] flex-1 overflow-y-auto" ref={mainContentRef}>
           <div className="p-6 max-w-6xl mx-auto">
             {/* Enhanced File Upload Section */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 mb-6 overflow-hidden">
@@ -701,9 +701,9 @@ const AIFileProcessor = () => {
       </div>
 
       {/* Enhanced Chat History Sidebar */}
-      <div className="w-80 min-w-100 bg-white/90 backdrop-blur-sm border-l border-slate-200 flex flex-col shadow-xl">
+      <div className="flex-1 bg-white/90 backdrop-blur-sm border-l border-slate-200 flex flex-col shadow-xl">
         {/* Enhanced Sidebar Header */}
-        <div className="bg-gradient-to-r from-slate-100 to-blue-100 p-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+        <div className="w-[1600px] bg-gradient-to-r from-slate-100 to-blue-100 p-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg">
               <MessageCircle className="w-4 h-4 text-white" />
@@ -751,7 +751,7 @@ const AIFileProcessor = () => {
               {chatHistory.map((chat, index) => (
                 <React.Fragment key={index}>
                   <div
-                    className={`p-4 rounded-xl max-w-[95%] shadow-lg animate-in slide-in-from-bottom-2 duration-500 ${
+                    className={`p-4 rounded-xl w-[1580px] shadow-lg animate-in slide-in-from-bottom-2 duration-500 ${
                       chat.type === 'user' 
                         ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white ml-auto hover:shadow-xl hover:shadow-blue-500/25' 
                         : chat.type === 'ai'
