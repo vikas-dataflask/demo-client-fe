@@ -52,31 +52,70 @@ export const calculatePolygonArea = (points) => {
 };
 
 /**
- * Convert pixels to meters (assuming 100px = 1m)
+ * Convert pixels to meters using calibrated scale
  * @param {number} pixels - Number of pixels
+ * @param {number} pixelsPerMeter - Calibrated pixels per meter ratio (default: 100)
  * @returns {number} - Equivalent meters
  */
-export const pixelsToMeters = (pixels) => {
-  return pixels / 100;
+export const pixelsToMeters = (pixels, pixelsPerMeter = 100) => {
+  return pixels / pixelsPerMeter;
 };
 
 /**
- * Convert meters to pixels (assuming 100px = 1m)
+ * Convert meters to pixels using calibrated scale
  * @param {number} meters - Number of meters
+ * @param {number} pixelsPerMeter - Calibrated pixels per meter ratio (default: 100)
  * @returns {number} - Equivalent pixels
  */
-export const metersToPixels = (meters) => {
-  return meters * 100;
+export const metersToPixels = (meters, pixelsPerMeter = 100) => {
+  return meters * pixelsPerMeter;
 };
 
 /**
- * Calculate area in square meters from pixel dimensions
+ * Calculate area in square meters from pixel dimensions using calibrated scale
  * @param {number} widthPixels - Width in pixels
  * @param {number} heightPixels - Height in pixels
+ * @param {number} pixelsPerMeter - Calibrated pixels per meter ratio (default: 100)
  * @returns {number} - Area in square meters
  */
-export const calculateAreaInMeters = (widthPixels, heightPixels) => {
-  const widthMeters = pixelsToMeters(widthPixels);
-  const heightMeters = pixelsToMeters(heightPixels);
+export const calculateAreaInMeters = (widthPixels, heightPixels, pixelsPerMeter = 100) => {
+  const widthMeters = pixelsToMeters(widthPixels, pixelsPerMeter);
+  const heightMeters = pixelsToMeters(heightPixels, pixelsPerMeter);
   return widthMeters * heightMeters;
+};
+
+/**
+ * Get calibrated scale information
+ * @param {Object} store - Redux store instance
+ * @returns {Object} - { pixelsPerMeter, isCalibrated, lastCalibratedAt }
+ */
+export const getCalibratedScale = (store) => {
+  const state = store.getState();
+  return {
+    pixelsPerMeter: state.calibration?.pixelsPerMeter || 100,
+    isCalibrated: state.calibration?.isCalibrated || false,
+    lastCalibratedAt: state.calibration?.lastCalibratedAt || null,
+  };
+};
+
+/**
+ * Convert pixels to meters using current calibrated scale from Redux
+ * @param {number} pixels - Number of pixels
+ * @param {Object} store - Redux store instance
+ * @returns {number} - Equivalent meters
+ */
+export const pixelsToMetersCalibrated = (pixels, store) => {
+  const { pixelsPerMeter } = getCalibratedScale(store);
+  return pixelsToMeters(pixels, pixelsPerMeter);
+};
+
+/**
+ * Convert meters to pixels using current calibrated scale from Redux
+ * @param {number} meters - Number of meters
+ * @param {Object} store - Redux store instance
+ * @returns {number} - Equivalent pixels
+ */
+export const metersToPixelsCalibrated = (meters, store) => {
+  const { pixelsPerMeter } = getCalibratedScale(store);
+  return metersToPixels(meters, pixelsPerMeter);
 }; 

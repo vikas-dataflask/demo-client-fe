@@ -4,15 +4,11 @@ import ReactangleIcon from "../../icons/ReactangleIcon";
 import FloorPreview from "../shared/FloorPreview";
 import { useSelector, useDispatch } from "react-redux";
 import { setDialuxResult } from "../../redux/features/app/dialuxSlice";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 import FrontendIESParser from "../../utils/iesParser.js";
 import AutoFixtureArrangement from "./AutoFixtureArrangement";
 import { convertAIDimensionsToMeters } from "../../utils/aiRoomExtractor";
-
-const GRID_SIZE = 100; // 100px = 1m for proper unit conversion
-
-const convertPixelsToMeters = (pixels) => {
-  return pixels / GRID_SIZE;
-};
+// Remove hardcoded GRID_SIZE constant - will use calibrated pixelsPerMeter from Redux
 
 // IES Data Display Component
 const IESDataDisplay = ({ iesData }) => {
@@ -208,7 +204,7 @@ const DialuxForm = () => {
 
   // Use the current project's room selection logic
   const rooms = useSelector((state) => state.newRooms?.rooms || []);
-  
+
   // Get AI rooms from Redux state
   const aiRooms = useSelector((state) => state.aiRoomData?.rooms || []);
 
@@ -221,17 +217,25 @@ const DialuxForm = () => {
   // Combine existing rooms with AI rooms
   const allRooms = [
     ...uniqueRooms,
-    ...aiRooms.map(room => ({
+    ...aiRooms.map((room) => ({
       ...room,
       // Convert AI room dimensions to meters for consistency
-      ...convertAIDimensionsToMeters(room)
-    }))
+      ...convertAIDimensionsToMeters(room),
+    })),
   ];
 
   // Find the selected room object based on selectedRoom state (now using room names)
   const selectedRoomObj = allRooms.find((room) => (room.name || room.id) === selectedRoom);
 
+  const dispatch = useDispatch();
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter); // Get calibrated scale from Redux
+
+  const convertPixelsToMeters = (pixels) => {
+    return pixels / pixelsPerMeter;
+  };
+
   // Calculate area in square meters from room dimensions
+// <<<<<<< SjCONNECTION
   const roomArea = selectedRoomObj
     ? selectedRoomObj.source === 'ai'
       ? selectedRoomObj.areaInSquareMeters || 0
@@ -412,6 +416,22 @@ const DialuxForm = () => {
     }
   };
 
+// =======
+//   const roomArea = selectedRoom
+//     ? selectedRoom.source === "ai"
+//       ? selectedRoom.areaInSquareMeters || 0
+//       : convertPixelsToMeters(selectedRoom.width) *
+//         convertPixelsToMeters(selectedRoom.height)
+//     : "";
+
+//   // Convert room height to meters if available
+//   const roomHeight = selectedRoom
+//     ? selectedRoom.source === "ai"
+//       ? selectedRoom.heightInMeters || 0
+//       : convertPixelsToMeters(selectedRoom.height)
+//     : "";
+
+// >>>>>>> dev
   const parseIesFile = async (file) => {
     setIsParsing(true);
     setParseError("");
@@ -642,16 +662,18 @@ const DialuxForm = () => {
             >
               <option value="">Choose a room</option>
               {allRooms.map((room) => {
-                let displayText = '';
-                let areaDisplay = '';
-                
-                if (room.source === 'ai') {
+                let displayText = "";
+                let areaDisplay = "";
+
+                if (room.source === "ai") {
                   // AI room - use extracted dimensions
                   displayText = room.name;
                   if (room.category && room.category !== room.name) {
                     displayText = `${room.category} - ${room.name}`;
                   }
-                  areaDisplay = room.areaInSquareMeters ? ` (${room.areaInSquareMeters.toFixed(2)} m²)` : '';
+                  areaDisplay = room.areaInSquareMeters
+                    ? ` (${room.areaInSquareMeters.toFixed(2)} m²)`
+                    : "";
                 } else {
                   // Existing room - calculate from pixels
                   const widthInMeters = convertPixelsToMeters(room.width);
@@ -662,9 +684,16 @@ const DialuxForm = () => {
                 }
 
                 return (
+// <<<<<<< SjCONNECTION
                   <option key={room.id} value={room.name || room.id}>
                     {displayText}{areaDisplay}
                     {room.source === 'ai' && ' [AI]'}
+// =======
+//                   <option key={room.id} value={room.id}>
+//                     {displayText}
+//                     {areaDisplay}
+//                     {room.source === "ai" && " [AI]"}
+// >>>>>>> dev
                   </option>
                 );
               })}
@@ -696,11 +725,16 @@ const DialuxForm = () => {
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <h4 className="text-sm font-medium text-gray-700 mb-3">
                 Room Information
+// <<<<<<< SjCONNECTION
                 {selectedRoomObj.source === 'ai' && (
+// =======
+//                 {selectedRoom.source === "ai" && (
+// >>>>>>> dev
                   <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                     AI Generated
                   </span>
                 )}
+// <<<<<<< SjCONNECTION
                 {selectedRoomObj.source === 'ai' && selectedRoomObj.category && selectedRoomObj.category !== selectedRoomObj.name && (
                   <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
                     {selectedRoomObj.category}
@@ -709,15 +743,37 @@ const DialuxForm = () => {
               </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 {selectedRoomObj.source === 'ai' ? (
+// =======
+//                 {selectedRoom.source === "ai" &&
+//                   selectedRoom.category &&
+//                   selectedRoom.category !== selectedRoom.name && (
+//                     <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+//                       {selectedRoom.category}
+//                     </span>
+//                   )}
+//               </h4>
+//               <div className="grid grid-cols-2 gap-4 text-sm">
+//                 {selectedRoom.source === "ai" ? (
+// >>>>>>> dev
                   // AI Room Display
                   <>
                     <div>
                       <span className="text-gray-600">Dimensions:</span>
                       <div className="font-medium">
+// <<<<<<< SjCONNECTION
                         {selectedRoomObj.widthInMeters > 0 && selectedRoomObj.heightInMeters > 0
                           ? `${selectedRoomObj.widthInMeters.toFixed(2)} × ${selectedRoomObj.heightInMeters.toFixed(2)} m`
                           : selectedRoomObj.specialDimensions || 'Special dimensions'
                         }
+//=======
+//                         {selectedRoom.widthInMeters > 0 &&
+//                         selectedRoom.heightInMeters > 0
+//                           ? `${selectedRoom.widthInMeters.toFixed(
+//                               2
+//                             )} × ${selectedRoom.heightInMeters.toFixed(2)} m`
+//                           : selectedRoom.specialDimensions ||
+//                             "Special dimensions"}
+// >>>>>>> dev
                       </div>
                     </div>
                     <div>
@@ -731,16 +787,26 @@ const DialuxForm = () => {
                   // Existing Room Display
                   <>
                     <div>
-                      <span className="text-gray-600">Dimensions (pixels):</span>
+                      <span className="text-gray-600">
+                        Dimensions (pixels):
+                      </span>
                       <div className="font-medium">
                         {selectedRoomObj.width} × {selectedRoomObj.height} px
                       </div>
                     </div>
                     <div>
-                      <span className="text-gray-600">Dimensions (meters):</span>
+                      <span className="text-gray-600">
+                        Dimensions (meters):
+                      </span>
                       <div className="font-medium">
+// <<<<<<< SjCONNECTION
                         {convertPixelsToMeters(selectedRoomObj.width).toFixed(2)} ×{" "}
                         {convertPixelsToMeters(selectedRoomObj.height).toFixed(2)} m
+// =======
+//                         {convertPixelsToMeters(selectedRoom.width).toFixed(2)} ×{" "}
+//                         {convertPixelsToMeters(selectedRoom.height).toFixed(2)}{" "}
+//                         m
+// >>>>>>> dev
                       </div>
                     </div>
                   </>

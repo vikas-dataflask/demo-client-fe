@@ -6,6 +6,7 @@ import {
   selectRoomHeatLoadCapacity,
   selectHeatLoadByRoom,
 } from "../../redux/features/app/heatLoadSlice";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 import {
   useCalculateDuctSizeMutation,
   useCalculateGrilleSizeMutation,
@@ -20,6 +21,7 @@ const DuctSizing = () => {
   const { projectId } = useParams();
   const rooms = useSelector((state) => state.newRooms?.rooms || []);
   const heatLoadByRoom = useSelector(selectRoomHeatLoadCapacity);
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter);
 
   const [formData, setFormData] = useState({
     airflowCFM: "",
@@ -394,8 +396,7 @@ const DuctSizing = () => {
                 <option value="">Select a room</option>
                 {(() => {
                   // Remove duplicates and show room dimensions
-                  const GRID_SIZE = 100;
-                  const convertPixelsToMeters = (pixels) => pixels / GRID_SIZE;
+                  const convertPixelsToMeters = (pixels) => pixels / pixelsPerMeter;
                   
                   const uniqueRooms = rooms.filter(
                     (room, index, self) =>

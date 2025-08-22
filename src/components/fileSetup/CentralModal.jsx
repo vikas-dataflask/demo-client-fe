@@ -4,8 +4,9 @@ import {
   updateRoomName,
   updateRoomDimensions,
 } from "../../redux/features/app/roomSlice";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 
-const GRID_SIZE = 100; // Match the scale system from RoomEditor.jsx (100px = 1m)
+// Remove hardcoded GRID_SIZE constant - will use calibrated pixelsPerMeter from Redux
 
 const CentralModal = ({ room, onClose }) => {
   const [roomName, setRoomName] = useState("");
@@ -19,15 +20,16 @@ const CentralModal = ({ room, onClose }) => {
   const dispatch = useDispatch();
 
   const selectedScale = useSelector((state) => state.project.scale);
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter); // Get calibrated scale from Redux
 
-  // Convert pixels to logical units (meters)
+  // Convert pixels to logical units (meters) using calibrated scale
   const convertToLogicalUnits = (pixels) => {
-    return pixels / GRID_SIZE;
+    return pixels / pixelsPerMeter;
   };
 
-  // Convert logical units (meters) to pixels
+  // Convert logical units (meters) to pixels using calibrated scale
   const convertToPixels = (logicalUnits) => {
-    return logicalUnits * GRID_SIZE;
+    return logicalUnits * pixelsPerMeter;
   };
 
   // Get the appropriate unit label based on selected scale
@@ -44,9 +46,9 @@ const CentralModal = ({ room, onClose }) => {
     }
   };
 
-  // Convert area to the selected scale
+  // Convert area to the selected scale using calibrated scale
   const convertArea = (pixelArea) => {
-    const areaInLogicalUnits = pixelArea / (GRID_SIZE * GRID_SIZE);
+    const areaInLogicalUnits = pixelArea / (pixelsPerMeter * pixelsPerMeter);
     const areaInSquareMeters = areaInLogicalUnits;
 
     switch (selectedScale) {
@@ -83,7 +85,7 @@ const CentralModal = ({ room, onClose }) => {
         heightPixels: room.height,
         widthMeters: widthInMeters,
         heightMeters: heightInMeters,
-        GRID_SIZE
+        pixelsPerMeter
       });
       
       setWidthMeters(widthInMeters.toFixed(2));
@@ -108,7 +110,7 @@ const CentralModal = ({ room, onClose }) => {
         newWidthMeters,
         newWidthPixels,
         roomId: room.id,
-        GRID_SIZE
+        pixelsPerMeter
       });
       dispatch(
         updateRoomDimensions({
@@ -132,7 +134,7 @@ const CentralModal = ({ room, onClose }) => {
         newHeightMeters,
         newHeightPixels,
         roomId: room.id,
-        GRID_SIZE
+        pixelsPerMeter
       });
       dispatch(
         updateRoomDimensions({

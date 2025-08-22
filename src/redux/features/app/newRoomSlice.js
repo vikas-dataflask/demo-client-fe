@@ -9,6 +9,13 @@ const newRoomSlice = createSlice({
   },
   reducers: {
     createRooms: (state, action) => {
+      // Check if this is a clear action
+      if (action.payload && action.payload.type === 'clear') {
+        state.rooms = [];
+        console.log("ROOMIE: Cleared all rooms");
+        return;
+      }
+      
       const { 
         id, 
         x, 
@@ -40,13 +47,36 @@ const newRoomSlice = createSlice({
           console.log("ROOMIE in the slice",newRoom)
           state.rooms.push(newRoom);
           console.log("ROOMIE set in redux state")
-        }
+        },
+    updateRoomPosition: (state, action) => {
+      const { id, x, y } = action.payload;
+      const room = state.rooms.find((r) => r.id === id);
+      if (room) {
+        room.x = x;
+        room.y = y;
+        console.log("ROOMIE: Updated room position", { id, x, y });
+      }
+    },
+    updateRoomProperties: (state, action) => {
+      const { id, updates } = action.payload;
+      const room = state.rooms.find((r) => r.id === id);
+      if (room) {
+        Object.assign(room, updates);
+        console.log("ROOMIE: Updated room properties", { id, updates });
+      }
+    },
+    clearRooms: (state) => {
+      state.rooms = [];
+      console.log("ROOMIE: Cleared all rooms");
+    }
   },
 });
 
 export const {
   createRooms,
-
+  updateRoomPosition,
+  updateRoomProperties,
+  clearRooms
 } = newRoomSlice.actions;
 
 export default newRoomSlice.reducer;

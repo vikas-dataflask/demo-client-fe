@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Layer, Rect, Line, Circle, Text } from "react-konva";
 import { useSelector, useDispatch } from "react-redux";
@@ -7,6 +7,7 @@ import EntityRender from "../../drawing/EntityRenderer";
 import CanvasWrapper from "../Canvas/CanvasWrapper";
 import { setRoomLights } from "../../redux/features/app/lightingSlice";
 import { calculateAreaInMeters } from "../../utils/canvasUtils";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 
 const FloorPreview = ({
   drawingMode,
@@ -24,6 +25,7 @@ const FloorPreview = ({
   const currentFloorId = useSelector((s) => s.floor.currentFloorId);
   const currentFloor = floors.find((f) => f.id === currentFloorId);
   const lightsByRoom = useSelector((s) => s.lighting.lightsByRoom);
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter); // Get calibrated scale from Redux
 
   // Circuiting state
   const { circuits, circuitMapping, phaseColors, selectedZone } = useSelector(
@@ -650,7 +652,7 @@ const FloorPreview = ({
           {rooms?.map((room, index) => {
             const centerX = room.x + room.width / 2;
             const centerY = room.y + room.height / 2;
-            const areaInMeters = calculateAreaInMeters(room.width, room.height);
+            const areaInMeters = calculateAreaInMeters(room.width, room.height, pixelsPerMeter);
 
             // Determine fill color based on false ceiling status
             const hasFalseCeiling =

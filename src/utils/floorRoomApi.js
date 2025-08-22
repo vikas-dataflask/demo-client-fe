@@ -128,19 +128,19 @@ export const deleteRoomFromBackend = async (roomId) => {
   }
 };
 
-// Utility functions for data conversion
-export const convertPixelsToMeters = (pixels) => {
-  // Assuming 100 pixels = 1 meter (adjust based on your scale)
-  return pixels / 100;
+// Utility functions for data conversion - updated to use calibrated scale
+export const convertPixelsToMeters = (pixels, pixelsPerMeter = 100) => {
+  // Use calibrated scale if provided, otherwise fallback to default
+  return pixels / pixelsPerMeter;
 };
 
-export const convertMetersToPixels = (meters) => {
-  // Assuming 1 meter = 100 pixels (adjust based on your scale)
-  return meters * 100;
+export const convertMetersToPixels = (meters, pixelsPerMeter = 100) => {
+  // Use calibrated scale if provided, otherwise fallback to default
+  return meters * pixelsPerMeter;
 };
 
 // Convert frontend floor data to backend format
-export const convertFloorToBackendFormat = (floorData) => {
+export const convertFloorToBackendFormat = (floorData, pixelsPerMeter = 100) => {
   console.log('🔄 Converting floor data to backend format:', floorData);
   
   // Validate input
@@ -176,8 +176,8 @@ export const convertFloorToBackendFormat = (floorData) => {
   };
   
   // Use heightInMeters for shape height, floorHeight for floor height
-  const shapeWidth = floorData.widthInMeters || convertPixelsToMeters(floorData.width);
-  const shapeHeight = floorData.heightInMeters || convertPixelsToMeters(floorData.height);
+  const shapeWidth = floorData.widthInMeters || convertPixelsToMeters(floorData.width, pixelsPerMeter);
+  const shapeHeight = floorData.heightInMeters || convertPixelsToMeters(floorData.height, pixelsPerMeter);
   const floorHeight = floorData.floorHeight || floorData.height || 3200; // Support both floorHeight and height
   
   // Get current user ID from localStorage

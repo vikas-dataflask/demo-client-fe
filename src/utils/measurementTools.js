@@ -6,25 +6,25 @@ export class MeasurementTools {
   /**
    * Calculate distance between two points
    */
-  measureDistance(point1, point2, unit = 'meter') {
+  measureDistance(point1, point2, unit = 'meter', pixelsPerMeter = 100) {
     const pixelDistance = Math.hypot(point2.x - point1.x, point2.y - point1.y);
-    return this.scaleManager.pixelsToUnits(pixelDistance, unit);
+    return this.scaleManager.pixelsToUnits(pixelDistance, unit, pixelsPerMeter);
   }
 
   /**
    * Calculate area of rectangle
    */
-  measureRectangleArea(rect, unit = 'meter') {
+  measureRectangleArea(rect, unit = 'meter', pixelsPerMeter = 100) {
     const pixelArea = rect.width * rect.height;
-    return this.scaleManager.pixelAreaToUnits(pixelArea, unit);
+    return this.scaleManager.pixelAreaToUnits(pixelArea, unit, pixelsPerMeter);
   }
 
   /**
    * Calculate perimeter of rectangle
    */
-  measureRectanglePerimeter(rect, unit = 'meter') {
-    const pixelPerimeter = 2 * (rect.width + rect.height);
-    return this.scaleManager.pixelsToUnits(pixelPerimeter, unit);
+  measureRectanglePerimeter(rect, unit = 'meter', pixelsPerMeter = 100) {
+    const pixelPerimeter = 2 * ( rect.width + rect.height);
+    return this.scaleManager.pixelsToUnits(pixelPerimeter, unit, pixelsPerMeter);
   }
 
   /**
@@ -49,8 +49,8 @@ export class MeasurementTools {
   /**
    * Convert pixels to real-world units
    */
-  pixelsToUnits(pixels, unit = 'meter') {
-    const meters = pixels / 100; // 100 pixels = 1 meter
+  pixelsToUnits(pixels, unit = 'meter', pixelsPerMeter = 100) {
+    const meters = pixels / pixelsPerMeter; // Use calibrated scale
     
     switch (unit.toLowerCase()) {
       case 'mm':
@@ -71,8 +71,8 @@ export class MeasurementTools {
   /**
    * Convert pixel area to real-world units
    */
-  pixelAreaToUnits(pixelArea, unit = 'meter') {
-    const squareMeters = pixelArea / 10000; // 10000 pixels² = 1 m²
+  pixelAreaToUnits(pixelArea, unit = 'meter', pixelsPerMeter = 100) {
+    const squareMeters = pixelArea / (pixelsPerMeter * pixelsPerMeter); // Use calibrated scale
     
     switch (unit.toLowerCase()) {
       case 'sq yd':

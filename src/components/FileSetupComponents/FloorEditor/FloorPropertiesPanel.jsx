@@ -8,14 +8,16 @@ import {
   setFloorVolume 
 } from '../../../redux/features/app/floorSlice';
 import { convertPixelsToMeters, convertUnits } from '../../../utils/unitConversion';
+import { selectPixelsPerMeter } from '../../../redux/features/app/calibrationSlice';
 
 const FloorPropertiesPanel = ({ isOpen, onClose, floorData }) => {
   const dispatch = useDispatch();
   const displayUnit = useSelector((state) => state.floor.scale) || "m";
   const heightFromStore = useSelector((state) => state.floor.floor_height) || 3.2;
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter);
 
   const [properties, setProperties] = useState({
-    name: 'Ground Floor',
+    name: '',
     floorHeight: 3.2,
     slabThickness: 200,
     material: 'RCC'
@@ -27,7 +29,7 @@ const FloorPropertiesPanel = ({ isOpen, onClose, floorData }) => {
   useEffect(() => {
     if (floorData) {
       setProperties({
-        name: floorData.name || 'Ground Floor',
+        name: floorData.name || '',
         floorHeight: floorData.floorHeight || 3.2,
         slabThickness: floorData.slabThickness || 200,
         material: floorData.material || 'RCC'
@@ -40,8 +42,8 @@ const FloorPropertiesPanel = ({ isOpen, onClose, floorData }) => {
     if (!floorData) return 0;
     
     if (floorData.shape === 'rectangle') {
-      const widthInMeters = convertPixelsToMeters(floorData.width);
-      const heightInMeters = convertPixelsToMeters(floorData.height);
+      const widthInMeters = convertPixelsToMeters(floorData.width, pixelsPerMeter);
+      const heightInMeters = convertPixelsToMeters(floorData.height, pixelsPerMeter);
       return widthInMeters * heightInMeters;
     } else if (floorData.shape === 'polygon' && floorData.points) {
       // For polygon, use the pre-calculated area
@@ -83,7 +85,7 @@ const FloorPropertiesPanel = ({ isOpen, onClose, floorData }) => {
     // Reset to original values
     if (floorData) {
       setProperties({
-        name: floorData.name || 'Ground Floor',
+        name: floorData.name || '',
         floorHeight: floorData.floorHeight || 3.2,
         slabThickness: floorData.slabThickness || 200,
         material: floorData.material || 'RCC'

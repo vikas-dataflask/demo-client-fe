@@ -6,15 +6,17 @@ import {
   addRoom,
 } from "../../redux/features/app/roomSlice";
 import { createRooms } from "../../redux/features/app/newRoomSlice";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 // import { saveRoomToBackend } from "../../utils/roomApi"; // Commented out until authentication is implemented
 
-const GRID_SIZE = 100; // 100px = 1m for proper unit conversion
+// Remove hardcoded GRID_SIZE constant - using calibrated pixelsPerMeter from Redux
 
 const RoomCreationModal = ({ room, onClose, onSave, isNewRoom = false }) => {
   const dispatch = useDispatch();
   const selectedScale = useSelector((state) => state.project.scale);
   const currentFloorId = useSelector((state) => state.floor.currentFloorId);
   const existingRooms = useSelector((state) => state.newRooms?.rooms || []);
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter);
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -46,14 +48,14 @@ const RoomCreationModal = ({ room, onClose, onSave, isNewRoom = false }) => {
     }
   }, [room]);
 
-  // Convert pixels to meters (100px = 1m)
+  // Convert pixels to meters using calibrated scale
   const convertPixelsToMeters = (pixels) => {
-    return pixels / GRID_SIZE;
+    return pixels / pixelsPerMeter;
   };
 
-  // Convert meters to pixels
+  // Convert meters to pixels using calibrated scale
   const convertMetersToPixels = (meters) => {
-    return meters * GRID_SIZE;
+    return meters * pixelsPerMeter;
   };
 
   // Get unit label based on selected scale
@@ -72,7 +74,7 @@ const RoomCreationModal = ({ room, onClose, onSave, isNewRoom = false }) => {
 
   // Convert area to selected scale
   const convertArea = (pixelArea) => {
-    const areaInSquareMeters = pixelArea / (GRID_SIZE * GRID_SIZE);
+    const areaInSquareMeters = pixelArea / (pixelsPerMeter * pixelsPerMeter);
 
     switch (selectedScale) {
       case "Inches":

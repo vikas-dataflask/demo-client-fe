@@ -10,6 +10,7 @@ import {
   useGetHeatLoadAutofillQuery,
 } from "../../redux/features/api/api";
 import { setRoomHeatLoad } from "../../redux/features/app/heatLoadSlice";
+import { selectPixelsPerMeter } from "../../redux/features/app/calibrationSlice";
 import FloorPreview from "../shared/FloorPreview";
 
 const defaultWall = { area: "", uValue: "", deltaT: "" };
@@ -31,6 +32,7 @@ const defaultSunGainComponent = {
 const HeatLoad = () => {
   const dispatch = useDispatch();
   const { projectId } = useParams(); // Get projectId from URL parameters
+  const pixelsPerMeter = useSelector(selectPixelsPerMeter);
   const [addHeatLoad, { isLoading }] = useAddHeatLoadMutation();
   const [addHeatLoadToDb] = useAddHeatLoadToDbMutation();
   const [updateHeatLoadInDb] = useUpdateHeatLoadInDbMutation();
@@ -119,9 +121,8 @@ const HeatLoad = () => {
         (room) => room.name === value || room.id === value
       );
       if (selectedRoom) {
-        // Convert room dimensions from pixels to meters (assuming 100px = 1m like in DialuxForm)
-        const GRID_SIZE = 100;
-        const convertPixelsToMeters = (pixels) => pixels / GRID_SIZE;
+        // Convert room dimensions from pixels to meters using calibrated scale
+        const convertPixelsToMeters = (pixels) => pixels / pixelsPerMeter;
         
         const roomArea = selectedRoom.width && selectedRoom.height 
           ? convertPixelsToMeters(selectedRoom.width) * convertPixelsToMeters(selectedRoom.height)
@@ -570,8 +571,7 @@ const HeatLoad = () => {
                     <option value="">Select a Room</option>
                     {(() => {
                       // Remove duplicates and show room dimensions
-                      const GRID_SIZE = 100;
-                      const convertPixelsToMeters = (pixels) => pixels / GRID_SIZE;
+                      const convertPixelsToMeters = (pixels) => pixels / pixelsPerMeter;
                       
                       const uniqueRooms = rooms.filter(
                         (room, index, self) =>
