@@ -184,7 +184,7 @@ const DialuxForm = () => {
   const [area, setArea] = useState(0);
   const [lightFixture, setLightFixture] = useState(0);
   const [reflectanceFactor, setReflectanceFactor] = useState(0.5);
-  const [wallZone, setWallZone] = useState('A');
+  const [wallZone, setWallZone] = useState("A");
   const [workPlane, setWorkPlane] = useState(0.85);
   const [drawingMode, setDrawingMode] = useState(null);
   const [showResult, setShowResult] = useState(false);
@@ -200,7 +200,7 @@ const DialuxForm = () => {
   const [prefillError, setPrefillError] = useState("");
   const [prefillSuccess, setPrefillSuccess] = useState(false);
   const [prefillData, setPrefillData] = useState(null); // Store prefill data locally
-  const [selectedRoom, setSelectedRoom] = useState(''); // Track selected room for prefill
+  const [selectedRoom, setSelectedRoom] = useState(""); // Track selected room for prefill
 
   // Use the current project's room selection logic
   const rooms = useSelector((state) => state.newRooms?.rooms || []);
@@ -225,7 +225,9 @@ const DialuxForm = () => {
   ];
 
   // Find the selected room object based on selectedRoom state (now using room names)
-  const selectedRoomObj = allRooms.find((room) => (room.name || room.id) === selectedRoom);
+  const selectedRoomObj = allRooms.find(
+    (room) => (room.name || room.id) === selectedRoom
+  );
 
   const dispatch = useDispatch();
   const pixelsPerMeter = useSelector(selectPixelsPerMeter); // Get calibrated scale from Redux
@@ -235,9 +237,9 @@ const DialuxForm = () => {
   };
 
   // Calculate area in square meters from room dimensions
-// <<<<<<< SjCONNECTION
+  // <<<<<<< SjCONNECTION
   const roomArea = selectedRoomObj
-    ? selectedRoomObj.source === 'ai'
+    ? selectedRoomObj.source === "ai"
       ? selectedRoomObj.areaInSquareMeters || 0
       : convertPixelsToMeters(selectedRoomObj.width) *
         convertPixelsToMeters(selectedRoomObj.height)
@@ -245,62 +247,76 @@ const DialuxForm = () => {
 
   // Convert room height to meters if available
   const roomHeight = selectedRoomObj
-    ? selectedRoomObj.source === 'ai'
+    ? selectedRoomObj.source === "ai"
       ? selectedRoomObj.heightInMeters || 0
       : convertPixelsToMeters(selectedRoomObj.height)
     : "";
 
-  const dispatch = useDispatch();
+  // const dispatch = useDispatch();
 
   // Prefill form with data from Admin backend - REMOVED AUTO-PREFILL
   // Now user must manually click button and select room first
-  
+
   // Function to fetch prefill data (without auto-prefilling)
   const fetchPrefillData = async () => {
     try {
       // Get project data from localStorage
-      const projectData = localStorage.getItem('projectData');
+      const projectData = localStorage.getItem("projectData");
       if (!projectData) {
-        setPrefillError('No project data found in localStorage. Please set project data first.');
+        setPrefillError(
+          "No project data found in localStorage. Please set project data first."
+        );
         return;
       }
 
-      const { locationId, buildingCategoryId, buildingTypeId } = JSON.parse(projectData);
-      
+      const { locationId, buildingCategoryId, buildingTypeId } =
+        JSON.parse(projectData);
+
       if (!locationId || !buildingCategoryId || !buildingTypeId) {
-        setPrefillError('Missing required project IDs for prefill');
+        setPrefillError("Missing required project IDs for prefill");
         return;
       }
 
-      console.log('🔍 Fetching prefill data for Dialux form with IDs:', { locationId, buildingCategoryId, buildingTypeId });
-      
+      console.log("🔍 Fetching prefill data for Dialux form with IDs:", {
+        locationId,
+        buildingCategoryId,
+        buildingTypeId,
+      });
+
       setIsPrefilling(true);
-      setPrefillError('');
+      setPrefillError("");
       setPrefillSuccess(false);
 
       // Call the client backend prefill endpoint
-      const response = await fetch(`http://localhost:8000/api/prefill/prefill-designform?locationId=${locationId}&buildingCategoryId=${buildingCategoryId}&buildingTypeId=${buildingTypeId}`);
-      
+      const response = await fetch(
+        `http://localhost:8000/api/prefill/prefill-designform?locationId=${locationId}&buildingCategoryId=${buildingCategoryId}&buildingTypeId=${buildingTypeId}`
+      );
+
       if (!response.ok) {
-        throw new Error(`Prefill request failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Prefill request failed: ${response.status} ${response.statusText}`
+        );
       }
 
       const result = await response.json();
-      
+
       if (result.success && result.data) {
-        console.log('✅ Prefill data received and stored locally:', result.data);
-        
+        console.log(
+          "✅ Prefill data received and stored locally:",
+          result.data
+        );
+
         // Store the data locally (don't prefill form yet)
         setPrefillData(result.data);
         setPrefillSuccess(true);
-        setPrefillError('');
-        
+        setPrefillError("");
       } else {
-        setPrefillError('No prefill data available for the specified parameters');
+        setPrefillError(
+          "No prefill data available for the specified parameters"
+        );
       }
-      
     } catch (error) {
-      console.error('❌ Error during prefill:', error);
+      console.error("❌ Error during prefill:", error);
       setPrefillError(`Failed to fetch prefill data: ${error.message}`);
     } finally {
       setIsPrefilling(false);
@@ -310,128 +326,175 @@ const DialuxForm = () => {
   // Function to prefill form based on selected room
   const prefillFormForRoom = (selectedRoom) => {
     if (!prefillData || !selectedRoom) {
-      console.log('❌ No prefill data or room selected');
+      console.log("❌ No prefill data or room selected");
       return;
     }
 
     console.log(`🔍 Prefilling form for room: ${selectedRoom}`);
-    console.log('🔍 Available factorRoomData keys:', Object.keys(prefillData.factorRoomData || {}));
-    
+    console.log(
+      "🔍 Available factorRoomData keys:",
+      Object.keys(prefillData.factorRoomData || {})
+    );
+
     // Get room-specific data from factorRoomData
     const roomData = prefillData.factorRoomData;
-    
+
     if (roomData) {
       // Prefill illumination level
       if (roomData.lux_level && roomData.lux_level[selectedRoom]) {
         const luxValue = parseFloat(roomData.lux_level[selectedRoom]);
         setIllumination(luxValue || 4);
-        console.log(`✅ Prefilled illumination level for ${selectedRoom}:`, luxValue);
+        console.log(
+          `✅ Prefilled illumination level for ${selectedRoom}:`,
+          luxValue
+        );
       } else {
         console.log(`❌ No lux_level data found for room: ${selectedRoom}`);
-        console.log('🔍 Available rooms in lux_level:', Object.keys(roomData.lux_level || {}));
+        console.log(
+          "🔍 Available rooms in lux_level:",
+          Object.keys(roomData.lux_level || {})
+        );
       }
-      
+
       // Prefill uniformity factor
       if (roomData.uniformity && roomData.uniformity[selectedRoom]) {
-        const uniformityValue = parseFloat(roomData.uniformity[selectedRoom]) / 100; // Convert percentage to decimal
+        const uniformityValue =
+          parseFloat(roomData.uniformity[selectedRoom]) / 100; // Convert percentage to decimal
         setUf(uniformityValue || 0.6);
-        console.log(`✅ Prefilled uniformity factor for ${selectedRoom}:`, uniformityValue);
+        console.log(
+          `✅ Prefilled uniformity factor for ${selectedRoom}:`,
+          uniformityValue
+        );
       }
-      
+
       // Prefill maintenance factor
-      if (roomData.maintenance_factor && roomData.maintenance_factor[selectedRoom]) {
-        const mfValue = parseFloat(roomData.maintenance_factor[selectedRoom]) / 100; // Convert percentage to decimal
+      if (
+        roomData.maintenance_factor &&
+        roomData.maintenance_factor[selectedRoom]
+      ) {
+        const mfValue =
+          parseFloat(roomData.maintenance_factor[selectedRoom]) / 100; // Convert percentage to decimal
         setMf(mfValue || 0.8);
-        console.log(`✅ Prefilled maintenance factor for ${selectedRoom}:`, mfValue);
+        console.log(
+          `✅ Prefilled maintenance factor for ${selectedRoom}:`,
+          mfValue
+        );
       }
-      
+
       // Prefill mounting height
       if (roomData.mounting_height && roomData.mounting_height[selectedRoom]) {
-        const heightValue = parseFloat(roomData.mounting_height[selectedRoom]) * 1000; // Convert m to mm
+        const heightValue =
+          parseFloat(roomData.mounting_height[selectedRoom]) * 1000; // Convert m to mm
         setMountingHeight(heightValue || 1000);
-        console.log(`✅ Prefilled mounting height for ${selectedRoom}:`, heightValue);
+        console.log(
+          `✅ Prefilled mounting height for ${selectedRoom}:`,
+          heightValue
+        );
       }
-      
+
       // Prefill area
       if (roomData.area && roomData.area[selectedRoom]) {
         const areaValue = parseFloat(roomData.area[selectedRoom]);
         setArea(areaValue || 0);
         console.log(`✅ Prefilled area for ${selectedRoom}:`, areaValue);
       }
-      
+
       // Prefill light fixture count
       if (roomData.light_fixture && roomData.light_fixture[selectedRoom]) {
         const fixtureValue = parseFloat(roomData.light_fixture[selectedRoom]);
         setLightFixture(fixtureValue || 0);
-        console.log(`✅ Prefilled light fixture count for ${selectedRoom}:`, fixtureValue);
+        console.log(
+          `✅ Prefilled light fixture count for ${selectedRoom}:`,
+          fixtureValue
+        );
       }
-      
+
       // Prefill reflectance factor
-      if (roomData.reflectance_factor && roomData.reflectance_factor[selectedRoom]) {
-        const reflectanceValue = parseFloat(roomData.reflectance_factor[selectedRoom]);
+      if (
+        roomData.reflectance_factor &&
+        roomData.reflectance_factor[selectedRoom]
+      ) {
+        const reflectanceValue = parseFloat(
+          roomData.reflectance_factor[selectedRoom]
+        );
         setReflectanceFactor(reflectanceValue || 0.5);
-        console.log(`✅ Prefilled reflectance factor for ${selectedRoom}:`, reflectanceValue);
+        console.log(
+          `✅ Prefilled reflectance factor for ${selectedRoom}:`,
+          reflectanceValue
+        );
       }
-      
+
       // Prefill wall zone
       if (roomData.wall_zone && roomData.wall_zone[selectedRoom]) {
         const wallZoneValue = roomData.wall_zone[selectedRoom];
-        setWallZone(wallZoneValue || 'A');
-        console.log(`✅ Prefilled wall zone for ${selectedRoom}:`, wallZoneValue);
+        setWallZone(wallZoneValue || "A");
+        console.log(
+          `✅ Prefilled wall zone for ${selectedRoom}:`,
+          wallZoneValue
+        );
       }
-      
+
       // Prefill work plane
       if (roomData.work_plane && roomData.work_plane[selectedRoom]) {
         const workPlaneValue = parseFloat(roomData.work_plane[selectedRoom]);
         setWorkPlane(workPlaneValue || 0.85);
-        console.log(`✅ Prefilled work plane for ${selectedRoom}:`, workPlaneValue);
+        console.log(
+          `✅ Prefilled work plane for ${selectedRoom}:`,
+          workPlaneValue
+        );
       }
-      
+
       // Prefill room usage type
       if (roomData.room_usage_type && roomData.room_usage_type[selectedRoom]) {
         const roomTypeValue = roomData.room_usage_type[selectedRoom];
-        setRoomType(roomTypeValue || 'office');
-        console.log(`✅ Prefilled room usage type for ${selectedRoom}:`, roomTypeValue);
+        setRoomType(roomTypeValue || "office");
+        console.log(
+          `✅ Prefilled room usage type for ${selectedRoom}:`,
+          roomTypeValue
+        );
       }
-      
+
       console.log(`✅ Form prefilled successfully for room: ${selectedRoom}`);
     } else {
-      console.log('❌ No factorRoomData available for room-specific prefill');
+      console.log("❌ No factorRoomData available for room-specific prefill");
     }
   };
 
   // Function to handle room selection change
   const handleRoomSelectionChange = (event) => {
     const selectedRoomName = event.target.value;
-    console.log('🔍 Room selected:', selectedRoomName);
+    console.log("🔍 Room selected:", selectedRoomName);
     setSelectedRoom(selectedRoomName);
-    
+
     // If we have prefill data and a room is selected, prefill the form
     if (prefillData && selectedRoomName) {
-      console.log('🔍 Prefilling form for room:', selectedRoomName);
-      console.log('🔍 Available prefill data:', prefillData);
+      console.log("🔍 Prefilling form for room:", selectedRoomName);
+      console.log("🔍 Available prefill data:", prefillData);
       prefillFormForRoom(selectedRoomName);
     } else {
-      console.log('❌ Cannot prefill:', { hasPrefillData: !!prefillData, selectedRoom: selectedRoomName });
+      console.log("❌ Cannot prefill:", {
+        hasPrefillData: !!prefillData,
+        selectedRoom: selectedRoomName,
+      });
     }
   };
 
-// =======
-//   const roomArea = selectedRoom
-//     ? selectedRoom.source === "ai"
-//       ? selectedRoom.areaInSquareMeters || 0
-//       : convertPixelsToMeters(selectedRoom.width) *
-//         convertPixelsToMeters(selectedRoom.height)
-//     : "";
+  // =======
+  //   const roomArea = selectedRoom
+  //     ? selectedRoom.source === "ai"
+  //       ? selectedRoom.areaInSquareMeters || 0
+  //       : convertPixelsToMeters(selectedRoom.width) *
+  //         convertPixelsToMeters(selectedRoom.height)
+  //     : "";
 
-//   // Convert room height to meters if available
-//   const roomHeight = selectedRoom
-//     ? selectedRoom.source === "ai"
-//       ? selectedRoom.heightInMeters || 0
-//       : convertPixelsToMeters(selectedRoom.height)
-//     : "";
+  //   // Convert room height to meters if available
+  //   const roomHeight = selectedRoom
+  //     ? selectedRoom.source === "ai"
+  //       ? selectedRoom.heightInMeters || 0
+  //       : convertPixelsToMeters(selectedRoom.height)
+  //     : "";
 
-// >>>>>>> dev
+  // >>>>>>> dev
   const parseIesFile = async (file) => {
     setIsParsing(true);
     setParseError("");
@@ -571,26 +634,30 @@ const DialuxForm = () => {
           <p className="text-sm text-gray-600">
             Calculate lighting requirements and arrange fixtures
           </p>
-          
+
           {/* Prefill Status Indicator */}
           {isPrefilling && (
             <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-sm text-blue-700">Loading prefill data from Admin backend...</span>
+                <span className="text-sm text-blue-700">
+                  Loading prefill data from Admin backend...
+                </span>
               </div>
             </div>
           )}
-          
+
           {prefillSuccess && (
             <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center space-x-2">
                 <span className="text-green-600">✅</span>
-                <span className="text-sm text-green-700">Form prefilled successfully with data from Admin backend!</span>
+                <span className="text-sm text-green-700">
+                  Form prefilled successfully with data from Admin backend!
+                </span>
               </div>
             </div>
           )}
-          
+
           {prefillError && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center space-x-2">
@@ -604,23 +671,25 @@ const DialuxForm = () => {
         <div className="space-y-6">
           {/* Manual Prefill Button */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">DIALUX Calculation Form</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              DIALUX Calculation Form
+            </h3>
             <div className="flex gap-2">
               <button
                 onClick={fetchPrefillData}
                 disabled={isPrefilling}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
               >
-                {isPrefilling ? '⏳ Loading...' : '📥 Prefill Data'}
+                {isPrefilling ? "⏳ Loading..." : "📥 Prefill Data"}
               </button>
-              
+
               {prefillData && (
                 <button
                   onClick={() => {
                     setPrefillData(null);
                     setPrefillSuccess(false);
-                    setPrefillError('');
-                    setSelectedRoom('');
+                    setPrefillError("");
+                    setSelectedRoom("");
                   }}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
                 >
@@ -629,27 +698,32 @@ const DialuxForm = () => {
               )}
             </div>
           </div>
-          
+
           {/* Prefill Status Messages */}
           {prefillError && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
               <p className="text-sm text-red-600">❌ {prefillError}</p>
             </div>
           )}
-          
+
           {prefillSuccess && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="text-sm text-green-600">✅ Prefill data loaded successfully! Now select a room to prefill the form.</p>
+              <p className="text-sm text-green-600">
+                ✅ Prefill data loaded successfully! Now select a room to
+                prefill the form.
+              </p>
             </div>
           )}
-          
+
           {/* Prefill Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-700">
-              <strong>How to use prefill:</strong> 1️⃣ Click "📥 Prefill Data" button above 2️⃣ Select a room from dropdown 3️⃣ Form will auto-fill with room-specific data
+              <strong>How to use prefill:</strong> 1️⃣ Click "📥 Prefill Data"
+              button above 2️⃣ Select a room from dropdown 3️⃣ Form will auto-fill
+              with room-specific data
             </p>
           </div>
-          
+
           {/* Room Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -684,16 +758,11 @@ const DialuxForm = () => {
                 }
 
                 return (
-// <<<<<<< SjCONNECTION
+                  // <<<<<<< SjCONNECTION
                   <option key={room.id} value={room.name || room.id}>
-                    {displayText}{areaDisplay}
-                    {room.source === 'ai' && ' [AI]'}
-// =======
-//                   <option key={room.id} value={room.id}>
-//                     {displayText}
-//                     {areaDisplay}
-//                     {room.source === "ai" && " [AI]"}
-// >>>>>>> dev
+                    {displayText}
+                    {areaDisplay}
+                    {room.source === "ai" && " [AI]"}
                   </option>
                 );
               })}
@@ -708,13 +777,17 @@ const DialuxForm = () => {
                 ℹ️ Click "📥 Prefill Data" button above to load data first
               </p>
             )}
-            
+
             {/* Debug: Show available room names from prefill data */}
             {prefillData && prefillData.factorRoomData && (
               <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-                <p className="text-yellow-700 font-medium">🔍 Debug: Available rooms in prefill data:</p>
+                <p className="text-yellow-700 font-medium">
+                  🔍 Debug: Available rooms in prefill data:
+                </p>
                 <p className="text-yellow-600">
-                  {Object.keys(prefillData.factorRoomData.lux_level || {}).join(', ')}
+                  {Object.keys(prefillData.factorRoomData.lux_level || {}).join(
+                    ", "
+                  )}
                 </p>
               </div>
             )}
@@ -725,55 +798,33 @@ const DialuxForm = () => {
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <h4 className="text-sm font-medium text-gray-700 mb-3">
                 Room Information
-// <<<<<<< SjCONNECTION
-                {selectedRoomObj.source === 'ai' && (
-// =======
-//                 {selectedRoom.source === "ai" && (
-// >>>>>>> dev
+                {selectedRoomObj.source === "ai" && (
                   <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                     AI Generated
                   </span>
                 )}
-// <<<<<<< SjCONNECTION
-                {selectedRoomObj.source === 'ai' && selectedRoomObj.category && selectedRoomObj.category !== selectedRoomObj.name && (
-                  <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                    {selectedRoomObj.category}
-                  </span>
-                )}
+                {selectedRoomObj.source === "ai" &&
+                  selectedRoomObj.category &&
+                  selectedRoomObj.category !== selectedRoomObj.name && (
+                    <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                      {selectedRoomObj.category}
+                    </span>
+                  )}
               </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                {selectedRoomObj.source === 'ai' ? (
-// =======
-//                 {selectedRoom.source === "ai" &&
-//                   selectedRoom.category &&
-//                   selectedRoom.category !== selectedRoom.name && (
-//                     <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-//                       {selectedRoom.category}
-//                     </span>
-//                   )}
-//               </h4>
-//               <div className="grid grid-cols-2 gap-4 text-sm">
-//                 {selectedRoom.source === "ai" ? (
-// >>>>>>> dev
+                {selectedRoomObj.source === "ai" ? (
                   // AI Room Display
                   <>
                     <div>
                       <span className="text-gray-600">Dimensions:</span>
                       <div className="font-medium">
-// <<<<<<< SjCONNECTION
-                        {selectedRoomObj.widthInMeters > 0 && selectedRoomObj.heightInMeters > 0
-                          ? `${selectedRoomObj.widthInMeters.toFixed(2)} × ${selectedRoomObj.heightInMeters.toFixed(2)} m`
-                          : selectedRoomObj.specialDimensions || 'Special dimensions'
-                        }
-//=======
-//                         {selectedRoom.widthInMeters > 0 &&
-//                         selectedRoom.heightInMeters > 0
-//                           ? `${selectedRoom.widthInMeters.toFixed(
-//                               2
-//                             )} × ${selectedRoom.heightInMeters.toFixed(2)} m`
-//                           : selectedRoom.specialDimensions ||
-//                             "Special dimensions"}
-// >>>>>>> dev
+                        {selectedRoomObj.widthInMeters > 0 &&
+                        selectedRoomObj.heightInMeters > 0
+                          ? `${selectedRoomObj.widthInMeters.toFixed(
+                              2
+                            )} × ${selectedRoomObj.heightInMeters.toFixed(2)} m`
+                          : selectedRoomObj.specialDimensions ||
+                            "Special dimensions"}
                       </div>
                     </div>
                     <div>
@@ -799,14 +850,14 @@ const DialuxForm = () => {
                         Dimensions (meters):
                       </span>
                       <div className="font-medium">
-// <<<<<<< SjCONNECTION
-                        {convertPixelsToMeters(selectedRoomObj.width).toFixed(2)} ×{" "}
-                        {convertPixelsToMeters(selectedRoomObj.height).toFixed(2)} m
-// =======
-//                         {convertPixelsToMeters(selectedRoom.width).toFixed(2)} ×{" "}
-//                         {convertPixelsToMeters(selectedRoom.height).toFixed(2)}{" "}
-//                         m
-// >>>>>>> dev
+                        {convertPixelsToMeters(selectedRoomObj.width).toFixed(
+                          2
+                        )}{" "}
+                        ×{" "}
+                        {convertPixelsToMeters(selectedRoomObj.height).toFixed(
+                          2
+                        )}{" "}
+                        m
                       </div>
                     </div>
                   </>
