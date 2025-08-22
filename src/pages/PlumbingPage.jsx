@@ -22,6 +22,7 @@ import RwhModal from "../components/plumbing/RwhModal";
 import PlumbingHLFormModal from "../components/plumbing/PlumbingHLFormModal";
 import { useParams } from "react-router-dom";
 import { useGetProjectListQuery } from "../redux/features/api/api";
+import AISidebar from "../components/SharedComponents/AITools/AISidebar";
 
 export default function PlumbingPage() {
   const [activeSection, setActiveSection] = useState("water-demand"); // Default
@@ -101,6 +102,7 @@ export default function PlumbingPage() {
           </RightModal>
         )} */}
       </div>
+      <AISidebar />
     </div>
   );
 }

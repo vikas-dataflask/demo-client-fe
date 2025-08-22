@@ -1,4 +1,4 @@
-import { SendHorizonal, Sparkles, X, Loader2, Bot, User, Heart, Star } from "lucide-react";
+import { SendHorizonal, Sparkles, Loader2, Bot, User, Heart, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   useChatMutation,
@@ -11,16 +11,10 @@ export default function AiSidebar() {
 
   const [message, setMessage] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
-  const [isOpen, setIsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [likedMessages, setLikedMessages] = useState(new Set());
-  const [isHovering, setIsHovering] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [buttonPosition, setButtonPosition] = useState({ x: 24, y: 24 }); // Default position
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const chatContainerRef = useRef(null);
-  const buttonRef = useRef(null);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -94,98 +88,11 @@ export default function AiSidebar() {
     });
   };
 
-  // Drag handlers
-  const handleMouseDown = (e) => {
-    if (e.button !== 0) return; // Only left mouse button
-    
-    setIsDragging(true);
-    const rect = buttonRef.current.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    });
-    
-    // Prevent text selection during drag
-    e.preventDefault();
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-
-    const newX = e.clientX - dragOffset.x;
-    const newY = e.clientY - dragOffset.y;
-
-    // Constrain to viewport bounds
-    const maxX = window.innerWidth - 64; // Button width
-    const maxY = window.innerHeight - 64; // Button height
-    
-    setButtonPosition({
-      x: Math.max(0, Math.min(newX, maxX)),
-      y: Math.max(0, Math.min(newY, maxY))
-    });
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  // Add global mouse event listeners
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isDragging, dragOffset]);
-
-  // Prevent context menu on button
-  const handleContextMenu = (e) => {
-    e.preventDefault();
-  };
-
   return (
     <>
-      {/* Draggable Toggle Button */}
-      <button
-        ref={buttonRef}
-        onClick={() => !isDragging && setIsOpen(!isOpen)}
-        onMouseEnter={() => !isDragging && setIsHovering(true)}
-        onMouseLeave={() => !isDragging && setIsHovering(false)}
-        onMouseDown={handleMouseDown}
-        onContextMenu={handleContextMenu}
-        className={`fixed z-50 p-4 rounded-2xl shadow-2xl transition-all duration-300 ease-in-out cursor-grab active:cursor-grabbing ${
-          isDragging ? 'cursor-grabbing' : 'cursor-grab'
-        } ${
-          isOpen 
-            ? 'bg-gradient-to-br from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800' 
-            : 'bg-gradient-to-br from-cream-400 to-cream-500 text-blue-600 hover:from-cream-500 hover:to-cream-600 hover:shadow-blue-200'
-        }`}
-        style={{
-          left: `${buttonPosition.x}px`,
-          top: `${buttonPosition.y}px`,
-          background: isOpen 
-            ? 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)' 
-            : 'linear-gradient(135deg, #FCE7CE 0%, #F4E4C1 100%)',
-          boxShadow: isOpen 
-            ? '0 25px 50px -12px rgba(37, 99, 235, 0.4), 0 0 0 1px rgba(37, 99, 235, 0.1)'
-            : '0 25px 50px -12px rgba(252, 231, 206, 0.5), 0 0 0 1px rgba(252, 231, 206, 0.2)',
-          transform: isHovering && !isDragging ? 'scale(1.05) rotate(2deg)' : isDragging ? 'scale(1.1)' : 'scale(1) rotate(0deg)',
-          userSelect: 'none',
-          touchAction: 'none'
-        }}
-      >
-        {isOpen ? <X className="h-6 w-6" /> : <Sparkles className="h-6 w-6" />}
-      </button>
-
-      {/* Sidebar */}
+      {/* Sidebar - Always Visible */}
       <div 
-        className={`fixed top-0 right-0 h-screen w-[400px] bg-white shadow-2xl transform transition-all duration-700 ease-in-out z-40 ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className="fixed top-18 right-0 h-screen w-[400px] bg-white shadow-2xl z-40"
         style={{
           background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 30%, #F1F5F9 70%, #E2E8F0 100%)',
           borderLeft: '1px solid rgba(226, 232, 240, 0.8)',
@@ -247,7 +154,7 @@ export default function AiSidebar() {
                   <div className="w-2 h-2 rounded-full bg-cream-500 group-hover:scale-125 transition-transform duration-300"></div>
                   <div className="text-cream-700 text-xs font-bold group-hover:translate-x-1 transition-transform duration-300">Project</div>
                 </div>
-                <div className="text-cream-600 text-xs space-y-0.5">
+                <div className="text-blue-600 text-xs space-y-0.5">
                   <div className="flex items-center gap-1.5 group-hover:translate-x-1 transition-transform duration-300">
                     <div className="w-1 h-1 rounded-full bg-cream-400"></div>
                     Specifications
@@ -262,7 +169,7 @@ export default function AiSidebar() {
           </div>
 
           {/* Chat Section */}
-          <div className="flex-1 flex flex-col px-4 pb-4">
+          <div className="flex-1 flex flex-col px-4 pb-4 mb-20">
             <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border border-gray-200 flex flex-col flex-1 overflow-hidden shadow-md hover:shadow-lg transition-all duration-300">
               <div className="p-3 border-b border-gray-200 bg-white/50 backdrop-blur-sm">
                 <div className="flex items-center gap-3">
@@ -422,20 +329,6 @@ export default function AiSidebar() {
           </div>
         </div>
       </div>
-
-      {/* Backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-30 animate-fade-in backdrop-blur-md"
-          onClick={() => setIsOpen(false)}
-          style={{
-            animation: 'fadeIn 0.4s ease-in-out',
-            background: 'rgba(0, 0, 0, 0.2)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)'
-          }}
-        />
-      )}
 
       <style jsx>{`
         @keyframes fadeIn {

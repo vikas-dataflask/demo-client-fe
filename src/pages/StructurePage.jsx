@@ -7,6 +7,7 @@ import FootingDesign from "../components/structure/FootingDesign";
 import StaircaseDesign from "../components/structure/StaircaseDesign";
 import ShearWallDesign from "../components/structure/ShearWallDesign";
 import TopBarSecondary from "../components/TopBarSecondary";
+import AISidebar from "../components/SharedComponents/AITools/AISidebar";
 
 export default function StructurePage() {
   const [activeSection, setActiveSection] = useState("slab");
@@ -53,6 +54,7 @@ export default function StructurePage() {
           </div>
         </div>
       </div>
+      <AISidebar />
     </div>
   );
 }

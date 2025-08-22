@@ -15,6 +15,7 @@ import EarthmatCalculator from "../components/electrical/EarthmatCalculator";
 import CircuitingControlPanel from "../components/electrical/CircuitingControlPanel";
 import CircuitVisualizer from "../components/electrical/CircuitVisualizer";
 import PowerCircuitingPage from "../components/electrical/PowerCircuitingPage";
+import AISidebar from "../components/SharedComponents/AITools/AISidebar";
 
 export default function ElectricalPage() {
   const [activeSection, setActiveSection] = useState("dialux"); // Default
@@ -79,6 +80,7 @@ export default function ElectricalPage() {
         />
         <div className="flex-1 h-screen overflow-y-auto">{renderContent()}</div>
       </div>
+      <AISidebar />
     </div>
   );
 }

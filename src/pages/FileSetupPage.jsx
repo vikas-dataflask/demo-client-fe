@@ -123,7 +123,7 @@ export default function FileSetupPage() {
           setOpen={setOpen}
           open={open}
         />
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex overflow-y-auto">
           {/* Debug panel for testing */}
           {/* {process.env.NODE_ENV === 'development' && (
              <div className="fixed top-4 right-4 bg-white border border-gray-300 rounded-lg p-4 shadow-lg z-50">

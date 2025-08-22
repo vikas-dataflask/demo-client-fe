@@ -13,6 +13,7 @@ import HeatLoadRightModal from "../components/HVAC/HeatLoadRightModal";
 import AHU from "../components/HVAC/AHU";
 import Chiller from "../components/HVAC/Chiller";
 import Condenser from "../components/HVAC/Condenser";
+import AISidebar from "../components/SharedComponents/AITools/AISidebar";
 
 export default function HVACPage() {
   const [activeSection, setActiveSection] = useState("heat-load"); // Default
@@ -68,6 +69,7 @@ export default function HVACPage() {
           // </RightModal>
           null}
       </div>
+      <AISidebar />
     </div>
   );
 }

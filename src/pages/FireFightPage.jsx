@@ -11,6 +11,7 @@ import SidebarFireFight from "../components/fireFight/SidebarFireFight";
 import RightModal from "../components/shared/RightModal";
 import FireHLFormModal from "../components/fireFight/FireHLFormModal";
 import FirePumpPageModal from "../components/fireFight/FirePumpPageModal";
+import AISidebar from "../components/SharedComponents/AITools/AISidebar";
 
 export default function FireFightPage() {
   const [activeSection, setActiveSection] = useState("head-loss");
@@ -51,6 +52,7 @@ export default function FireFightPage() {
           </RightModal>
         )} */}
       </div>
+      <AISidebar />
     </div>
   );
 }

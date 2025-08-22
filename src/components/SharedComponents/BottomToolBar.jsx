@@ -48,7 +48,7 @@ export default function BottomToolBar({ X, Y }) {
     setMeasurements(!measurements);
   };
   return (
-    <div className="bg-blue-500 text-white text-xs px-4 py-2 flex items-center justify-end font-semibold gap-4">
+    <div className="bg-blue-500 text-white text-xs px-4 py-2 flex items-center justify-end font-semibold gap-4 z-50">
       <div className="flex gap-1">
         X:
         <div>{X}</div>
