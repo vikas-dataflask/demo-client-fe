@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
 export default function ColumnDesign({ projectName, activity }) {
+  const { projectId } = useParams();
   const [formData, setFormData] = useState({
     columnType: 'Axial Load Only',
     columnWidth: '',
@@ -20,6 +22,45 @@ export default function ColumnDesign({ projectName, activity }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
+  // Check if user is logged in
+  const checkAuthStatus = () => {
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) {
+      return false;
+    }
+    try {
+      const user = JSON.parse(storedUser);
+      return user && user.token;
+    } catch (e) {
+      console.error('Failed to parse user from localStorage', e);
+      localStorage.removeItem('user');
+      return false;
+    }
+  };
+
+  // Check if project ID is available
+  const checkProjectStatus = () => {
+    return projectId && projectId !== 'undefined' && projectId !== 'null';
+  };
+
+  // Check authentication and project status on component mount
+  useEffect(() => {
+    const authStatus = checkAuthStatus();
+    const projectStatus = checkProjectStatus();
+    
+    if (!authStatus) {
+      console.log('⚠️ User not authenticated in ColumnDesign component');
+    } else {
+      console.log('✅ User authenticated in ColumnDesign component');
+    }
+    
+    if (!projectStatus) {
+      console.log('⚠️ Project ID not available in ColumnDesign component');
+    } else {
+      console.log('✅ Project ID available in ColumnDesign component:', projectId);
+    }
+  }, [projectId]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -37,7 +78,7 @@ export default function ColumnDesign({ projectName, activity }) {
     try {
       const payload = {
         ...formData,
-        projectId: 'default-project-id',
+        projectId: projectId || 'default-project-id',
         columnWidth: parseFloat(formData.columnWidth),
         columnDepth: parseFloat(formData.columnDepth),
         effectiveLength: parseFloat(formData.effectiveLength),
@@ -48,20 +89,61 @@ export default function ColumnDesign({ projectName, activity }) {
         barDiameter: parseFloat(formData.barDiameter) || 16
       };
 
+      // Get token from localStorage (stored in user object)
+      const storedUser = localStorage.getItem('user');
+      let token = null;
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          token = user.token;
+        } catch (e) {
+          console.error("Failed to parse user from localStorage", e);
+          localStorage.removeItem('user');
+        }
+      }
+
+      if (!token) {
+        setError('Authentication token not found. Please login again.');
+        setLoading(false);
+        return;
+      }
+
+      if (!projectId) {
+        setError('Project ID not available. Please ensure you\'re accessing this page from a valid project.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('🔑 Token found:', token ? 'Yes' : 'No');
+      console.log('📁 Project ID:', projectId);
+      console.log('🌐 Making API call to:', `/api/structure/column-design`);
+      console.log('📤 Payload:', payload);
+
       const response = await axios.post(
         `/api/structure/column-design`,
         payload,
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           }
         }
       );
 
       setResult(response.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred during calculation');
+      console.error('❌ Column design calculation error:', err);
+      console.error('❌ Error response:', err.response);
+      
+      if (err.response?.status === 400 && err.response?.data?.message === 'Invalid token') {
+        setError('Authentication failed. Please login again and try again.');
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('An error occurred during calculation');
+      }
     } finally {
       setLoading(false);
     }
@@ -72,7 +154,37 @@ export default function ColumnDesign({ projectName, activity }) {
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Column Design</h2>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Check authentication and project status */}
+        {(() => {
+          const isAuthenticated = checkAuthStatus();
+          const hasProjectId = checkProjectStatus();
+          const canSubmit = isAuthenticated && hasProjectId;
+          
+          return (
+            <>
+              {!isAuthenticated && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-center gap-2 text-red-700">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    You are not authenticated. Please login to use this feature.
+                  </div>
+                </div>
+              )}
+
+              {!hasProjectId && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <div className="flex items-center gap-2 text-yellow-700">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    Project ID not available. Please ensure you're accessing this page from a valid project.
+                  </div>
+                </div>
+              )}
+              
+              <form onSubmit={handleSubmit} className="space-y-6" style={{ opacity: canSubmit ? 1 : 0.5 }}>
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -271,13 +383,16 @@ export default function ColumnDesign({ projectName, activity }) {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !canSubmit}
               className="px-6 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Calculating...' : 'Calculate Design'}
+              {loading ? 'Calculating...' : !canSubmit ? (!isAuthenticated ? 'Login Required' : 'Project Required') : 'Calculate Design'}
             </button>
           </div>
-        </form>
+              </form>
+            </>
+          );
+        })()}
 
         {/* Error Display */}
         {error && (
