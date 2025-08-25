@@ -1,19 +1,20 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import TermsAndConditions from './TermsAndConditions';
-import { isAuthenticated } from '../utils/authUtils';
+import { getAuthToken } from '../utils/authUtils';
 
 const ProtectedRoute = ({ children }) => {
-  // Check if user is authenticated
-  const authenticated = isAuthenticated();
+  // Check if user is authenticated using the same method as PrivateRoute
+  const token = getAuthToken();
+  const storedUser = localStorage.getItem("user");
+  
+  // If not authenticated, redirect to login
+  if (!token || !storedUser) {
+    return <Navigate to="/login" replace />;
+  }
 
   // Check if terms have been accepted
   const termsAccepted = localStorage.getItem('termsAccepted');
-
-  // If not authenticated, redirect to login
-  if (!authenticated) {
-    return <Navigate to="/login" replace />;
-  }
 
   // If authenticated but terms not accepted, show terms page
   if (!termsAccepted) {
