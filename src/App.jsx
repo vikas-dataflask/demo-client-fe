@@ -27,6 +27,7 @@ import AiSidebar from "./components/SharedComponents/AITools/AISidebar";
 import NewAdminApiTest from "./components/test/NewAdminApiTest";
 import ProductComparisonPage from "./pages/ProductComparisonPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TermsAndConditions from "./components/TermsAndConditions";
 
 function PrivateRoute({ children }) {
   // --- START OF FIX: Correctly retrieve token from 'user' object in localStorage ---
@@ -50,6 +51,18 @@ function PrivateRoute({ children }) {
   if (!token) {
     return <Navigate to="/login" />;
   }
+
+  // Check if terms have been accepted
+  const termsAccepted = localStorage.getItem('termsAccepted');
+  
+  console.log('🔍 PrivateRoute: Terms check:', { token: !!token, termsAccepted });
+  
+  // If terms not accepted, redirect to terms page
+  if (!termsAccepted) {
+    console.log('📋 PrivateRoute: Terms not accepted, redirecting to terms page');
+    return <Navigate to="/terms" />;
+  }
+
   return children;
 }
 
@@ -63,8 +76,10 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        {/* Terms page - accessible only to authenticated users who haven't accepted terms */}
+        <Route path="/terms" element={<TermsAndConditions />} />
 
-        {/* Protected routes - pass onOpenSettings to pages that will use UserAvatar */}
+        {/* Protected routes - all require authentication AND terms acceptance */}
         <Route
           path="/home"
           element={
