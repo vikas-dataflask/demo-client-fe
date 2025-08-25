@@ -1,12 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './TermsAndConditions.css';
-import { clearAuthData } from '../utils/authUtils';
+import { clearAuthData, isAuthenticated } from '../utils/authUtils';
 
 const TermsAndConditions = () => {
   const [accepted, setAccepted] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const navigate = useNavigate();
+
+  // Stabilize navigation functions with useCallback to prevent infinite loops
+  const navigateToLogin = useCallback(() => {
+    navigate('/login');
+  }, [navigate]);
+
+  const navigateToHome = useCallback(() => {
+    navigate('/home');
+  }, [navigate]);
+
+  // Check if user is already authenticated and has accepted terms
+  useEffect(() => {
+    const authenticated = isAuthenticated();
+    const termsAccepted = localStorage.getItem('termsAccepted');
+    
+    console.log('🔍 TermsAndConditions: Auth check:', { authenticated, termsAccepted });
+    
+    if (!authenticated) {
+      console.log('🚫 TermsAndConditions: User not authenticated, redirecting to login');
+      navigateToLogin();
+      return;
+    }
+    
+    if (authenticated && termsAccepted) {
+      console.log('✅ TermsAndConditions: User authenticated and terms accepted, redirecting to home');
+      navigateToHome();
+    }
+  }, [navigateToLogin, navigateToHome]);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -19,15 +47,15 @@ const TermsAndConditions = () => {
       // Store acceptance in localStorage
       localStorage.setItem('termsAccepted', 'true');
       localStorage.setItem('termsAcceptedDate', new Date().toISOString());
-      // Navigate to dashboard or main app
-      navigate('/dashboard');
+      // Navigate to home page instead of dashboard
+      navigateToHome();
     }
   };
 
   const handleDecline = () => {
     // Clear any stored auth data and redirect to login
     clearAuthData();
-    navigate('/login');
+    navigateToLogin();
   };
 
   return (
