@@ -580,7 +580,7 @@ const DialuxForm = () => {
   };
 
   const handleCalculate = () => {
-    if (!roomType || !lumens || !illumination || !uf || !mf) {
+    if (!lumens || !illumination || !uf || !mf) {
       alert("Please fill in all required fields");
       return;
     }
@@ -718,9 +718,12 @@ const DialuxForm = () => {
           {/* Prefill Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-700">
-              <strong>How to use prefill:</strong> 1️⃣ Click "📥 Prefill Data"
+              <strong>How to use prefill (Optional):</strong> 1️⃣ Click "📥 Prefill Data"
               button above 2️⃣ Select a room from dropdown 3️⃣ Form will auto-fill
               with room-specific data
+            </p>
+            <p className="text-xs text-blue-600 mt-2">
+              💡 <strong>Note:</strong> You can also calculate manually by filling in the form fields below without using prefill data.
             </p>
           </div>
 
@@ -774,7 +777,7 @@ const DialuxForm = () => {
             )}
             {!prefillData && (
               <p className="text-xs text-gray-500 mt-1">
-                ℹ️ Click "📥 Prefill Data" button above to load data first
+                ℹ️ Click "📥 Prefill Data" button above to load data first, or fill form manually below
               </p>
             )}
 
@@ -977,9 +980,9 @@ const DialuxForm = () => {
           {/* Calculate Button */}
           <button
             onClick={handleCalculate}
-            disabled={!roomType || !lumens || !illumination || !uf || !mf}
+            disabled={!lumens || !illumination || !uf || !mf}
             className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-              roomType && lumens && illumination && uf && mf
+              lumens && illumination && uf && mf
                 ? "bg-blue-600 text-white hover:bg-blue-700"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
