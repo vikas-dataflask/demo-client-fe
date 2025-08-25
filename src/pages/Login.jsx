@@ -30,8 +30,18 @@ export default function Login() {
       dispatch(setUser(responseData));
 
       toast.success("Login successful!");
+      
+      // Check if terms have been accepted
+      const termsAccepted = localStorage.getItem('termsAccepted');
+      
       // Navigate after a short delay to allow toast to show
-      setTimeout(() => navigate("/home"), 500);
+      setTimeout(() => {
+        if (termsAccepted) {
+          navigate("/home");
+        } else {
+          navigate("/terms");
+        }
+      }, 500);
     } catch (err) {
       console.error("Login error:", err);
       // Access error message from RTK Query error object
