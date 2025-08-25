@@ -95,9 +95,10 @@ export default function Editor({
   const floorShapeRefs = useRef({});
   const data = useSelector((state) => state.floor.floor_dxf) || {};
 
-  const entities = data?.dxf_entities || [];
-  const blocks = data?.dxf_blocks || {};
-  const layers = data?.dxf_layers || {};
+  // Memoize derived data to prevent unnecessary re-renders
+  const entities = useMemo(() => data?.dxf_entities || [], [data?.dxf_entities]);
+  const blocks = useMemo(() => data?.dxf_blocks || {}, [data?.dxf_blocks]);
+  const layers = useMemo(() => data?.dxf_layers || {}, [data?.dxf_layers]);
   
   // PNG image state for PDF conversions
   const [pngImage, setPngImage] = useState(null);
@@ -133,7 +134,10 @@ export default function Editor({
 
   // Handle PNG image from PDF conversion
   useEffect(() => {
-    if (data?.source === "pdf" && data?.png) {
+    const source = data?.source;
+    const pngData = data?.png;
+    
+    if (source === "pdf" && pngData) {
       // Convert base64 or buffer to image
       const img = new window.Image();
       img.onload = () => {
@@ -145,12 +149,12 @@ export default function Editor({
       };
       
       // Handle different PNG data formats
-      if (typeof data.png === "string") {
+      if (typeof pngData === "string") {
         // If it's a base64 string
-        img.src = data.png;
-      } else if (data.png instanceof ArrayBuffer) {
+        img.src = pngData;
+      } else if (pngData instanceof ArrayBuffer) {
         // If it's a buffer, convert to blob URL
-        const blob = new Blob([data.png], { type: "image/png" });
+        const blob = new Blob([pngData], { type: "image/png" });
         const url = URL.createObjectURL(blob);
         img.src = url;
         
@@ -161,7 +165,7 @@ export default function Editor({
       setPngImage(null);
       setPngDimensions({ width: 0, height: 0 });
     }
-  }, [data]);
+  }, [data?.source, data?.png]);
   const currentUserId = useSelector(selectCurrentUserId) || null;
   const currentProjectId = useSelector(selectCurrentProjectId) || null;
   const currentFloorMode =
@@ -178,53 +182,9 @@ export default function Editor({
   const [isDrawingPolygon, setIsDrawingPolygon] = useState(false);
   const [polygonPreviewLine, setPolygonPreviewLine] = useState(null);
   
-  // Debug: Check if currentFloor is found correctly
-  console.log("🎯 Editor: Floor selection debug:", {
-    totalFloors: floors.length,
-    currentFloorId,
-    currentFloorFound: !!currentFloor,
-    currentFloor: currentFloor
-      ? {
-      id: currentFloor.id,
-      name: currentFloor.name,
-      shapesCount: currentFloor.shapes?.length || 0,
-          hasShapes: !!currentFloor.shapes && currentFloor.shapes.length > 0,
-        }
-      : null,
-    allFloorIds: floors.map((f) => f.id),
-  });
-  
-  // Debug logging for currentFloor selection
-  console.log("🎯 Editor: Current floor selection debug:", {
-    floorsCount: floors.length,
-    currentFloorId,
-    currentFloor: currentFloor
-      ? {
-      id: currentFloor.id, 
-      name: currentFloor.name, 
-          shapesCount: currentFloor.shapes?.length || 0,
-        }
-      : null,
-  });
-  
   // Get projectId from props or URL params
   const urlProjectId = useParams().projectId;
   const projectId = propProjectId || urlProjectId;
-  
-  // Debug logging - moved after all variables are declared
-  console.log("Editor Debug:", {
-    hasDxfData: !!data,
-    entitiesCount: entities.length,
-    layersCount: layers.length,
-    blocksCount: Object.keys(blocks).length,
-    currentUserId: currentUserId || "not-set",
-    currentProjectId: currentProjectId || "not-set",
-    userProjectFloorsCount: userProjectFloors.length,
-  });
-  
-  console.log("🎯 Editor: projectId from props:", propProjectId);
-  console.log("🎯 Editor: projectId from URL params:", urlProjectId);
-  console.log("🎯 Editor: final projectId:", projectId);
 
   // API query for fetching floor data
   const { 
@@ -235,8 +195,7 @@ export default function Editor({
   } = useGetFloorsByProjectQuery(projectId, {
     skip: !projectId || projectId === "undefined" || projectId === "null",
   });
-  console.log("floorsData______________________", floorsData);
-  console.log("projectId______________________", projectId);
+
 
   // Handle API data and dispatch to Redux
   useEffect(() => {
@@ -253,12 +212,6 @@ export default function Editor({
         }
       }
       
-      console.log(
-        "🎯 Editor: Floor data received from API for user:",
-        currentUserId
-      );
-      console.log("🎯 Editor: Floor data received from API:", floorsData);
-      
       // Handle different possible response structures
       let apiFloors = [];
       if (floorsData.data && Array.isArray(floorsData.data)) {
@@ -269,34 +222,12 @@ export default function Editor({
         apiFloors = floorsData.floors;
       }
       
-      console.log(
-        "🎯 Editor: Processed API floors (after frontend filtering):",
-        apiFloors
-      );
-      console.log(
-        "🎯 Editor: Total floors available for user:",
-        currentUserId,
-        ":",
-        apiFloors.length
-      );
-      
       if (apiFloors.length > 0) {
-        console.log("🎯 Editor: Raw API floors before conversion:", apiFloors);
         // Convert backend format to frontend format
         const convertedFloors = apiFloors.map((floor) => {
           // Convert backend shape to frontend shape format
           let shapes = [];
           if (floor.shape) {
-            console.log("🎯 Editor: Converting floor shape:", floor.shape);
-            console.log("🎯 Editor: Floor shape type:", floor.shape.type);
-            console.log(
-              "🎯 Editor: Floor shape coordinates:",
-              floor.shape.coordinates
-            );
-            console.log("🎯 Editor: Floor shape width/height:", {
-              width: floor.shape.width,
-              height: floor.shape.height,
-            });
             
             const shapeData = {
               id: `shape-${floor._id || floor.id}`,
@@ -320,30 +251,10 @@ export default function Editor({
               layer: floor.layer || "A-FLOR",
               createdAt: floor.createdAt || new Date().toISOString(),
             };
-            console.log("🎯 Editor: Final shape data:", shapeData);
-            console.log("🎯 Editor: Shape data validation:", {
-              hasValidX: typeof shapeData.x === "number" && !isNaN(shapeData.x),
-              hasValidY: typeof shapeData.y === "number" && !isNaN(shapeData.y),
-              hasValidWidth:
-                typeof shapeData.width === "number" &&
-                !isNaN(shapeData.width) &&
-                shapeData.width > 0,
-              hasValidHeight:
-                typeof shapeData.height === "number" &&
-                !isNaN(shapeData.height) &&
-                shapeData.height > 0,
-              x: shapeData.x,
-              y: shapeData.y,
-              width: shapeData.width,
-              height: shapeData.height,
-            });
+
             shapes.push(shapeData);
           } else {
-            // Fallback: Create a default shape if no shape data is available
-            console.log(
-              "🎯 Editor: No shape data found, creating fallback shape for floor:",
-              floor.name
-            );
+                      // Fallback: Create a default shape if no shape data is available
             // const fallbackShapeData = {
             //   id: `shape-fallback-${floor._id || floor.id}`,
             //   type: 'floor',
@@ -390,48 +301,13 @@ export default function Editor({
             createdAt: floor.createdAt || new Date().toISOString(),
             updatedAt: floor.updatedAt || new Date().toISOString(),
           };
-          console.log("🎯 Editor: Final floor data:", {
-            id: floor._id || floor.id || `floor-${Date.now()}`,
-            name: floor.name,
-            shapesCount: shapes.length,
-            shapes: shapes,
-          });
+
         });
         
-        console.log(
-          "🎯 Editor: Dispatching converted floors to Redux:",
-          convertedFloors
-        );
-        console.log(
-          "🎯 Editor: Each floor shape count:",
-          convertedFloors.map((f) => ({
-          id: f.id, 
-          name: f.name, 
-          shapesCount: f.shapes?.length || 0,
-            isMongoDBObjectId: /^[0-9a-fA-F]{24}$/.test(f.id),
-          }))
-        );
-        console.log(
-          "🎯 Editor: Floor IDs being dispatched:",
-          convertedFloors.map((f) => f.id)
-        );
+
         dispatch(setFloors(convertedFloors));
         
-        // Debug: Check Redux state after dispatch
-        setTimeout(() => {
-          console.log(
-            "🎯 Editor: Redux state after dispatch - floors:",
-            floors
-          );
-          console.log(
-            "🎯 Editor: Redux state after dispatch - currentFloorId:",
-            currentFloorId
-          );
-          console.log(
-            "🎯 Editor: Redux state after dispatch - currentFloor:",
-            currentFloor
-          );
-        }, 100);
+
         
         // Set the first floor as current if no current floor is selected or if current floor doesn't exist
         const currentFloorExists = convertedFloors.find(
