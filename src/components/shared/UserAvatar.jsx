@@ -34,6 +34,9 @@ export default function UserAvatar({ onOpenSettings }) {
 
   const handleLogout = () => {
     dispatch(clearUser());
+    // Clear terms acceptance when logging out
+    localStorage.removeItem('termsAccepted');
+    localStorage.removeItem('termsAcceptedDate');
     setIsOpen(false); // Close dropdown on logout
     navigate("/login");
   };
